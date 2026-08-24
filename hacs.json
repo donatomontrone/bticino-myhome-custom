@@ -1,0 +1,9 @@
+{
+  "name": "BTicino MyHome MH201",
+  "render_readme": true,
+  "domains": [
+    "bticino_myhome"
+  ],
+  "homeassistant": "2025.1.0",
+  "content_in_root": false
+}

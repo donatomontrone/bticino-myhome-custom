@@ -1,0 +1,25 @@
+{
+  "config": {
+    "step": {
+      "user": { "title": "BTicino MyHome - MH201", "description": "Ricerca automatica del gateway sulla rete locale in corso..." },
+      "select_gateway": { "title": "Seleziona il gateway", "data": { "gateway": "Gateway trovato" } },
+      "manual_gateway": { "title": "Inserisci IP del gateway MH201", "data": { "host": "Indirizzo IP", "port": "Porta (default 20000)" } },
+      "credentials": { "title": "Password OpenWebNet", "description": "Se non conosci la password lascia vuoto e prova. In caso di errore riprova con 12345 (default di fabbrica).", "data": { "password": "Password OpenWebNet (opzionale)" } }
+    },
+    "error": { "cannot_connect": "Connessione al gateway non riuscita. Verifica IP, porta e password." }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni BTicino MyHome",
+        "data": {
+          "run_discovery": "Rileva dispositivi automaticamente (autodetect)",
+          "include_scenarios": "Includi scenari Home+Project nella scansione",
+          "alarm_on_separate_bus": "Il 4200C e' su bus separato (BUS2/bridge)",
+          "alarm_bridge_address": "Indirizzo bridge allarme (se applicabile)"
+        }
+      },
+      "run_discovery": { "title": "Scansione completata", "description": "Dispositivi trovati: {count}" }
+    }
+  }
+}
