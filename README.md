@@ -169,7 +169,7 @@ custom_components/bticino_myhome/
 ## Dipendenze
 
 - Home Assistant 2025.1 o successivo
-- `OWNd==0.7.49` by _@anotherjulien_
+- `OWNd==0.7.49` by [_@anotherjulien_](https://github.com/anotherjulien)
 - gateway BTicino/Legrand compatibile OpenWebNet
 
 OWNd è una libreria locale di comunicazione OpenWebNet; la [repository originale](https://github.com/anotherjulien/OWNd) la descrive come event listener e command forwarder per OpenWebNet e la indica come pensata anche per integrazioni Home Assistant.
@@ -387,7 +387,7 @@ custom_components/bticino_myhome/
 ## Dependencies
 
 - Home Assistant 2025.1 or later
-- `OWNd==0.7.49` by _@anotherjulien_
+- `OWNd==0.7.49` by [_@anotherjulien_](https://github.com/anotherjulien)
 - BTicino/Legrand gateway compatible with OpenWebNet
 
 OWNd is a local OpenWebNet communication library; the [original repository](https://github.com/anotherjulien/OWNd) describes it as an event listener and command forwarder for OpenWebNet and states that it is also intended for Home Assistant integrations.
