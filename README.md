@@ -53,7 +53,7 @@ La perdita di Internet comporta invece la perdita delle funzioni che richiedono 
 
 ## Discovery e persistenza
 
-La versione 0.4.2 corregge un problema importante della 0.3: la discovery veniva eseguita ma il risultato non veniva poi passato alle piattaforme Home Assistant.
+La versione 0.1.2 corregge un problema importante delle versioni legacy 0.1 e 0.1.1: la discovery veniva eseguita ma il risultato non veniva poi passato alle piattaforme Home Assistant.
 
 Ora il flusso è:
 
