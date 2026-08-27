@@ -15,7 +15,6 @@ L'integrazione non usa le API cloud BTicino/Legrand/Netatmo per il controllo dei
 - richiamo scenari OpenWebNet (`WHO=0`)
 - sensore diagnostico con ultimo frame citofonico grezzo
 
-Philips Hue, ONVIF/RTSP e altre integrazioni cloud restano volutamente separate.
 
 ## Indipendenza dal cloud
 
