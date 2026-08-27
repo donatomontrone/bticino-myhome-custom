@@ -1,4 +1,4 @@
-# BTicino MyHome MH201 — Home Assistant
+# BTicino MyHome — Home Assistant
 
 Integrazione custom per collegare un gateway **BTicino MH201** a Home Assistant tramite **OpenWebNet direttamente sulla LAN**.
 
@@ -71,7 +71,7 @@ persistenza nel ConfigEntry
 setup delle piattaforme HA
 ```
 
-Al riavvio Home Assistant vengono usati i dispositivi già persistiti. La discovery non viene quindi eseguita ogni volta.
+Al riavvio Home Assistant vengono usati i dispositivi già trovati in precedenza. La discovery non viene quindi eseguita ogni volta.
 
 Per una nuova scansione è disponibile l'Options Flow dell'integrazione.
 
@@ -79,7 +79,7 @@ Nota: alcuni dispositivi/eventi OpenWebNet possono essere rilevabili soltanto tr
 
 ## Stato e affidabilità
 
-La versione 0.4 evita di dichiarare un dispositivo acceso semplicemente perché Home Assistant ha inviato il comando.
+La versione 0.1.2 evita di dichiarare un dispositivo acceso semplicemente perché Home Assistant ha inviato il comando.
 
 Per esempio:
 
@@ -102,7 +102,7 @@ La sessione eventi viene inoltre mantenuta attiva con riconnessione automatica e
 
 ## Installazione
 
-Con HACS:
+Attraverso HACS:
 
 1. HACS → Integrazioni → Repository personalizzate.
 2. Aggiungi questa repository come integrazione.
@@ -130,8 +130,6 @@ Sono disponibili:
 - pulsante per il comando di apertura serratura;
 - sensore diagnostico con l'ultimo frame `WHO=7` ricevuto.
 
-Per il video bisogna configurare separatamente il percorso IP supportato dal proprio posto esterno, per esempio ONVIF/RTSP se disponibile sul modello e firmware installati.
-
 ## Scenari
 
 Gli scenari sono trattati come comandi write-only. La versione corrente registra una serie di indirizzi candidati (`1..30`) e li espone come scene HA.
@@ -144,7 +142,7 @@ Questa parte è volutamente conservativa: la discovery degli scenari non deve es
 - Alcuni dispositivi o topologie BUS possono richiedere discovery passiva o configurazione manuale futura.
 - Il comando serratura non fornisce, da solo, una conferma fisica che la porta sia stata effettivamente aperta.
 - Il supporto all'allarme dipende dai messaggi realmente esposti dal gateway e dal BUS.
-- Le lampadine Philips Hue non vengono gestite da questa integrazione: usare l'integrazione Hue di Home Assistant.
+- I dispositivi di terze parti non vengono gestite da questa integrazione: usare l'integrazione proprietaria o della community del brand se presente in Home Assistant.
 
 ## Struttura
 
@@ -171,10 +169,10 @@ custom_components/bticino_myhome/
 ## Dipendenze
 
 - Home Assistant 2025.1 o successivo
-- `OWNd==0.7.49`
-- gateway BTicino/Legrand compatibile OpenWebNet, nel caso specifico MH201
+- `OWNd==0.7.49` by _@anotherjulien_
+- gateway BTicino/Legrand compatibile OpenWebNet
 
-OWNd è una libreria locale di comunicazione OpenWebNet; la repository originale la descrive come event listener e command forwarder per OpenWebNet e la indica come pensata anche per integrazioni Home Assistant.
+OWNd è una libreria locale di comunicazione OpenWebNet; la [repository originale](https://github.com/anotherjulien/OWNd) la descrive come event listener e command forwarder per OpenWebNet e la indica come pensata anche per integrazioni Home Assistant.
 
 ## Monitor dei frame OpenWebNet
 
