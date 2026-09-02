@@ -52,6 +52,7 @@ def test_async_connect_opens_command_and_event_sessions() -> None:
     event = MagicMock()
     event.connect = AsyncMock(return_value={"Success": True})
     event.close = AsyncMock()
+    event.get_next = AsyncMock(side_effect=asyncio.CancelledError())
 
     with (
         patch("custom_components.bticino_myhome.gateway.OWNCommandSession", return_value=command),
@@ -177,7 +178,7 @@ def test_async_send_rejects_closed_gateway() -> None:
     asyncio.run(gateway.async_close())
 
     with pytest.raises(BticinoGatewayError, match="gateway_closing"):
-        asyncio.run(gateway.async_send("*1*1*21##"))
+        asyncio.run(gateway.async_send("*1*1*1*21##"))
 
 
 def test_async_close_is_idempotent() -> None:
