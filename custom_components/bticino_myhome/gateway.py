@@ -9,7 +9,6 @@ from typing import Any
 from OWNd.connection import OWNCommandSession, OWNEventSession, OWNGateway, OWNSession
 
 from .const import CONF_GATEWAY_HOST, CONF_GATEWAY_PASSWORD, CONF_GATEWAY_PORT
-from .discovery import BticinoDiscovery
 from .protocol import NormalizedEvent
 
 _LOGGER = logging.getLogger(__name__)
@@ -283,8 +282,11 @@ class BticinoGateway:
 
 async def async_discover_gateways(timeout: int = 5) -> list[dict[str, Any]]:
     """Discover MH201 gateways via OWNd's SSDP/OWS discovery."""
+    # Lazy import to avoid circular dependency
+    from .discovery import BticinoDiscovery
+    
     try:
-        gateways = await OWNGateway.discover(timeout=timeout)
+        gateways = await BticinoDiscovery.discover_gateways(timeout=timeout)
     except Exception as err:
         _LOGGER.warning("OWS/SSDP gateway discovery failed: %s", err)
         return []
