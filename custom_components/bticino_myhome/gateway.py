@@ -84,7 +84,11 @@ class BticinoGateway:
             if task_creator is not None:
                 self._event_task = task_creator(coro, "bticino_myhome-event-loop")
             else:
-                self._event_task = asyncio.create_task(coro, name="bticino_myhome-event-loop")
+                try:
+                    self._event_task = asyncio.create_task(coro, name="bticino_myhome-event-loop")
+                except RuntimeError:
+                    # No running event loop (e.g., during some test scenarios)
+                    _LOGGER.debug("Cannot create event loop task - no running event loop")
 
     async def _connect_command_session(self) -> None:
         if self._command_session is not None:
