@@ -1,52 +1,60 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable
-from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.bticino_myhome import gateway as gateway_module
 from custom_components.bticino_myhome.gateway import BticinoGateway, BticinoGatewayError
 
 
-class FakeGateway:
-    def __init__(self, data: dict[str, Any]) -> None:
-        self.data = data
+def _gateway() -> BticinoGateway:
+    with patch("custom_components.bticino_myhome.gateway.OWNGateway"):
+        return BticinoGateway("192.0.2.10", 20000, "password")
 
 
-class FakeSession:
-    def __init__(self, *, result: dict[str, Any] | None = None) -> None:
-        self.result = result or {"Success": True}
-        self.closed = False
-        self.send_started = asyncio.Event()
-        self.release_send = asyncio.Event()
-        self.release_next = asyncio.Event()
+def test_async_test_connection_success() -> None:
+    gateway = _gateway()
+    session = MagicMock()
+    session.test_connection = AsyncMock(return_value={"Success": True})
+    session.close = AsyncMock()
 
-    async def connect(self) -> dict[str, Any]:
-        return self.result
+    with patch(
+        "custom_components.bticino_myhome.gateway.OWNSession", return_value=session
+    ) as session_class:
+        assert asyncio.run(gateway.async_test_connection()) is True
 
-    async def test_connection(self) -> dict[str, Any]:
-        return self.result
+    session_class.assert_called_once()
+    session.test_connection.assert_awaited_once()
+    session.close.assert_awaited_once()
 
-    async def send(self, **_: Any) -> None:
-        self.send_started.set()
-        await self.release_send.wait()
 
-    async def get_next(self) -> str | None:
-        await self.release_next.wait()
-        return None
+def test_async_test_connection_failure_is_typed() -> None:
+    gateway = _gateway()
+    session = MagicMock()
+    session.test_connection = AsyncMock(
+        return_value={"Success": False, "Message": "authentication_failed"}
+    )
+    session.close = AsyncMock()
 
-    async def close(self) -> None:
-        self.closed = True
+    with patch("custom_components.bticino_myhome.gateway.OWNSession", return_value=session):
+        with pytest.raises(BticinoGatewayError, match="authentication_failed"):
+            asyncio.run(gateway.async_test_connection())
 
+    session.close.assert_awaited_once()
 
 class SequenceEventFactory:
     def __init__(self, sessions: list[FakeSession]) -> None:
         self.sessions = iter(sessions)
 
-    def __call__(self, **_: Any) -> FakeSession:
-        return next(self.sessions)
+    with (
+        patch("custom_components.bticino_myhome.gateway.OWNCommandSession", return_value=command),
+        patch("custom_components.bticino_myhome.gateway.OWNEventSession", return_value=event),
+    ):
+        asyncio.run(gateway.async_connect())
+        assert gateway.connected is True
+        assert gateway._event_task is not None
+        asyncio.run(gateway.async_close())
 
 
 def install_fakes(
@@ -60,100 +68,117 @@ def install_fakes(
     event = event or FakeSession()
     test = test or FakeSession()
 
-    monkeypatch.setattr(gateway_module, "OWNGateway", FakeGateway)
-    monkeypatch.setattr(
-        gateway_module,
-        "OWNCommandSession",
-        lambda **_: command,
-    )
-    monkeypatch.setattr(
-        gateway_module,
-        "OWNEventSession",
-        lambda **_: event,
-    )
-    monkeypatch.setattr(
-        gateway_module,
-        "OWNSession",
-        lambda **_: test,
-    )
-    return command, event, test
+
+def test_event_loop_normalizes_frame_and_notifies_listeners() -> None:
+    gateway = _gateway()
+    event_session = MagicMock()
+    event_session.get_next = AsyncMock(side_effect=["*1*1*21##", asyncio.CancelledError()])
+    event_session.close = AsyncMock()
+    gateway._event_session = event_session
+
+    raw_listener = MagicMock()
+    normalized_listener = MagicMock()
+    connection_listener = MagicMock()
+    gateway.add_listener(raw_listener)
+    gateway.add_event_listener(normalized_listener)
+    gateway.add_connection_listener(connection_listener)
+
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(gateway._event_loop())
+
+    raw_listener.assert_called_once_with("*1*1*21##")
+    normalized_listener.assert_called_once()
+    normalized = normalized_listener.call_args.args[0]
+    assert normalized.device_type == "light"
+    assert normalized.state == "on"
+    assert connection_listener.call_args_list[-1].args == (True,)
 
 
-def run(coro: Awaitable[Any]) -> Any:
-    return asyncio.run(coro)
+def test_event_loop_reconnects_after_connection_error() -> None:
+    gateway = _gateway()
+    first = MagicMock()
+    first.connect = AsyncMock(return_value={"Success": True})
+    first.get_next = AsyncMock(side_effect=ConnectionError("lost"))
+    first.close = AsyncMock()
+    second = MagicMock()
+    second.connect = AsyncMock(return_value={"Success": True})
+    second.get_next = AsyncMock(side_effect=asyncio.CancelledError())
+    second.close = AsyncMock()
 
+    with (
+        patch(
+            "custom_components.bticino_myhome.gateway.OWNEventSession",
+            side_effect=[first, second],
+        ),
+        patch("custom_components.bticino_myhome.gateway.asyncio.sleep", new=AsyncMock()),
+    ):
+        with pytest.raises(asyncio.CancelledError):
+            asyncio.run(gateway._event_loop())
 
-def test_async_test_connection_closes_temporary_session(monkeypatch: pytest.MonkeyPatch) -> None:
-    _, _, test = install_fakes(monkeypatch)
-    gateway = BticinoGateway("192.0.2.10", 20000, "12345")
-
-    assert run(gateway.async_test_connection()) is True
-    assert test.closed is True
-
-
-def test_async_connect_closes_command_session_when_event_connection_fails(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    command = FakeSession()
-    event = FakeSession(result={"Success": False, "Message": "event unavailable"})
-    install_fakes(monkeypatch, command=command, event=event)
-    gateway = BticinoGateway("192.0.2.10", 20000, "12345")
-
-    with pytest.raises(BticinoGatewayError, match="event unavailable"):
-        run(gateway.async_connect())
-
-    assert command.closed is True
-    assert event.closed is True
+    first.connect.assert_awaited_once()
+    first.close.assert_awaited_once()
+    second.connect.assert_awaited_once()
     assert gateway.connected is False
 
 
-def test_async_send_timeout_closes_command_session(monkeypatch: pytest.MonkeyPatch) -> None:
-    command = FakeSession()
-    install_fakes(monkeypatch, command=command)
-    monkeypatch.setattr(gateway_module, "_COMMAND_TIMEOUT", 0.01)
-    gateway = BticinoGateway("192.0.2.10", 20000, "12345")
+def test_listener_exceptions_do_not_stop_event_loop() -> None:
+    gateway = _gateway()
+    event_session = MagicMock()
+    event_session.get_next = AsyncMock(side_effect=["*1*1*21##", asyncio.CancelledError()])
+    gateway._event_session = event_session
 
-    with pytest.raises(BticinoGatewayError):
-        run(gateway.async_send("*1*1*2##"))
+    failing_listener = MagicMock(side_effect=RuntimeError("listener failed"))
+    healthy_listener = MagicMock()
+    gateway.add_listener(failing_listener)
+    gateway.add_listener(healthy_listener)
 
-    assert command.closed is True
-    assert gateway.connected is False
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(gateway._event_loop())
 
-
-def test_async_close_cancels_event_worker_and_closes_sessions(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    command, event, _ = install_fakes(monkeypatch)
-    gateway = BticinoGateway("192.0.2.10", 20000, "12345")
-
-    async def scenario() -> None:
-        await gateway.async_connect()
-        await asyncio.sleep(0)
-        assert gateway.connected is True
-        await gateway.async_close()
-
-    run(scenario())
-
-    assert command.closed is True
-    assert event.closed is True
-    assert gateway.connected is False
-    assert gateway._event_task is None
+    failing_listener.assert_called_once()
+    healthy_listener.assert_called_once_with("*1*1*21##")
 
 
-def test_event_worker_reconnects_after_closed_event_session(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    command = FakeSession()
-    first_event = FakeSession()
-    second_event = FakeSession()
-    install_fakes(monkeypatch, command=command, event=first_event)
-    monkeypatch.setattr(
-        gateway_module,
-        "OWNEventSession",
-        SequenceEventFactory([first_event, second_event]),
-    )
-    monkeypatch.setattr(gateway_module, "_RECONNECT_INITIAL_DELAY", 0.01)
-    gateway = BticinoGateway("192.0.2.10", 20000, "12345")
+def test_async_send_uses_command_session() -> None:
+    gateway = _gateway()
+    session = MagicMock()
+    session.connect = AsyncMock(return_value={"Success": True})
+    session.send = AsyncMock()
+    session.close = AsyncMock()
+
+    with patch(
+        "custom_components.bticino_myhome.gateway.OWNCommandSession", return_value=session
+    ):
+        asyncio.run(gateway.async_send("*1*1*21##"))
+
+    session.connect.assert_awaited_once()
+    session.send.assert_awaited_once_with(message="*1*1*21##", is_status_request=False)
+
+
+def test_async_send_wraps_connection_errors() -> None:
+    gateway = _gateway()
+    session = MagicMock()
+    session.connect = AsyncMock(return_value={"Success": True})
+    session.send = AsyncMock(side_effect=ConnectionError("send failed"))
+    session.close = AsyncMock()
+
+    with patch(
+        "custom_components.bticino_myhome.gateway.OWNCommandSession", return_value=session
+    ):
+        with pytest.raises(BticinoGatewayError, match="send failed"):
+            asyncio.run(gateway.async_send("*1*1*21##"))
+
+    session.close.assert_awaited_once()
+    assert gateway._command_session is None
+
+
+def test_async_send_rejects_closed_gateway() -> None:
+    gateway = _gateway()
+    asyncio.run(gateway.async_close())
+
+    with pytest.raises(BticinoGatewayError, match="gateway_closing"):
+        asyncio.run(gateway.async_send("*1*1*21##"))
+
 
     async def scenario() -> None:
         await gateway.async_connect()
