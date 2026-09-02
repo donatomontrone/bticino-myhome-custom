@@ -7,8 +7,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, WHO_AUTOMATION
-from .protocol import cover_close, cover_open, cover_stop
 from .entity import BticinoEntity
+from .protocol import cover_close, cover_open, cover_stop
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
@@ -35,28 +35,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
 class BticinoCover(BticinoEntity, CoverEntity):
     _attr_device_class = CoverDeviceClass.SHUTTER
-    _attr_supported_features = CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
-
-    def __init__(self, gateway, who: str, where: str, name: str) -> None:
-        BticinoEntity.__init__(self, gateway, who, where, name)
-        self._attr_unique_id = f"{DOMAIN}_{who}_{where}_cover"
-        self._attr_is_closed = None
+    _attr_supported_features = (
+        CoverEntityFeature.OPEN
+        | CoverEntityFeature.CLOSE
+        | CoverEntityFeature.STOP
+    )
 
     async def async_open_cover(self, **kwargs) -> None:
-        await self._gateway.async_send(cover_open(self._where))
+        await self.gateway.async_send(cover_open(int(self.where)))
 
     async def async_close_cover(self, **kwargs) -> None:
-        await self._gateway.async_send(cover_close(self._where))
+        await self.gateway.async_send(cover_close(int(self.where)))
 
     async def async_stop_cover(self, **kwargs) -> None:
-        await self._gateway.async_send(cover_stop(self._where))
-
-    def _handle_event(self, event) -> None:
-        if event.who != WHO_AUTOMATION or event.where != self._where:
-            return
-        if event.state == "open":
-            self._attr_is_closed = False
-            self.async_write_ha_state()
-        elif event.state == "closed":
-            self._attr_is_closed = True
-            self.async_write_ha_state()
+        await self.gateway.async_send(cover_stop(int(self.where)))

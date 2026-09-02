@@ -7,8 +7,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
-from .protocol import scene_activate
 from .entity import BticinoEntity
+from .protocol import scene_activate
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
@@ -34,9 +34,5 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
 
 class BticinoScene(BticinoEntity, Scene):
-    def __init__(self, gateway, who: str, where: str, name: str) -> None:
-        BticinoEntity.__init__(self, gateway, who, where, name)
-        self._attr_unique_id = f"{DOMAIN}_{who}_{where}_scene"
-
     async def async_activate(self, **kwargs) -> None:
-        await self._gateway.async_send(scene_activate(self._where))
+        await self.gateway.async_send(scene_activate(int(self.where)))

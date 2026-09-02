@@ -7,8 +7,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, WHO_LOAD_MANAGEMENT
-from .protocol import load_off, load_on
 from .entity import BticinoEntity
+from .protocol import load_off, load_on
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
@@ -34,23 +34,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
 
 class BticinoLoadSwitch(BticinoEntity, SwitchEntity):
-    def __init__(self, gateway, who: str, where: str, name: str) -> None:
-        BticinoEntity.__init__(self, gateway, who, where, name)
-        self._attr_unique_id = f"{DOMAIN}_{who}_{where}_load"
-        self._attr_is_on = False
-
     async def async_turn_on(self, **kwargs) -> None:
-        await self._gateway.async_send(load_on(self._where))
+        await self.gateway.async_send(load_on(int(self.where)))
 
     async def async_turn_off(self, **kwargs) -> None:
-        await self._gateway.async_send(load_off(self._where))
-
-    def _handle_event(self, event) -> None:
-        if event.who != WHO_LOAD_MANAGEMENT or event.where != self._where:
-            return
-        if event.state == "on":
-            self._attr_is_on = True
-            self.async_write_ha_state()
-        elif event.state == "off":
-            self._attr_is_on = False
-            self.async_write_ha_state()
+        await self.gateway.async_send(load_off(int(self.where)))

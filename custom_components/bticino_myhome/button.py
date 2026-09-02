@@ -7,21 +7,32 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, WHO_VIDEO_DOOR_ENTRY
-from .protocol import door_lock_release
 from .entity import BticinoEntity
+from .protocol import door_lock_release
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    gateway = entry.runtime_data.gateway
-    async_add_entities([BticinoDoorLockButton(gateway, WHO_VIDEO_DOOR_ENTRY, "0", "Apri serratura ingresso")])
+    runtime = entry.runtime_data
+    gateway = runtime.gateway
+    manager = runtime.device_manager
+    known = {d.key for d in manager.devices if d.device_type == "door_lock"}
+
+    initial = [
+        BticinoDoorLockRelease(gateway, d.who, d.where, d.name)
+        for d in manager.devices
+        if d.device_type == "door_lock"
+    ]
+    async_add_entities(initial)
+
+    def _device_added(device) -> None:
+        if device.device_type != "door_lock" or device.key in known:
+            return
+        known.add(device.key)
+        async_add_entities([BticinoDoorLockRelease(gateway, device.who, device.where, device.name)])
+
+    entry.async_on_unload(manager.add_listener(_device_added))
 
 
-class BticinoDoorLockButton(BticinoEntity, ButtonEntity):
-    _attr_icon = "mdi:lock-open-variant"
-
-    def __init__(self, gateway, who: str, where: str, name: str) -> None:
-        BticinoEntity.__init__(self, gateway, who, where, name)
-        self._attr_unique_id = f"{DOMAIN}_{who}_{where}_door_lock"
-
+class BticinoDoorLockRelease(BticinoEntity, ButtonEntity):
     async def async_press(self) -> None:
-        await self._gateway.async_send(door_lock_release(self._where))
+        await self.gateway.async_send(door_lock_release(int(self.where)))
