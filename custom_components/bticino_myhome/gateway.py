@@ -70,7 +70,7 @@ class BticinoGateway:
                 _LOGGER.warning("Failed to close OWNd test session", exc_info=True)
 
     async def async_connect(self, task_creator: Callable[[Callable[[], Any], str], asyncio.Task[Any]] | None = None) -> None:
-        """Connect command/event sessions and start the persistent event worker."""
+        """Connect command/event sessions and optionally start the persistent event worker."""
         self._closing = False
         await self._connect_command_session()
         try:
@@ -79,16 +79,10 @@ class BticinoGateway:
             await self._close_command_session()
             raise
 
-        if self._event_task is None or self._event_task.done():
-            coro = self._event_loop()
-            if task_creator is not None:
-                self._event_task = task_creator(coro, "bticino_myhome-event-loop")
-            else:
-                try:
-                    self._event_task = asyncio.create_task(coro, name="bticino_myhome-event-loop")
-                except RuntimeError:
-                    # No running event loop (e.g., during some test scenarios)
-                    _LOGGER.debug("Cannot create event loop task - no running event loop")
+        # Only start event loop if task_creator is provided
+        # This allows tests to connect without starting the infinite loop
+        if task_creator is not None and (self._event_task is None or self._event_task.done()):
+            self._event_task = task_creator(self._event_loop(), "bticino_myhome-event-loop")
 
     async def _connect_command_session(self) -> None:
         """Open command session for sending frames."""
