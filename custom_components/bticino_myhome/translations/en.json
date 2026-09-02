@@ -33,17 +33,44 @@
   "options": {
     "step": {
       "init": {
-        "title": "Opzioni BTicino MyHome",
+        "title": "BTicino MyHome options",
         "data": {
-          "run_discovery": "Run device discovery",
+          "action": "Action",
           "include_scenarios": "Include Home+Project scenario candidates",
-          "discovery_listen_seconds": "Passive listening time (seconds, 0-60)"
+          "discovery_listen_seconds": "Listening time during scan (0-60 seconds)"
         }
       },
       "run_discovery": {
-        "title": "Scansione completata",
-        "description": "Dispositivi trovati: {count}"
+        "title": "Scan completed",
+        "description": "Confirmed devices have been added to the inventory."
+      },
+      "manual_device": {
+        "title": "Add device manually",
+        "description": "Use this mode for devices that cannot be discovered automatically.",
+        "data": {
+          "who": "WHO",
+          "where": "WHERE",
+          "device_type": "Tipo dispositivo",
+          "name": "Nome (opzionale)"
+        }
+      },
+      "passive_learning": {
+        "title": "Learn BTicino devices",
+        "description": "Listen to the BUS without sending commands. Use the physical controls you want to identify while listening.",
+        "data": {
+          "listen_seconds": "Listening time (seconds)"
+        }
+      },
+      "select_learned": {
+        "title": "Discovered devices",
+        "description": "Select the devices to add to the inventory.",
+        "data": {
+          "devices": "Devices"
+        }
       }
+    },
+    "abort": {
+      "no_devices_found": "No supported device was detected during listening."
     }
   }
 }

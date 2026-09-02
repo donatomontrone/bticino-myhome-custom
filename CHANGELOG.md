@@ -1,6 +1,15 @@
 # Changelog
 
-## 0.1.5 - Passive learning e registrazione dinamica dei dispositivi
+## 0.1.6 - Motore di discovery unificato e registrazione manuale dei dispositivi
+
+* Introdotto un motore di Discovery unificato con sorgenti passive, attive e manuali.
+* Normalizzati i metadati di discovery includendo sorgente e funzionalità (capabilities).
+* Le scansioni attive vengono accettate solo quando gli eventi di bus corrispondenti confermano la presenza del dispositivo.
+* Aggiunta la registrazione manuale dei dispositivi per i terminali che non possono essere rilevati automaticamente.
+* I risultati della discovery vengono uniti (merged) all'interno del Device Manager anziché sovrascrivere i dispositivi esistenti.
+* Aggiunti i test unitari per il motore di discovery.
+
+## 0.1.5
 
 * Aggiunto il passive learning sicuro: ascolta i reali eventi OpenWebNet senza inviare comandi di discovery.
 * Aggiunta la normalizzazione da evento a dispositivo per i valori WHO supportati.
@@ -65,7 +74,16 @@
 
 ---
 
-## 0.1.5 - Passive learning and dynamic device registration
+## 0.1.6 - Unified discovery engine and manual device registration
+
+* Introduced a unified Discovery Engine with passive, active and manual sources.
+* Normalized discovery metadata with source and capabilities.
+* Active probes are accepted only when matching bus events confirm a device.
+* Added manual device registration for endpoints that cannot be discovered automatically.
+* Discovery results are merged into the Device Manager instead of replacing existing devices.
+* Added discovery engine unit tests.
+
+## 0.1.5 
 
 * Added safe passive learning: listens to real OpenWebNet events without transmitting discovery commands.
 * Added event-to-device normalization for supported WHO values.

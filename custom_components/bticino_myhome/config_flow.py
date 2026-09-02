@@ -113,6 +113,8 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
                 return await self.async_step_run_discovery(user_input)
             if action == "learn":
                 return await self.async_step_passive_learning()
+            if action == "manual":
+                return await self.async_step_manual_device()
             return self.async_create_entry(title="", data={})
         return self.async_show_form(
             step_id="init",
@@ -121,10 +123,53 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
                     "none": "Nessuna azione",
                     "scan": "Scansione automatica",
                     "learn": "Impara dispositivi dai pulsanti fisici",
+                    "manual": "Aggiungi dispositivo manualmente",
                 }),
                 vol.Optional("include_scenarios", default=True): bool,
                 vol.Optional("discovery_listen_seconds", default=3): vol.All(vol.Coerce(int), vol.Range(min=0, max=60)),
             }),
+        )
+
+
+    async def async_step_manual_device(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Register an endpoint when it cannot be discovered automatically."""
+        if user_input is not None:
+            entry = self.config_entry
+            device = BticinoDiscovery.from_manual(
+                who=user_input["who"],
+                where=user_input["where"],
+                device_type=user_input.get("device_type"),
+                name=user_input.get("name") or None,
+            )
+            manager = entry.runtime_data.device_manager
+            manager.add(device)
+            devices = {item.key: item for item in manager.devices}
+            self.hass.config_entries.async_update_entry(
+                entry, data={**entry.data, "devices": [item.to_dict() for item in devices.values()]}
+            )
+            return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="manual_device",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("who"): str,
+                    vol.Required("where"): str,
+                    vol.Optional("device_type", default="sensor"): vol.In(
+                        {
+                            "light": "Luce",
+                            "cover": "Tapparella",
+                            "load": "Gestione carichi",
+                            "alarm": "Allarme",
+                            "intercom": "Citofono",
+                            "scene": "Scenario",
+                            "energy": "Energia",
+                            "sensor": "Sensore",
+                        }
+                    ),
+                    vol.Optional("name", default=""): str,
+                }
+            ),
         )
 
     async def async_step_passive_learning(self, user_input: dict[str, Any] | None = None) -> FlowResult:
@@ -192,8 +237,10 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
                 include_scenarios=user_input.get("include_scenarios", True) if user_input else True,
                 listen_seconds=user_input.get("discovery_listen_seconds", 3) if user_input else 3,
             )
+            manager = entry.runtime_data.device_manager
+            manager.add_many(found)
             self.hass.config_entries.async_update_entry(
-                entry, data={**entry.data, "devices": [d.to_dict() for d in found]}
+                entry, data={**entry.data, "devices": manager.as_dicts()}
             )
         finally:
             await gateway.async_close()

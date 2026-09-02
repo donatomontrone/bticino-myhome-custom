@@ -308,3 +308,46 @@ If reporting an issue, include:
 - MH201 firmware if known;
 - the relevant log excerpt;
 - diagnostics with sensitive fields redacted automatically by Home Assistant.
+
+## Discovery Engine
+
+The integration deliberately does not assume that every MyHome device has a physical button. Discovery therefore has three complementary sources:
+
+```text
+                    MH201
+                      │
+               OpenWebNet / OWNd
+                      │
+          ┌───────────┼───────────┐
+          ▼           ▼           ▼
+       Passive       Active      Manual
+        events        probes       UI
+          │           │           │
+          └───────────┼───────────┘
+                      ▼
+              Discovery Engine
+                      │
+                      ▼
+              DiscoveredDevice
+                      │
+                      ▼
+               Device Manager
+```
+
+### Passive discovery
+
+The integration listens to real OpenWebNet traffic. It does not send commands during passive learning. This is useful for physical controls such as lights and shutters, and can also identify sensors/thermostats/alarm events when those devices emit observable events.
+
+### Active discovery
+
+The integration can send status probes for supported WHO/WHERE ranges. A probe is **not** considered proof that an address exists: a device is accepted only when a matching OpenWebNet event is observed. This conservative approach avoids creating dozens of false devices for unused addresses.
+
+### Manual discovery
+
+Some MyHome endpoints may not expose a discoverable event or may require installation-specific knowledge. They can therefore be registered from the integration options by specifying WHO, WHERE, type and an optional name. Manual discovery is a fallback, not a requirement for normal devices.
+
+All three paths produce the same normalized `DiscoveredDevice` object and are then handled by the Device Manager. This means future device platforms such as climate, energy and alarm do not need to know how the endpoint was discovered.
+
+## Discovery source and capabilities
+
+Every discovered endpoint records its source (`passive`, `active` or `manual`) and a normalized capability list. These fields are internal integration metadata and are also used to improve diagnostics and future device setup flows.

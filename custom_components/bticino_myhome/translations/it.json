@@ -35,27 +35,37 @@
       "init": {
         "title": "Opzioni BTicino MyHome",
         "data": {
-          "run_discovery": "Run device discovery",
-          "include_scenarios": "Include Home+Project scenario candidates",
-          "discovery_listen_seconds": "Passive listening time (seconds, 0-60)"
+          "action": "Azione",
+          "include_scenarios": "Includi scenari Home+Project",
+          "discovery_listen_seconds": "Secondi di ascolto durante la scansione (0-60)"
         }
       },
       "run_discovery": {
         "title": "Scansione completata",
-        "description": "Dispositivi trovati: {count}"
+        "description": "I dispositivi confermati sono stati aggiunti all'inventario."
       },
       "passive_learning": {
         "title": "Impara dispositivi BTicino",
-        "description": "Dopo aver avviato la scansione, premi i pulsanti fisici BTicino che vuoi imparare. Non viene inviato alcun comando al bus.",
+        "description": "Ascolta il BUS senza inviare comandi. Durante l'ascolto usa i dispositivi fisici che vuoi identificare.",
         "data": {
           "listen_seconds": "Durata ascolto (secondi)"
         }
       },
       "select_learned": {
         "title": "Dispositivi rilevati",
-        "description": "Seleziona i dispositivi che vuoi aggiungere a Home Assistant.",
+        "description": "Seleziona i dispositivi da aggiungere all'inventario.",
         "data": {
           "devices": "Dispositivi"
+        }
+      },
+      "manual_device": {
+        "title": "Aggiungi dispositivo manualmente",
+        "description": "Usa questa modalità per dispositivi che non possono essere scoperti automaticamente.",
+        "data": {
+          "who": "WHO",
+          "where": "WHERE",
+          "device_type": "Tipo dispositivo",
+          "name": "Nome (opzionale)"
         }
       }
     },
