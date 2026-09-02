@@ -71,7 +71,7 @@ class BticinoGateway:
             except Exception:  # noqa: BLE001
                 _LOGGER.warning("Failed to close OWNd test session", exc_info=True)
 
-    async def async_connect(self, *, task_creator: Callable[[Any, str], asyncio.Task] | None = None) -> None:
+    async def async_connect(self, *, task_creator: Callable[[Any, str], asyncio.Task[None]] | None = None) -> None:
         """Connect command/event sessions and start the persistent event worker."""
         self._closing = False
         await self._connect_command_session()
@@ -124,18 +124,21 @@ class BticinoGateway:
                 backoff = 1.0
                 raw = str(message).strip()
                 _LOGGER.debug("OpenWebNet RX: %s", raw)
-                for listener in tuple(self._listeners):
+                
+                raw_listeners: tuple[Callable[[str], None], ...] = tuple(self._listeners)
+                for raw_listener in raw_listeners:
                     try:
-                        listener(raw)
+                        raw_listener(raw)
                     except Exception:  # noqa: BLE001
                         _LOGGER.exception("OpenWebNet raw listener failed")
 
                 frame = parse_frame(raw)
                 if frame is not None:
                     event = normalize_frame(frame)
-                    for listener in tuple(self._event_listeners):
+                    event_listeners: tuple[Callable[[NormalizedEvent], None], ...] = tuple(self._event_listeners)
+                    for event_listener in event_listeners:
                         try:
-                            listener(event)
+                            event_listener(event)
                         except Exception:  # noqa: BLE001
                             _LOGGER.exception("OpenWebNet normalized event listener failed")
             except asyncio.CancelledError:
@@ -209,8 +212,10 @@ class BticinoGateway:
     def add_connection_listener(self, callback: Callable[[bool], None]) -> Callable[[], None]:
         self._connection_listeners.add(callback)
         callback(self._connected)
+
         def _remove() -> None:
             self._connection_listeners.discard(callback)
+
         return _remove
 
     def _set_connected(self, connected: bool) -> None:
