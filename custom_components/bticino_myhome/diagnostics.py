@@ -7,7 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.redact_data import async_redact_data
 
-from .const import CONF_GATEWAY_HOST, CONF_GATEWAY_PASSWORD, CONF_GATEWAY_PORT
+from .const import CONF_GATEWAY_HOST, CONF_GATEWAY_PASSWORD
 
 TO_REDACT = {
     CONF_GATEWAY_PASSWORD,

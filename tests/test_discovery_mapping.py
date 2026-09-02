@@ -2,7 +2,8 @@ import asyncio
 from custom_components.bticino_myhome.gateway import async_discover_gateways
 import custom_components.bticino_myhome.gateway as gateway_module
 
-class FakeGateway: pass
+class FakeGateway: 
+    pass
 
 def test_discovery_mapping(monkeypatch):
     async def fake_find():
