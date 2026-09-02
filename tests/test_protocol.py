@@ -9,6 +9,10 @@ from custom_components.bticino_myhome.protocol.commands import (
     cover_open,
     light_off,
     light_on,
+    load_off,
+    load_on,
+    scene_activate,
+    door_lock_release,
 )
 
 
@@ -40,3 +44,15 @@ def test_command_builders() -> None:
     assert light_off("21") == "*1*0*21##"
     assert cover_open("15") == "*2*1*15##"
     assert alarm_arm_away("0") == "*5*1*0##"
+
+
+def test_public_command_exports():
+    assert load_on("7") == "*3*1*7##"
+    assert load_off("7") == "*3*0*7##"
+    assert scene_activate("4") == "*0*1*4##"
+    assert door_lock_release("0") == "*7*10*0##"
+
+
+def test_parser_rejects_empty_input():
+    assert parse_frame("") is None
+    assert parse_frame(None) is None

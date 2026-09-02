@@ -16,7 +16,11 @@ def parse_frame(raw_message: str) -> OpenWebNetFrame | None:
     Status-request frames (``*#...``) and malformed messages are intentionally
     rejected because they are commands rather than device events.
     """
+    if raw_message is None:
+        return None
     raw = str(raw_message).strip()
+    if not raw:
+        return None
     match = _FRAME_RE.fullmatch(raw)
     if match is None:
         return None

@@ -73,23 +73,17 @@ class BticinoMyHomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 unique_id = f"{self._chosen_gateway[CONF_GATEWAY_HOST]}:{self._chosen_gateway[CONF_GATEWAY_PORT]}"
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
-                devices: list[dict] = []
-                try:
-                    await gw.async_connect()
-                    found = await BticinoDiscovery(gw).async_run_full_scan(listen_seconds=3)
-                    devices = [d.to_dict() for d in found]
-                except Exception:
-                    # Connection has already been validated; a discovery failure must not block setup.
-                    devices = []
-                finally:
-                    await gw.async_close()
+                # Do not run a bus-wide discovery scan during config flow.
+                # Setup should remain fast and deterministic; discovery is an
+                # explicit operation from the integration Options flow.
+                await gw.async_close()
                 return self.async_create_entry(
                     title=f"BTicino MyHome ({self._chosen_gateway[CONF_GATEWAY_HOST]})",
                     data={
                         CONF_GATEWAY_HOST: self._chosen_gateway[CONF_GATEWAY_HOST],
                         CONF_GATEWAY_PORT: self._chosen_gateway[CONF_GATEWAY_PORT],
                         CONF_GATEWAY_PASSWORD: password,
-                        "devices": devices,
+                        "devices": [],
                     },
                 )
         return self.async_show_form(step_id="credentials", data_schema=vol.Schema({vol.Optional(CONF_GATEWAY_PASSWORD, default=""): str}), errors=errors)

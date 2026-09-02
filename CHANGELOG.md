@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.1.7 - Rafforzamento del livello di protocollo e dell'architettura
+## 0.1.8 - Rafforzamento del repository
+
+* Completate le esportazioni del pacchetto di protocollo pubblico utilizzate da tutti i builder di comandi delle entità.
+* Rimossa la scansione di discovery implicita su tutto il bus dal Config Flow iniziale; la discovery è ora un'azione esplicita dell'Options Flow.
+* Riscritto in modo più rigoroso il parser di protocollo per la gestione di input vuoti/nulli.
+* Aggiunta una tipizzazione più forte alle API di serializzazione dell'inventario dispositivi.
+* Mantenuta la funzionalità WHO=22/media/diffusione sonora fuori dal campo di applicazione (*out of scope*).
+
+## 0.1.7
 
 * Aggiunto un livello di protocollo OpenWebNet dedicato in `custom_components/bticino_myhome/protocol/`.
 * Aggiunti il modello di frame analizzato (*parsed*) e immutabile, il parser, i builder di comandi e gli eventi semantici normalizzati.
@@ -87,7 +95,15 @@
 
 ---
 
-## 0.1.7 - Protocol layer and architecture hardening
+## 0.1.8 - Repository hardening
+
+- Completed the public protocol package exports used by all entity command builders.
+- Removed the implicit bus-wide discovery scan from the initial Config Flow; discovery is now an explicit Options Flow action.
+- Tightened protocol parser handling for empty/null input.
+- Added stronger typing to the device inventory serialization API.
+- Kept WHO=22/media/sound-diffusion functionality out of scope.
+
+## 0.1.7
 
 - Added a dedicated OpenWebNet protocol layer under `custom_components/bticino_myhome/protocol/`.
 - Added immutable parsed frame model, parser, command builders and normalized semantic events.

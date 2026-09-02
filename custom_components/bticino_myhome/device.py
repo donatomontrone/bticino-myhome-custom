@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
+from typing import Any
 
 from .discovery import DiscoveredDevice
 
@@ -51,5 +52,5 @@ class BticinoDeviceManager:
             for listener in tuple(self._listeners):
                 listener(device)
 
-    def as_dicts(self) -> list[dict]:
+    def as_dicts(self) -> list[dict[str, Any]]:
         return [device.to_dict() for device in self.devices]

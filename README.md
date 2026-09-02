@@ -32,7 +32,7 @@ If Internet access or the manufacturer's cloud is unavailable, local Home Assist
 
 ## Current capabilities
 
-The current development line focuses on:
+The current development line (0.1.8) focuses on:
 
 - **WHO=1** — lighting
 - **WHO=2** — automation / shutters / covers
@@ -90,7 +90,7 @@ and restart Home Assistant.
 
 ## Configuration
 
-The config flow first attempts to discover the MH201 on the local network. If discovery is not available, the gateway can be entered manually by IP address and port.
+The config flow first attempts to discover the MH201 on the local network. If discovery is not available, the gateway can be entered manually by IP address and port. The initial setup does not perform a bus-wide device scan; discovery is an explicit action from the integration Options flow so setup remains fast and deterministic.
 
 Default OpenWebNet port:
 
@@ -252,6 +252,17 @@ The integration itself does not require Internet access for local MH201 control.
 ### Discovery does not find every device
 
 OpenWebNet discovery is not equivalent to reading the complete configuration stored in Home+Project. Some devices/events are only observable when they generate traffic on the BUS. Use **Settings → Devices & services → BTicino MyHome → Configure → Impara dispositivi dai pulsanti fisici** to start passive learning. During the selected time window, press the physical BTicino controls you want to identify. No discovery command is transmitted in this mode.
+
+## Technical documentation
+
+Detailed architecture and protocol decisions are maintained in:
+
+- `docs/architecture.md`
+- `docs/protocol.md`
+- `docs/discovery.md`
+- `docs/roadmap.md`
+
+These documents describe the intended boundaries before runtime validation on a real MH201.
 
 ## Development architecture
 
