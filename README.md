@@ -1,207 +1,197 @@
-# BTicino MyHome MH201 — Home Assistant
+# BTicino MyHome MH201 for Home Assistant
 
-Integrazione custom per collegare un gateway **BTicino MH201** a Home Assistant tramite **OpenWebNet direttamente sulla LAN**.
+A local-first Home Assistant custom integration for **BTicino MyHome systems using an MH201 gateway and OpenWebNet**.
 
-L'integrazione non usa le API cloud BTicino/Legrand/Netatmo per il controllo dei dispositivi. Home Assistant apre una connessione TCP al gateway OpenWebNet, normalmente sulla porta `20000`.
+The integration communicates directly with the MH201 over the local network. It does **not** use the BTicino, Netatmo or Legrand cloud for device control.
 
-## Cosa gestisce
+> **Scope:** this project is intentionally focused on MH201/OpenWebNet. Audio, sound diffusion and music features are deliberately out of scope.
 
-- luci BUS/SCS (`WHO=1`)
-- tapparelle/tende/automazione (`WHO=2`)
-- gestione carichi (`WHO=3`)
-- allarme 4200C (`WHO=5`, nei limiti di ciò che espone il gateway/OWNd)
-- videocitofonia come segnalazione evento (`WHO=7`)
-- apertura serratura (`WHO=7`, comando write-only)
-- richiamo scenari OpenWebNet (`WHO=0`)
-- sensore diagnostico con ultimo frame citofonico grezzo
+## Why this project?
 
-Philips Hue, ONVIF/RTSP e altre integrazioni cloud restano volutamente separate.
-
-## Indipendenza dal cloud
-
-Questo è uno degli obiettivi principali dell'integrazione.
-
-Il percorso di controllo è:
+The goal is to make a BTicino MyHome installation feel like a native Home Assistant system while keeping the control path local:
 
 ```text
 Home Assistant
       │
       │ TCP / OpenWebNet
       ▼
-BTicino MH201
+   BTicino MH201
       │
-      │ BUS/SCS
+      │ SCS / BUS
       ▼
-Dispositivi BTicino
+ BTicino devices
 ```
 
-Non è:
+There is no dependency on this path on:
 
 ```text
-Home Assistant → Internet → BTicino Cloud → Impianto
+Home Assistant → Internet → BTicino/Netatmo/Legrand Cloud → MyHome
 ```
 
-Di conseguenza, se il cloud BTicino/Netatmo/Legrand è indisponibile, **il controllo locale da Home Assistant può continuare a funzionare**. La condizione è che:
+If Internet access or the manufacturer's cloud is unavailable, local Home Assistant control can continue to work as long as Home Assistant, the LAN and the MH201 remain available.
 
-1. Home Assistant sia acceso;
-2. Home Assistant riesca a raggiungere il MH201 sulla LAN;
-3. il MH201 sia acceso e collegato al BUS/SCS;
-4. la rete locale continui a funzionare.
+## Current capabilities
 
-Se invece cade la LAN o il MH201 non è raggiungibile, nessuna integrazione software locale può comandare il BUS attraverso quel gateway.
+The current development line focuses on:
 
-La perdita di Internet comporta invece la perdita delle funzioni che richiedono Internet, per esempio accesso remoto a Home Assistant tramite Home Assistant Cloud, servizi cloud del produttore e integrazioni che non hanno un percorso locale.
+- **WHO=1** — lighting
+- **WHO=2** — automation / shutters / covers
+- **WHO=3** — load management
+- **WHO=5** — alarm / 4200C, with protocol support being expanded from real-world captures
+- **WHO=7** — video door entry events and door-lock command
+- **WHO=0** — OpenWebNet scenarios
+- local gateway discovery through OWNd/SSDP
+- persistent discovered-device inventory
+- asynchronous OpenWebNet event monitoring
+- automatic event-session reconnect with exponential backoff
+- Home Assistant diagnostics
+- an OpenWebNet frame monitor for protocol analysis
 
-## Discovery e persistenza
+Climate, energy and advanced passive-learning/discovery capabilities are planned development areas. Music/sound diffusion is intentionally **not** planned.
 
-La versione 0.4.2 corregge un problema importante della 0.3: la discovery veniva eseguita ma il risultato non veniva poi passato alle piattaforme Home Assistant.
+## Installation
 
-Ora il flusso è:
+### HACS
 
-```text
-Config Flow
-    ↓
-connessione locale al MH201
-    ↓
-discovery attiva + ascolto passivo
-    ↓
-dispositivi trovati
-    ↓
-persistenza nel ConfigEntry
-    ↓
-setup delle piattaforme HA
+Once the repository is published and added to HACS as a custom repository:
+
+1. Open **HACS → Integrations**.
+2. Add this repository as a custom integration if it is not already available.
+3. Install **BTicino MyHome MH201**.
+4. Restart Home Assistant.
+5. Open **Settings → Devices & services → Add integration**.
+6. Search for **BTicino MyHome**.
+
+Home Assistant installs the Python dependency declared in `manifest.json` automatically:
+
+```json
+"requirements": [
+  "OWNd==0.7.49"
+]
 ```
 
-Al riavvio Home Assistant vengono usati i dispositivi già persistiti. La discovery non viene quindi eseguita ogni volta.
+You do not need to install OWNd manually on the Home Assistant host.
 
-Per una nuova scansione è disponibile l'Options Flow dell'integrazione.
+### Manual installation
 
-Nota: alcuni dispositivi/eventi OpenWebNet possono essere rilevabili soltanto tramite attività sul bus. Per questi casi è possibile aumentare i secondi di ascolto passivo durante la discovery e, per il citofono, effettuare una chiamata durante la scansione.
-
-## Stato e affidabilità
-
-La versione 0.4 evita di dichiarare un dispositivo acceso semplicemente perché Home Assistant ha inviato il comando.
-
-Per esempio:
-
-```text
-HA → ON
-     │
-     ▼
-   MH201
-     │
-     ▼
-evento OpenWebNet
-     │
-     ▼
-stato HA = ON
-```
-
-Questo evita stati falsi dopo un comando fallito o quando il dispositivo non risponde.
-
-La sessione eventi viene inoltre mantenuta attiva con riconnessione automatica e le entità diventano non disponibili quando il gateway perde la connessione.
-
-## Installazione
-
-Con HACS:
-
-1. HACS → Integrazioni → Repository personalizzate.
-2. Aggiungi questa repository come integrazione.
-3. Installa **BTicino MyHome MH201**.
-4. Riavvia Home Assistant.
-5. Impostazioni → Dispositivi e servizi → Aggiungi integrazione → **BTicino MyHome**.
-
-In alternativa copia `custom_components/bticino_myhome` in `/config/custom_components/` e riavvia Home Assistant.
-
-## Gateway
-
-Il MH201 deve essere raggiungibile dalla stessa rete locale di Home Assistant. BTicino documenta la configurazione Ethernet del MH201 e l'uso dell'indirizzo IP nella rete locale.
-
-La porta OpenWebNet normalmente utilizzata è `20000`.
-
-La password è quella OpenWebNet configurata sul gateway. Se l'impianto usa una password diversa da quella di fabbrica, inserirla nel Config Flow.
-
-## Citofono
-
-OpenWebNet permette di ricevere gli eventi della videocitofonia, ma questa integrazione non trasporta audio/video.
-
-Sono disponibili:
-
-- binary sensor per l'inizio/fine chiamata;
-- pulsante per il comando di apertura serratura;
-- sensore diagnostico con l'ultimo frame `WHO=7` ricevuto.
-
-Per il video bisogna configurare separatamente il percorso IP supportato dal proprio posto esterno, per esempio ONVIF/RTSP se disponibile sul modello e firmware installati.
-
-## Scenari
-
-Gli scenari sono trattati come comandi write-only. La versione corrente registra una serie di indirizzi candidati (`1..30`) e li espone come scene HA.
-
-Questa parte è volutamente conservativa: la discovery degli scenari non deve essere confusa con una lettura certa della configurazione interna di Home+Project.
-
-## Limiti importanti
-
-- La discovery automatica dei dispositivi non è equivalente a una lettura completa della configurazione di Home+Project.
-- Alcuni dispositivi o topologie BUS possono richiedere discovery passiva o configurazione manuale futura.
-- Il comando serratura non fornisce, da solo, una conferma fisica che la porta sia stata effettivamente aperta.
-- Il supporto all'allarme dipende dai messaggi realmente esposti dal gateway e dal BUS.
-- Le lampadine Philips Hue non vengono gestite da questa integrazione: usare l'integrazione Hue di Home Assistant.
-
-## Struttura
+Copy:
 
 ```text
 custom_components/bticino_myhome/
-├── __init__.py
-├── entity.py
-├── gateway.py
-├── discovery.py
-├── config_flow.py
-├── const.py
-├── light.py
-├── cover.py
-├── switch.py
-├── alarm_control_panel.py
-├── binary_sensor.py
-├── button.py
-├── sensor.py
-├── scene.py
-├── strings.json
-└── manifest.json
 ```
 
-## Dipendenze
+to:
 
-- Home Assistant 2025.1 o successivo
-- `OWNd==0.7.49`
-- gateway BTicino/Legrand compatibile OpenWebNet, nel caso specifico MH201
+```text
+/config/custom_components/bticino_myhome/
+```
 
-OWNd è una libreria locale di comunicazione OpenWebNet; la repository originale la descrive come event listener e command forwarder per OpenWebNet e la indica come pensata anche per integrazioni Home Assistant.
+and restart Home Assistant.
 
-## Monitor dei frame OpenWebNet
+## Configuration
 
-La repository include `tools/openwebnet_monitor.py`, un monitor in sola lettura pensato per analizzare i frame evento reali del proprio MH201. Il monitor apre una sessione OpenWebNet EVENT e **non invia comandi**.
+The config flow first attempts to discover the MH201 on the local network. If discovery is not available, the gateway can be entered manually by IP address and port.
 
-Richiede Python e la dipendenza `OWNd` installata. Esempio:
+Default OpenWebNet port:
+
+```text
+20000
+```
+
+The OpenWebNet password is stored in the Home Assistant ConfigEntry and is never included in diagnostics.
+
+## Device model
+
+The integration separates the local gateway from the discovered device inventory:
+
+```text
+ConfigEntry
+   │
+   ├── MH201 Gateway
+   │      ├── command session
+   │      └── event session
+   │
+   └── Device Manager
+          ├── WHO/WHERE device
+          ├── WHO/WHERE device
+          └── WHO/WHERE device
+```
+
+This separation is intentional. Protocol handling stays in the gateway layer while Home Assistant platforms consume normalized discovered devices. It also gives us a clean foundation for future passive learning, device editing and additional device types.
+
+## State handling
+
+Commands are not treated as proof that a physical device changed state.
+
+For example:
+
+```text
+Home Assistant → ON command
+                  ↓
+               MH201 / BUS
+                  ↓
+          OpenWebNet event
+                  ↓
+          Home Assistant state
+```
+
+This avoids optimistic states when the gateway is unavailable or a command fails.
+
+The event connection is maintained asynchronously. If the event session is lost, the integration marks entities unavailable and retries with exponential backoff rather than blocking Home Assistant's event loop.
+
+## Diagnostics
+
+The integration provides Home Assistant diagnostics for troubleshooting.
+
+Diagnostics include safe information such as:
+
+- ConfigEntry metadata
+- gateway connection status
+- gateway port
+- discovered devices and their types
+
+Sensitive information is redacted before diagnostics are returned, including:
+
+- OpenWebNet password
+- gateway host/IP
+- serial numbers
+- MAC addresses
+
+Use **Settings → Devices & services → BTicino MyHome → Download diagnostics** when reporting an issue.
+
+## OpenWebNet frame monitor
+
+The repository includes a read-only monitor:
+
+```text
+tools/openwebnet_monitor.py
+```
+
+It opens an OpenWebNet EVENT session and does not send control commands.
+
+Example:
 
 ```bash
 python tools/openwebnet_monitor.py 192.168.1.50
 ```
 
-La password viene richiesta in modo interattivo. Per salvare una cattura:
+Save a capture:
 
 ```bash
-python tools/openwebnet_monitor.py 192.168.1.50 --output cattura-openwebnet.txt
+python tools/openwebnet_monitor.py 192.168.1.50 --output capture.txt
 ```
 
-Per una sessione limitata nel tempo:
+Limit the capture to five minutes:
 
 ```bash
-python tools/openwebnet_monitor.py 192.168.1.50 --seconds 300 --output cattura-openwebnet.txt
+python tools/openwebnet_monitor.py 192.168.1.50 --seconds 300 --output capture.txt
 ```
 
-### Catturare anche i frame TX dell'integrazione
+The password is requested interactively.
 
-L'integrazione registra i frame OpenWebNet in ingresso e in uscita a livello `DEBUG`. In Home Assistant puoi abilitare temporaneamente:
+### Debugging TX/RX from Home Assistant
+
+Temporarily enable debug logging:
 
 ```yaml
 logger:
@@ -210,9 +200,111 @@ logger:
     custom_components.bticino_myhome.gateway: debug
 ```
 
-Riavvia Home Assistant o ricarica il logger, esegui le operazioni che vuoi analizzare e poi copia dal log le righe `OpenWebNet RX:` e `OpenWebNet TX:`. **Non condividere password o credenziali**.
+The gateway logs frames as:
 
-Per studiare l'allarme, è preferibile iniziare con il monitor in sola lettura e osservare inserimento, disinserimento, eventi di zona e ripristino. I comandi di test dell'allarme vanno eseguiti solo secondo le procedure previste dal proprio impianto.
+```text
+OpenWebNet RX: ...
+OpenWebNet TX: ...
+```
 
+Do not share passwords or credentials when sharing logs.
 
-_Sviluppato in VibeCoding con Claude/ChatGPT_
+## Alarm development
+
+Alarm support is deliberately being developed from real OpenWebNet traffic rather than guessed frame semantics.
+
+For alarm analysis, capture normal operations such as:
+
+1. disarmed state;
+2. arm operation;
+3. completed arm state;
+4. disarm operation;
+5. normal zone events, if applicable;
+6. restore/reset events.
+
+Do not deliberately trigger an alarm merely for testing. Use the procedures appropriate to the installed security system.
+
+## Troubleshooting
+
+### The gateway is discovered but setup fails
+
+Check:
+
+- Home Assistant can reach the MH201 IP address.
+- TCP port `20000` is reachable.
+- the OpenWebNet password is correct.
+- the MH201 is powered and connected to the BUS.
+
+### Devices become unavailable
+
+This normally means the local event session has lost connectivity. Check the Home Assistant log for:
+
+```text
+OpenWebNet RX:
+```
+
+and connection/reconnect messages from the integration and OWNd.
+
+### Internet is down
+
+The integration itself does not require Internet access for local MH201 control. Functions belonging to other cloud-based integrations may of course stop working independently.
+
+### Discovery does not find every device
+
+OpenWebNet discovery is not equivalent to reading the complete configuration stored in Home+Project. Some devices/events are only observable when they generate traffic on the BUS. Passive-learning support is part of the roadmap.
+
+## Development architecture
+
+```text
+                    Home Assistant
+                           │
+                     ConfigEntry
+                           │
+                 ┌─────────┴─────────┐
+                 │                   │
+             Gateway            Device Manager
+                 │                   │
+        ┌────────┴────────┐          │
+        │                 │          │
+ Command session     Event session   │
+        │                 │          │
+        └────────┬────────┘          │
+                 ▼                   ▼
+               OWNd          DiscoveredDevice
+                 │                   │
+                 └─────────┬─────────┘
+                           ▼
+                    HA entity platforms
+```
+
+The low-level OpenWebNet transport is delegated to **OWNd 0.7.49**. The integration owns the Home Assistant lifecycle, entity model, discovery inventory, availability and diagnostics.
+
+## Roadmap
+
+The project is intentionally developed in layers:
+
+1. repository and Home Assistant quality cleanup;
+2. robust gateway lifecycle and reconnect handling;
+3. normalized device manager;
+4. better UI-based device management;
+5. passive bus learning (`press a physical BTicino button → identify the device`);
+6. diagnostics and troubleshooting improvements;
+7. scenario events and triggers;
+8. climate support where applicable;
+9. energy support (`WHO=18`) where applicable;
+10. deeper alarm (`WHO=5`) decoding from real installations;
+11. video door-entry (`WHO=7`) improvements.
+
+**Music/sound diffusion is explicitly excluded from the roadmap.**
+
+## Project status
+
+This is an active development project. The most protocol-sensitive areas, especially alarm and discovery, are being implemented conservatively from observed OpenWebNet traffic.
+
+If reporting an issue, include:
+
+- Home Assistant version;
+- integration version;
+- MH201 firmware if known;
+- the relevant log excerpt;
+- diagnostics with sensitive fields redacted automatically by Home Assistant.

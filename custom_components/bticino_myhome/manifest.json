@@ -9,14 +9,9 @@
   "requirements": [
     "OWNd==0.7.49"
   ],
-  "version": "0.4.2",
+  "version": "0.4.3",
   "min_ha_version": "2025.1.0",
   "dependencies": [],
-  "after_dependencies": [
-    "hue",
-    "onvif",
-    "generic"
-  ],
   "integration_type": "hub",
   "loggers": [
     "OWNd"

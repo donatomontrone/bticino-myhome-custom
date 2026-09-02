@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from .const import CONF_GATEWAY_HOST, CONF_GATEWAY_PASSWORD, CONF_GATEWAY_PORT, DOMAIN, PLATFORMS
+from .device import BticinoDeviceManager
 from .discovery import BticinoDiscovery, DiscoveredDevice
 from .gateway import BticinoGateway, BticinoGatewayError
 
@@ -20,7 +21,12 @@ class BticinoRuntimeData:
     """Runtime-only data for one BTicino config entry."""
 
     gateway: BticinoGateway
-    devices: list[DiscoveredDevice]
+    device_manager: BticinoDeviceManager
+
+    @property
+    def devices(self) -> list[DiscoveredDevice]:
+        """Return the current discovered device inventory."""
+        return self.device_manager.devices
 
 
 BticinoConfigEntry = ConfigEntry[BticinoRuntimeData]
@@ -59,7 +65,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: BticinoConfigEntry) -> b
         except Exception:  # noqa: BLE001
             _LOGGER.exception("Discovery iniziale BTicino fallita")
 
-    entry.runtime_data = BticinoRuntimeData(gateway=gateway, devices=devices)
+    entry.runtime_data = BticinoRuntimeData(
+        gateway=gateway, device_manager=BticinoDeviceManager(devices)
+    )
     try:
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     except Exception:

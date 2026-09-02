@@ -20,7 +20,7 @@
       },
       "credentials": {
         "title": "Password OpenWebNet",
-        "description": "Se non conosci la password lascia vuoto e prova. In caso di errore riprova con 12345 (default).",
+        "description": "Se non conosci la password lascia vuoto e prova. In caso di errore riprova con 12345 (default di fabbrica).",
         "data": {
           "password": "Password OpenWebNet (opzionale)"
         }

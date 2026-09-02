@@ -47,7 +47,6 @@ class BticinoEntity(Entity):
             self._unsubscribe_connection()
             self._unsubscribe_connection = None
         await super().async_will_remove_from_hass()
-        await super().async_will_remove_from_hass()
 
     def _handle_connection_state(self, connected: bool) -> None:
         self._attr_available = connected

@@ -12,7 +12,7 @@ from .entity import BticinoEntity
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     gateway = entry.runtime_data.gateway
-    devices = entry.runtime_data.devices
+    devices = entry.runtime_data.device_manager.devices
     async_add_entities(
         [BticinoLoadSwitch(gateway, d.who, d.where, d.name) for d in devices if d.device_type == "load"]
     )
