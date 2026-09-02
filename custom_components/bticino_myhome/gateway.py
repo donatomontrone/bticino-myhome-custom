@@ -91,18 +91,20 @@ class BticinoGateway:
                     _LOGGER.debug("Cannot create event loop task - no running event loop")
 
     async def _connect_command_session(self) -> None:
+        """Open command session for sending frames."""
         if self._command_session is not None:
             return
         session = OWNCommandSession(gateway=self._gateway, logger=_LOGGER)
         try:
             async with asyncio.timeout(_CONNECT_TIMEOUT):
                 result = await session.connect()
+            _LOGGER.debug("Command session connected: %s", result)
         except TimeoutError as err:
             await self._safe_close(session)
             raise BticinoGatewayError("command_connection_timeout") from err
-        except Exception:
+        except Exception as err:
             await self._safe_close(session)
-            raise
+            raise BticinoGatewayError(f"command_connection_failed: {err}") from err
 
         if not result or result.get("Success") is not True:
             await self._safe_close(session)
@@ -110,18 +112,20 @@ class BticinoGateway:
         self._command_session = session
 
     async def _connect_event_session(self) -> None:
+        """Open event session for receiving frames."""
         if self._event_session is not None:
             return
         session = OWNEventSession(gateway=self._gateway, logger=_LOGGER)
         try:
             async with asyncio.timeout(_CONNECT_TIMEOUT):
                 result = await session.connect()
+            _LOGGER.debug("Event session connected: %s", result)
         except TimeoutError as err:
             await self._safe_close(session)
             raise BticinoGatewayError("event_connection_timeout") from err
-        except Exception:
+        except Exception as err:
             await self._safe_close(session)
-            raise
+            raise BticinoGatewayError(f"event_connection_failed: {err}") from err
 
         if not result or result.get("Success") is not True:
             await self._safe_close(session)
