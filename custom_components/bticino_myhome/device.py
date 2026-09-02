@@ -45,17 +45,17 @@ class BticinoDeviceManager:
 
     def replace(self, devices: Iterable[DiscoveredDevice]) -> None:
         """Replace the inventory with a new discovery result.
-        
+
         Notifies listeners only for devices that are actually added or changed.
         Devices not in the new list are silently removed.
         """
         devices = list(devices)
         new_keys = {device.key for device in devices}
-        
+
         # Notify for added/changed devices
         for device in devices:
             self.add(device)
-        
+
         # Remove devices not in the new list (no notification)
         for key in list(self._devices.keys()):
             if key not in new_keys:
