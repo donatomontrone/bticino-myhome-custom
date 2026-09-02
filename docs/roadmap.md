@@ -20,6 +20,7 @@
 - [ ] Structured gateway exceptions
 - [x] Phase 0 gateway/logging/parser hardening
 - [ ] Gateway lifecycle unit tests
+- [x] Repository development tooling and CI foundation
 
 ## Phase C — Home Assistant integration quality
 

@@ -32,7 +32,7 @@ If Internet access or the manufacturer's cloud is unavailable, local Home Assist
 
 ## Current capabilities
 
-The current development line (0.1.9) focuses on:
+The current development line (0.1.10) focuses on:
 
 - **WHO=1** — lighting
 - **WHO=2** — automation / shutters / covers
@@ -252,6 +252,22 @@ The integration itself does not require Internet access for local MH201 control.
 ### Discovery does not find every device
 
 OpenWebNet discovery is not equivalent to reading the complete configuration stored in Home+Project. Some devices/events are only observable when they generate traffic on the BUS. Use **Settings → Devices & services → BTicino MyHome → Configure → Impara dispositivi dai pulsanti fisici** to start passive learning. During the selected time window, press the physical BTicino controls you want to identify. No discovery command is transmitted in this mode.
+
+## Development
+
+The repository targets Python 3.12 and 3.13. The development dependencies are pinned to the minimum supported Home Assistant release and OWNd version.
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements-dev.txt
+python -m pytest
+ruff check .
+mypy
+```
+
+GitHub Actions run the test/lint/type-check suite and validate the integration with Home Assistant hassfest and HACS.
 
 ## Technical documentation
 

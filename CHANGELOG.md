@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.10 - Repository foundation
+
+* Aggiunto pyproject.toml con target Python 3.12/3.13 e configurazione per pytest, Ruff e mypy.
+* Aggiunti i requisiti di sviluppo bloccati (pinned) per la versione minima supportata di Home Assistant e OWNd 0.7.49.
+* Aggiunte le GitHub Actions per pytest/Ruff/mypy, la validazione hassfest di Home Assistant e HACS.
+* Aggiunti i file CODEOWNERS e CONTRIBUTING.md nella repository.
+* Nessun supporto per WHO=22, lettore multimediale (media-player), audio, musica o diffusione sonora.
+
 ## 0.1.9 - Repository hardening v2
 
 * Corretto il sistema di notifica durante la sostituzione dell'inventario dispositivi: i dispositivi non modificati non attivano più l'aggiornamento delle entità.
@@ -107,7 +115,15 @@
 
 ---
 
-## 0.1.9 - Repository hardening v2
+## 0.1.10 - Repository foundation
+
+- Added `pyproject.toml` with Python 3.12/3.13 target, pytest, Ruff, and mypy configuration.
+- Added pinned development requirements for the minimum supported Home Assistant release and OWNd 0.7.49.
+- Added GitHub Actions for pytest/Ruff/mypy, Home Assistant hassfest, and HACS validation.
+- Added repository `CODEOWNERS` and `CONTRIBUTING.md`.
+- No WHO=22, media-player, audio, music, or sound-diffusion support.
+
+## 0.1.9
 
 - Fixed device inventory replacement notifications: unchanged devices no longer trigger entity updates.
 - Added regression coverage for changed/new replacement notifications.
