@@ -103,7 +103,7 @@ def test_event_loop_reconnects_after_connection_error() -> None:
     first.close = AsyncMock()
     second = MagicMock()
     second.connect = AsyncMock(return_value={"Success": True})
-    second.get_next = AsyncMock(side_effect=asyncio.CancelledError())
+    second.get_next = AsyncMock(side_effect=["*1*1*21##", asyncio.CancelledError()])
     second.close = AsyncMock()
 
     with (
@@ -119,6 +119,8 @@ def test_event_loop_reconnects_after_connection_error() -> None:
     first.connect.assert_awaited_once()
     first.close.assert_awaited_once()
     second.connect.assert_awaited_once()
+    # After CancelledError, the event loop exits and _set_connected(False) is called
+    # in the exception handler before the CancelledError propagates.
     assert gateway.connected is False
 
 
@@ -178,7 +180,7 @@ def test_async_send_rejects_closed_gateway() -> None:
     asyncio.run(gateway.async_close())
 
     with pytest.raises(BticinoGatewayError, match="gateway_closing"):
-        asyncio.run(gateway.async_send("*1*1*1*21##"))
+        asyncio.run(gateway.async_send("*1*1*21##"))
 
 
 def test_async_close_is_idempotent() -> None:
