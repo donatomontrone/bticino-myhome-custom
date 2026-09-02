@@ -57,6 +57,64 @@ class BticinoDiscovery:
         self._found: dict[str, DiscoveredDevice] = {}
         self._unsubscribe = None
 
+    async def async_passive_listen(self, listen_seconds: int = 15) -> list[DiscoveredDevice]:
+        """Listen only to real bus traffic and learn supported devices.
+
+        No OpenWebNet command is transmitted by this method. This is the safe
+        discovery mode intended for physical-button learning: the user
+        interacts with the BTicino installation while the MH201 reports the
+        resulting events.
+        """
+        self._found.clear()
+        self._unsubscribe = self._gateway.add_listener(self._on_event)
+        try:
+            _LOGGER.info("Passive learning OpenWebNet avviato per %ss", listen_seconds)
+            await asyncio.sleep(max(1, min(int(listen_seconds), 120)))
+            return list(self._found.values())
+        finally:
+            if self._unsubscribe:
+                self._unsubscribe()
+                self._unsubscribe = None
+
+    @staticmethod
+    def parse_event(raw_message: str) -> DiscoveredDevice | None:
+        """Convert a supported OpenWebNet event into a discovery candidate."""
+        match = _FRAME_RE.match(raw_message.strip())
+        if not match:
+            return None
+        who = match.group("who")
+        where = match.group("where")
+        type_map = {
+            WHO_SCENARIO: "scene",
+            WHO_LIGHTING: "light",
+            WHO_AUTOMATION: "cover",
+            WHO_LOAD_MANAGEMENT: "load",
+            WHO_ALARM: "alarm",
+            WHO_VIDEO_DOOR_ENTRY: "intercom",
+        }
+        dtype = type_map.get(who)
+        if dtype is None:
+            return None
+        return DiscoveredDevice(
+            who=who,
+            where=where,
+            device_type=dtype,
+            name=BticinoDiscovery.default_name(dtype, where),
+            extra={"discovery": "passive", "what": match.group("what")},
+        )
+
+    @staticmethod
+    def default_name(device_type: str, where: str) -> str:
+        labels = {
+            "light": "Luce",
+            "cover": "Tapparella",
+            "load": "Carico",
+            "alarm": "Allarme",
+            "intercom": "Citofono",
+            "scene": "Scenario",
+        }
+        return f"{labels.get(device_type, device_type.capitalize())} {where}"
+
     async def async_run_full_scan(
         self, include_scenarios: bool = True, listen_seconds: int = SCAN_TIMEOUT
     ) -> list[DiscoveredDevice]:
@@ -124,27 +182,14 @@ class BticinoDiscovery:
             self._found.setdefault(device.key, device)
 
     def _on_event(self, raw_message: str) -> None:
-        match = _FRAME_RE.match(raw_message.strip())
-        if not match:
+        device = self.parse_event(raw_message)
+        if device is None:
             return
-        who = match.group("who")
-        where = match.group("where")
-        type_map = {
-            WHO_LIGHTING: "light",
-            WHO_AUTOMATION: "cover",
-            WHO_LOAD_MANAGEMENT: "load",
-            WHO_ALARM: "alarm",
-            WHO_VIDEO_DOOR_ENTRY: "intercom",
-        }
-        dtype = type_map.get(who)
-        if dtype is None:
-            return
-        key = f"{who}-{where}"
-        if key not in self._found:
-            self._found[key] = DiscoveredDevice(
-                who=who,
-                where=where,
-                device_type=dtype,
-                name=f"{dtype.capitalize()} {where}",
+        if device.key not in self._found:
+            self._found[device.key] = device
+            _LOGGER.info(
+                "Discovery: trovato %s @ %s (%s)",
+                device.device_type,
+                device.where,
+                device.extra.get("discovery", "active"),
             )
-            _LOGGER.info("Discovery: trovato %s @ %s", dtype, where)

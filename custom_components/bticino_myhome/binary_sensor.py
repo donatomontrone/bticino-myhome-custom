@@ -12,7 +12,8 @@ from .entity import BticinoEntity
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     gateway = entry.runtime_data.gateway
-    devices = entry.runtime_data.device_manager.devices
+    manager = entry.runtime_data.device_manager
+    devices = manager.devices
     entities = [
         BticinoIntercomCallSensor(gateway, d.who, d.where, d.name)
         for d in devices if d.device_type == "intercom"
@@ -20,6 +21,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     if not entities:
         entities.append(BticinoIntercomCallSensor(gateway, WHO_VIDEO_DOOR_ENTRY, "0", "Citofono / Hometouch - chiamata"))
     async_add_entities(entities)
+
+    known = {d.key for d in manager.devices if d.device_type == "intercom"}
+
+    def _device_added(device) -> None:
+        if device.device_type != "intercom" or device.key in known:
+            return
+        known.add(device.key)
+        async_add_entities([BticinoIntercomCallSensor(gateway, device.who, device.where, device.name)])
+
+    entry.async_on_unload(manager.add_listener(_device_added))
 
 
 class BticinoIntercomCallSensor(BticinoEntity, BinarySensorEntity):

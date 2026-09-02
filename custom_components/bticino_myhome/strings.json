@@ -43,7 +43,24 @@
       "run_discovery": {
         "title": "Scansione completata",
         "description": "Scansione completata. Dispositivi trovati: {count}"
+      },
+      "passive_learning": {
+        "title": "Learn BTicino devices",
+        "description": "After starting the scan, press the physical BTicino buttons you want to learn. No command is sent to the bus.",
+        "data": {
+          "listen_seconds": "Listening time (seconds)"
+        }
+      },
+      "select_learned": {
+        "title": "Discovered devices",
+        "description": "Select the devices you want to add to Home Assistant.",
+        "data": {
+          "devices": "Devices"
+        }
       }
+    },
+    "abort": {
+      "no_devices_found": "No supported device was detected during passive listening."
     }
   }
 }

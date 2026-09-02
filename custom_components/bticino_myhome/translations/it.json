@@ -43,7 +43,24 @@
       "run_discovery": {
         "title": "Scansione completata",
         "description": "Dispositivi trovati: {count}"
+      },
+      "passive_learning": {
+        "title": "Impara dispositivi BTicino",
+        "description": "Dopo aver avviato la scansione, premi i pulsanti fisici BTicino che vuoi imparare. Non viene inviato alcun comando al bus.",
+        "data": {
+          "listen_seconds": "Durata ascolto (secondi)"
+        }
+      },
+      "select_learned": {
+        "title": "Dispositivi rilevati",
+        "description": "Seleziona i dispositivi che vuoi aggiungere a Home Assistant.",
+        "data": {
+          "devices": "Dispositivi"
+        }
       }
+    },
+    "abort": {
+      "no_devices_found": "Nessun dispositivo supportato rilevato durante l'ascolto."
     }
   }
 }

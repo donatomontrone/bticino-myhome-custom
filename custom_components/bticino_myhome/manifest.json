@@ -3,13 +3,13 @@
   "name": "BTicino MyHome (MH201 OpenWebNet)",
   "codeowners": [],
   "config_flow": true,
-  "documentation": "https://github.com/your-github-username/bticino-myhome-mh201",
-  "issue_tracker": "https://github.com/your-github-username/bticino-myhome-mh201/issues",
+  "documentation": "https://github.com/donatomontrone/bticino-myhome-mh201",
+  "issue_tracker": "https://github.com/donatomontrone/bticino-myhome-mh201/issues",
   "iot_class": "local_push",
   "requirements": [
     "OWNd==0.7.49"
   ],
-  "version": "0.4.3",
+  "version": "0.1.5",
   "min_ha_version": "2025.1.0",
   "dependencies": [],
   "integration_type": "hub",

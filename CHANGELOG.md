@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.1.4 - Pulizia dell'architettura di runtime e della repository
+## 0.1.5 - Passive learning e registrazione dinamica dei dispositivi
+
+* Aggiunto il passive learning sicuro: ascolta i reali eventi OpenWebNet senza inviare comandi di discovery.
+* Aggiunta la normalizzazione da evento a dispositivo per i valori WHO supportati.
+* Aggiunta la registrazione dinamica delle entità quando un dispositivo appreso viene accettato.
+* Aggiunte le opzioni nel Config Flow per eseguire una scansione attiva o il passive learning.
+* Aggiunta la selezione multi-dispositivo dopo il passive learning.
+
+## 0.1.4
 
 * Aggiunto un `BticinoDeviceManager` di runtime dedicato per l'inventario dei dispositivi rilevati.
 * Mantenuto il trasporto del gateway separato dalle logiche relative a dispositivi ed entità di Home Assistant.
@@ -57,7 +65,15 @@
 
 ---
 
-## 0.1.4 - Repository and runtime architecture cleanup
+## 0.1.5 - Passive learning and dynamic device registration
+
+* Added safe passive learning: listens to real OpenWebNet events without transmitting discovery commands.
+* Added event-to-device normalization for supported WHO values.
+* Added dynamic entity registration when a learned device is accepted.
+* Added Config Flow options to run an active scan or passive learning.
+* Added multi-device selection after passive learning.
+
+## 0.1.4
 
 * Added a dedicated runtime `BticinoDeviceManager` for the discovered-device inventory.
 * Kept gateway transport separate from Home Assistant device/entity concerns.

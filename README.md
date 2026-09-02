@@ -1,4 +1,3 @@
-
 # BTicino MyHome MH201 for Home Assistant
 
 A local-first Home Assistant custom integration for **BTicino MyHome systems using an MH201 gateway and OpenWebNet**.
@@ -48,7 +47,7 @@ The current development line focuses on:
 - Home Assistant diagnostics
 - an OpenWebNet frame monitor for protocol analysis
 
-Climate, energy and advanced passive-learning/discovery capabilities are planned development areas. Music/sound diffusion is intentionally **not** planned.
+Passive learning is now available from the integration options: it listens to real OpenWebNet traffic without sending discovery commands, so pressing a physical BTicino control can identify the corresponding WHO/WHERE device. Climate and energy remain planned development areas. Music/sound diffusion is intentionally **not** planned.
 
 ## Installation
 
@@ -252,7 +251,7 @@ The integration itself does not require Internet access for local MH201 control.
 
 ### Discovery does not find every device
 
-OpenWebNet discovery is not equivalent to reading the complete configuration stored in Home+Project. Some devices/events are only observable when they generate traffic on the BUS. Passive-learning support is part of the roadmap.
+OpenWebNet discovery is not equivalent to reading the complete configuration stored in Home+Project. Some devices/events are only observable when they generate traffic on the BUS. Use **Settings → Devices & services → BTicino MyHome → Configure → Impara dispositivi dai pulsanti fisici** to start passive learning. During the selected time window, press the physical BTicino controls you want to identify. No discovery command is transmitted in this mode.
 
 ## Development architecture
 
@@ -288,7 +287,7 @@ The project is intentionally developed in layers:
 2. robust gateway lifecycle and reconnect handling;
 3. normalized device manager;
 4. better UI-based device management;
-5. passive bus learning (`press a physical BTicino button → identify the device`);
+5. passive bus learning and dynamic entity registration (`press a physical BTicino button → identify and add the device`);
 6. diagnostics and troubleshooting improvements;
 7. scenario events and triggers;
 8. climate support where applicable;
