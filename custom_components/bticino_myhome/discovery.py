@@ -11,6 +11,7 @@ is therefore independent from how a device was discovered.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 import logging
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
