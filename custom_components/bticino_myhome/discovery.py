@@ -124,7 +124,7 @@ class BticinoDiscovery:
         self._unsubscribe = self._gateway.add_event_listener(self._on_event)
         try:
             seconds = max(1, min(int(listen_seconds), 120))
-            _LOGGER.info("Passive learning OpenWebNet avviato per %ss", seconds)
+            _LOGGER.info("Passive OpenWebNet learning started for %ss", seconds)
             await asyncio.sleep(seconds)
             return self._sorted_found()
         finally:
@@ -176,7 +176,7 @@ class BticinoDiscovery:
             await self._gateway.async_send(frame)
             await asyncio.sleep(0.05)
         except Exception as err:  # noqa: BLE001
-            _LOGGER.debug("Probe %s non riuscito: %s", frame, err)
+            _LOGGER.debug("Probe %s failed: %s", frame, err)
 
     @classmethod
     def parse_event(cls, raw_message: str) -> DiscoveredDevice | None:
@@ -242,7 +242,7 @@ class BticinoDiscovery:
         if existing is None:
             self._found[device.key] = device
             _LOGGER.info(
-                "Discovery: trovato %s @ %s (%s)",
+                "Discovery: found %s @ %s (%s)",
                 device.device_type,
                 device.where,
                 device.source,

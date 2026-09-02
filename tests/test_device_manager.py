@@ -25,3 +25,25 @@ def test_device_manager_add_replace_and_remove() -> None:
     assert manager.get("2-3") == second
     assert manager.remove("2-3") is True
     assert manager.remove("2-3") is False
+
+
+def test_device_manager_replace_notifies_only_changed_or_new() -> None:
+    first = make_device("1", "2", "light")
+    second = make_device("2", "3", "cover")
+    manager = BticinoDeviceManager([first])
+    notifications = []
+    manager.add_listener(notifications.append)
+
+    manager.replace([first])
+    assert notifications == []
+
+    updated = make_device("1", "2", "light")
+    updated.name = "Kitchen"
+    manager.replace([updated, second])
+    assert [device.key for device in notifications] == ["1-2", "2-3"]
+    assert manager.get("1-2") == updated
+    assert manager.get("2-3") == second
+
+    notifications.clear()
+    manager.replace([updated, second])
+    assert notifications == []

@@ -46,10 +46,20 @@ class BticinoDeviceManager:
         return self._devices.pop(key, None) is not None
 
     def replace(self, devices: Iterable[DiscoveredDevice]) -> None:
+        """Replace the inventory and notify listeners only for changed entries.
+
+        Removal notifications are intentionally not emitted because the listener
+        contract currently accepts only the resulting device. Entity removal will
+        need a dedicated lifecycle callback in a later device-manager phase.
+        """
+        previous = self._devices
         devices = list(devices)
         self._devices = {device.key: device for device in devices}
-        for device in devices:
-            for listener in tuple(self._listeners):
+        listeners = tuple(self._listeners)
+        for device in sorted(devices, key=lambda item: item.key):
+            if previous.get(device.key) == device:
+                continue
+            for listener in listeners:
                 listener(device)
 
     def as_dicts(self) -> list[dict[str, Any]]:

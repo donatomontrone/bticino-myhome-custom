@@ -69,7 +69,7 @@ class BticinoGateway:
             try:
                 await session.close()
             except Exception:  # noqa: BLE001
-                _LOGGER.debug("Errore chiusura test session", exc_info=True)
+                _LOGGER.warning("Failed to close OWNd test session", exc_info=True)
 
     async def async_connect(self, *, task_creator: Callable[[Any, str], asyncio.Task] | None = None) -> None:
         """Connect command/event sessions and start the persistent event worker."""
@@ -128,7 +128,7 @@ class BticinoGateway:
                     try:
                         listener(raw)
                     except Exception:  # noqa: BLE001
-                        _LOGGER.exception("Listener OpenWebNet non riuscito")
+                        _LOGGER.exception("OpenWebNet raw listener failed")
 
                 frame = parse_frame(raw)
                 if frame is not None:
@@ -137,13 +137,13 @@ class BticinoGateway:
                         try:
                             listener(event)
                         except Exception:  # noqa: BLE001
-                            _LOGGER.exception("Listener evento OpenWebNet non riuscito")
+                            _LOGGER.exception("OpenWebNet normalized event listener failed")
             except asyncio.CancelledError:
                 raise
             except (ConnectionError, asyncio.TimeoutError, BticinoGatewayError) as err:
                 self._set_connected(False)
                 _LOGGER.info(
-                    "Connessione eventi MH201 non disponibile (%s). Riprovo tra %.1fs",
+                    "MH201 event connection unavailable (%s). Retrying in %.1fs",
                     err, backoff,
                 )
                 await self._close_event_session()
@@ -154,7 +154,7 @@ class BticinoGateway:
                 backoff = min(backoff * 2, 60.0)
             except Exception as err:  # noqa: BLE001
                 self._set_connected(False)
-                _LOGGER.exception("Worker eventi MH201 terminato in errore: %s", err)
+                _LOGGER.exception("MH201 event worker failed: %s", err)
                 await self._close_event_session()
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 60.0)
@@ -215,14 +215,14 @@ class BticinoGateway:
             try:
                 listener(connected)
             except Exception:  # noqa: BLE001
-                _LOGGER.exception("Listener stato connessione non riuscito")
+                _LOGGER.exception("Connection-state listener failed")
 
     @staticmethod
     async def _safe_close(session: Any) -> None:
         try:
             await session.close()
         except Exception:  # noqa: BLE001
-            _LOGGER.debug("Errore chiusura sessione OWNd", exc_info=True)
+            _LOGGER.warning("Failed to close OWNd session", exc_info=True)
 
     async def _close_command_session(self) -> None:
         session, self._command_session = self._command_session, None
@@ -260,7 +260,7 @@ async def async_discover_gateways(timeout: int = 5) -> list[dict[str, Any]]:
     try:
         gateways = await find_gateways()
     except Exception as err:  # noqa: BLE001
-        _LOGGER.warning("Discovery SSDP fallita: %s", err)
+        _LOGGER.warning("OWS/SSDP gateway discovery failed: %s", err)
         return []
     result: list[dict[str, Any]] = []
     for gw in gateways:

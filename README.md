@@ -32,7 +32,7 @@ If Internet access or the manufacturer's cloud is unavailable, local Home Assist
 
 ## Current capabilities
 
-The current development line (0.1.8) focuses on:
+The current development line (0.1.9) focuses on:
 
 - **WHO=1** — lighting
 - **WHO=2** — automation / shutters / covers

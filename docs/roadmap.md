@@ -18,6 +18,7 @@
 - [ ] Explicit command result model above OWNd
 - [ ] Dedicated transport module
 - [ ] Structured gateway exceptions
+- [x] Phase 0 gateway/logging/parser hardening
 - [ ] Gateway lifecycle unit tests
 
 ## Phase C — Home Assistant integration quality

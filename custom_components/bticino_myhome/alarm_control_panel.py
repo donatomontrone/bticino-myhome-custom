@@ -55,7 +55,6 @@ class Bticino4200C(BticinoEntity, AlarmControlPanelEntity):
     def _handle_event(self, event) -> None:
         if event.who != WHO_ALARM or event.where != self._where:
             return
-        from homeassistant.components.alarm_control_panel.const import AlarmControlPanelState
         states = {
             "disarmed": AlarmControlPanelState.DISARMED,
             "armed_away": AlarmControlPanelState.ARMED_AWAY,

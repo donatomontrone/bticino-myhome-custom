@@ -29,6 +29,13 @@ def test_parser_rejects_status_request() -> None:
     assert parse_frame("*#1*21##") is None
 
 
+def test_parser_rejects_diagnostic_status_frames() -> None:
+    # Diagnostic/status frames are not normalized events until their semantics
+    # are verified against real MH201 captures.
+    assert parse_frame("*#1001*21##") is None
+    assert parse_frame("*#1004*21##") is None
+
+
 def test_normalizer_maps_light_state() -> None:
     frame = parse_frame("*1*0*21##")
     assert frame is not None

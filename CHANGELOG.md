@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.9 - Repository hardening v2
+
+* Corretto il sistema di notifica durante la sostituzione dell'inventario dispositivi: i dispositivi non modificati non attivano più l'aggiornamento delle entità.
+* Aggiunta copertura di regressione per le notifiche di sostituzione in caso di dispositivi modificati o nuovi.
+* Aggiunta copertura di regressione per garantire che i dispositivi configurati manualmente non vengano sovrascritti da eventi di rilevamento (discovery) passivo.
+* Rimossa l'importazione locale ridondante di AlarmControlPanelState.
+* Revisionato il tracciamento del ciclo di vita del gateway (logging) e convertiti in inglese i messaggi di log relativi a gateway e rilevamento.
+* I fallimenti nella fase di pulizia (cleanup) vengono registrati a livello di warning; i fallimenti previsti nei test di scansione attiva rimangono a livello debug per evitare rumore nei log.
+* Confermato che i frame di stato/diagnostica OpenWebNet come *#1001*...## e *#1004*...## vengono rifiutati dal parser degli eventi.
+* Aggiunto il proprietario della repository come proprietario del codice nel manifest (codeowner).
+* Mantenuta fuori dallo scopo (out of scope) la funzionalità WHO=22/media/diffusione sonora.
+
 ## 0.1.8 - Rafforzamento del repository
 
 * Completate le esportazioni del pacchetto di protocollo pubblico utilizzate da tutti i builder di comandi delle entità.
@@ -95,7 +107,19 @@
 
 ---
 
-## 0.1.8 - Repository hardening
+## 0.1.9 - Repository hardening v2
+
+- Fixed device inventory replacement notifications: unchanged devices no longer trigger entity updates.
+- Added regression coverage for changed/new replacement notifications.
+- Added regression coverage ensuring manual devices are not overwritten by passive discovery events.
+- Removed the redundant local `AlarmControlPanelState` import.
+- Audited gateway lifecycle logging and converted gateway/discovery log messages to English.
+- Cleanup failures are logged at warning level; expected active-scan probe failures remain debug-level to avoid scan noise.
+- Confirmed that OpenWebNet diagnostic/status frames such as `*#1001*...##` and `*#1004*...##` are rejected by the event parser.
+- Added the repository owner as the manifest code owner.
+- Kept WHO=22/media/sound-diffusion functionality out of scope.
+
+## 0.1.8
 
 - Completed the public protocol package exports used by all entity command builders.
 - Removed the implicit bus-wide discovery scan from the initial Config Flow; discovery is now an explicit Options Flow action.

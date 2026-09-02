@@ -1,4 +1,5 @@
 from custom_components.bticino_myhome.discovery import BticinoDiscovery, DiscoverySource
+from custom_components.bticino_myhome.protocol import normalize_frame, parse_frame
 
 
 def test_parse_light_event() -> None:
@@ -30,3 +31,20 @@ def test_active_candidate_is_replaced_by_real_event() -> None:
     event = BticinoDiscovery.parse_event("*1*0*21##")
     assert event is not None
     assert event.source == DiscoverySource.PASSIVE.value
+
+
+def test_manual_device_is_not_overwritten_by_passive_event() -> None:
+    discovery = BticinoDiscovery(gateway=None)
+    manual = BticinoDiscovery.from_manual(
+        who="1", where="21", device_type="light", name="Luce cucina"
+    )
+    discovery._found[manual.key] = manual
+
+    event = BticinoDiscovery.parse_event("*1*0*21##")
+    assert event is not None
+    discovery._on_event(normalize_frame(parse_frame("*1*0*21##")))
+
+    stored = discovery._found[manual.key]
+    assert stored is manual
+    assert stored.source == DiscoverySource.MANUAL.value
+    assert stored.name == "Luce cucina"
