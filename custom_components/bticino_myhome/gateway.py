@@ -9,6 +9,8 @@ from typing import Any
 from OWNd.connection import OWNCommandSession, OWNEventSession, OWNGateway, OWNSession
 from OWNd.discovery import find_gateways
 
+from .protocol import NormalizedEvent, normalize_frame, parse_frame
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -40,6 +42,7 @@ class BticinoGateway:
         self._event_task: asyncio.Task[None] | None = None
         self._send_lock = asyncio.Lock()
         self._listeners: set[Callable[[str], None]] = set()
+        self._event_listeners: set[Callable[[NormalizedEvent], None]] = set()
         self._connection_listeners: set[Callable[[bool], None]] = set()
         self._connected = False
         self._closing = False
@@ -126,6 +129,15 @@ class BticinoGateway:
                         listener(raw)
                     except Exception:  # noqa: BLE001
                         _LOGGER.exception("Listener OpenWebNet non riuscito")
+
+                frame = parse_frame(raw)
+                if frame is not None:
+                    event = normalize_frame(frame)
+                    for listener in tuple(self._event_listeners):
+                        try:
+                            listener(event)
+                        except Exception:  # noqa: BLE001
+                            _LOGGER.exception("Listener evento OpenWebNet non riuscito")
             except asyncio.CancelledError:
                 raise
             except (ConnectionError, asyncio.TimeoutError, BticinoGatewayError) as err:
@@ -179,6 +191,15 @@ class BticinoGateway:
             self._listeners.discard(callback)
         return _remove
 
+    def add_event_listener(self, callback: Callable[[NormalizedEvent], None]) -> Callable[[], None]:
+        """Subscribe to parsed and normalized OpenWebNet events."""
+        self._event_listeners.add(callback)
+
+        def _remove() -> None:
+            self._event_listeners.discard(callback)
+
+        return _remove
+
     def add_connection_listener(self, callback: Callable[[bool], None]) -> Callable[[], None]:
         self._connection_listeners.add(callback)
         callback(self._connected)
@@ -229,6 +250,7 @@ class BticinoGateway:
         await self._close_event_session()
         await self._close_command_session()
         self._listeners.clear()
+        self._event_listeners.clear()
         self._connection_listeners.clear()
 
 

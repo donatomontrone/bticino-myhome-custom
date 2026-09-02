@@ -1,6 +1,19 @@
 # Changelog
 
-## 0.1.6 - Motore di discovery unificato e registrazione manuale dei dispositivi
+## 0.1.7 - Rafforzamento del livello di protocollo e dell'architettura
+
+* Aggiunto un livello di protocollo OpenWebNet dedicato in `custom_components/bticino_myhome/protocol/`.
+* Aggiunti il modello di frame analizzato (*parsed*) e immutabile, il parser, i builder di comandi e gli eventi semantici normalizzati.
+* Il Gateway ora espone gli eventi OpenWebNet analizzati e normalizzati separatamente dallo stream di debug grezzo (*raw*).
+* La Discovery utilizza gli eventi di protocollo normalizzati anziché analizzare direttamente i frame OpenWebNet.
+* Le entità di Home Assistant utilizzano gli eventi normalizzati e i builder di comandi di protocollo anziché costruire esse stesse i frame OpenWebNet grezzi.
+* Centralizzato il frame di verifica dello stato (*status-probe*) utilizzato dalla discovery attiva.
+* Mantenuto un approccio conservativo per la discovery attiva: un probe da solo non crea mai un dispositivo, è sempre necessario un evento corrispondente.
+* Il setup iniziale dell'integrazione non esegue più una scansione completa implicita quando l'inventario persistente è vuoto.
+* Aggiunti test unitari per il livello di protocollo.
+* Nessuna funzionalità aggiunta per WHO=22/media/diffusione sonora.
+
+## 0.1.6
 
 * Introdotto un motore di Discovery unificato con sorgenti passive, attive e manuali.
 * Normalizzati i metadati di discovery includendo sorgente e funzionalità (capabilities).
@@ -74,7 +87,20 @@
 
 ---
 
-## 0.1.6 - Unified discovery engine and manual device registration
+## 0.1.7 - Protocol layer and architecture hardening
+
+- Added a dedicated OpenWebNet protocol layer under `custom_components/bticino_myhome/protocol/`.
+- Added immutable parsed frame model, parser, command builders and normalized semantic events.
+- Gateway now exposes parsed/normalized OpenWebNet events separately from the raw debug stream.
+- Discovery consumes normalized protocol events instead of parsing OpenWebNet frames itself.
+- Home Assistant entities consume normalized events and protocol command builders instead of constructing raw OpenWebNet frames themselves.
+- Centralized the status-probe frame used by active discovery.
+- Kept active discovery conservative: a probe alone never creates a device; a matching event is required.
+- Initial integration setup no longer performs an implicit full scan when the persistent inventory is empty.
+- Added protocol unit tests.
+- No WHO=22/media/sound-diffusion functionality added.
+
+## 0.1.6
 
 * Introduced a unified Discovery Engine with passive, active and manual sources.
 * Normalized discovery metadata with source and capabilities.

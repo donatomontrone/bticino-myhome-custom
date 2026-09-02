@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, WHO_AUTOMATION
+from .protocol import cover_close, cover_open, cover_stop
 from .entity import BticinoEntity
 
 
@@ -42,19 +43,20 @@ class BticinoCover(BticinoEntity, CoverEntity):
         self._attr_is_closed = None
 
     async def async_open_cover(self, **kwargs) -> None:
-        await self._gateway.async_send(f"*{WHO_AUTOMATION}*1*{self._where}##")
+        await self._gateway.async_send(cover_open(self._where))
 
     async def async_close_cover(self, **kwargs) -> None:
-        await self._gateway.async_send(f"*{WHO_AUTOMATION}*2*{self._where}##")
+        await self._gateway.async_send(cover_close(self._where))
 
     async def async_stop_cover(self, **kwargs) -> None:
-        await self._gateway.async_send(f"*{WHO_AUTOMATION}*0*{self._where}##")
+        await self._gateway.async_send(cover_stop(self._where))
 
-    def _handle_raw_event(self, raw_message: str) -> None:
-        raw = raw_message.strip()
-        if raw == f"*{WHO_AUTOMATION}*1*{self._where}##":
+    def _handle_event(self, event) -> None:
+        if event.who != WHO_AUTOMATION or event.where != self._where:
+            return
+        if event.state == "open":
             self._attr_is_closed = False
             self.async_write_ha_state()
-        elif raw == f"*{WHO_AUTOMATION}*2*{self._where}##":
+        elif event.state == "closed":
             self._attr_is_closed = True
             self.async_write_ha_state()

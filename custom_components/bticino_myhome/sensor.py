@@ -21,8 +21,8 @@ class BticinoIntercomEventLog(BticinoEntity, SensorEntity):
         self._attr_unique_id = f"{DOMAIN}_{who}_{where}_raw_event"
         self._attr_native_value = "nessun evento"
 
-    def _handle_raw_event(self, raw_message: str) -> None:
-        raw = raw_message.strip()
-        if raw.startswith(f"*{WHO_VIDEO_DOOR_ENTRY}*"):
-            self._attr_native_value = raw
-            self.async_write_ha_state()
+    def _handle_event(self, event) -> None:
+        if event.who != WHO_VIDEO_DOOR_ENTRY:
+            return
+        self._attr_native_value = event.raw
+        self.async_write_ha_state()

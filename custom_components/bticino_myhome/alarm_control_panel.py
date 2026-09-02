@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, WHO_ALARM
+from .protocol import alarm_arm_away, alarm_arm_home, alarm_disarm
 from .entity import BticinoEntity
 
 
@@ -43,24 +44,26 @@ class Bticino4200C(BticinoEntity, AlarmControlPanelEntity):
         self._attr_alarm_state = None
 
     async def async_alarm_arm_away(self, code: str | None = None) -> None:
-        await self._gateway.async_send(f"*{WHO_ALARM}*1*{self._where}##")
+        await self._gateway.async_send(alarm_arm_away(self._where))
 
     async def async_alarm_arm_home(self, code: str | None = None) -> None:
-        await self._gateway.async_send(f"*{WHO_ALARM}*3*{self._where}##")
+        await self._gateway.async_send(alarm_arm_home(self._where))
 
     async def async_alarm_disarm(self, code: str | None = None) -> None:
-        await self._gateway.async_send(f"*{WHO_ALARM}*0*{self._where}##")
+        await self._gateway.async_send(alarm_disarm(self._where))
 
-    def _handle_raw_event(self, raw_message: str) -> None:
-        raw = raw_message.strip()
-        if raw == f"*{WHO_ALARM}*0*{self._where}##":
-            self._attr_alarm_state = AlarmControlPanelState.DISARMED
-        elif raw == f"*{WHO_ALARM}*1*{self._where}##":
-            self._attr_alarm_state = AlarmControlPanelState.ARMED_AWAY
-        elif raw == f"*{WHO_ALARM}*3*{self._where}##":
-            self._attr_alarm_state = AlarmControlPanelState.ARMED_HOME
-        elif raw == f"*{WHO_ALARM}*4*{self._where}##":
-            self._attr_alarm_state = AlarmControlPanelState.TRIGGERED
-        else:
+    def _handle_event(self, event) -> None:
+        if event.who != WHO_ALARM or event.where != self._where:
             return
+        from homeassistant.components.alarm_control_panel.const import AlarmControlPanelState
+        states = {
+            "disarmed": AlarmControlPanelState.DISARMED,
+            "armed_away": AlarmControlPanelState.ARMED_AWAY,
+            "armed_home": AlarmControlPanelState.ARMED_HOME,
+            "triggered": AlarmControlPanelState.TRIGGERED,
+        }
+        state = states.get(event.state)
+        if state is None:
+            return
+        self._attr_alarm_state = state
         self.async_write_ha_state()

@@ -9,7 +9,7 @@
   "requirements": [
     "OWNd==0.7.49"
   ],
-  "version": "0.1.6",
+  "version": "0.1.7",
   "min_ha_version": "2025.1.0",
   "dependencies": [],
   "integration_type": "hub",

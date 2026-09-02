@@ -41,15 +41,15 @@ class BticinoIntercomCallSensor(BticinoEntity, BinarySensorEntity):
         self._attr_unique_id = f"{DOMAIN}_{who}_{where}_intercom_call"
         self._attr_is_on = False
 
-    def _handle_raw_event(self, raw_message: str) -> None:
-        raw = raw_message.strip()
-        if not raw.startswith(f"*{WHO_VIDEO_DOOR_ENTRY}*"):
+    def _handle_event(self, event) -> None:
+        if event.who != WHO_VIDEO_DOOR_ENTRY:
             return
-        if f"*{WHAT_VDE_CALL_START}*" in raw:
-            self._attr_is_on = True
-        elif f"*{WHAT_VDE_CALL_END_1}*" in raw or f"*{WHAT_VDE_CALL_END_2}*" in raw:
-            self._attr_is_on = False
+        if event.what == WHAT_VDE_CALL_START:
+            new_state = True
+        elif event.what in (WHAT_VDE_CALL_END_1, WHAT_VDE_CALL_END_2):
+            new_state = False
         else:
             return
-        if self._where == "0" or f"*{self._where}##" in raw:
+        if self._where == "0" or event.where == self._where:
+            self._attr_is_on = new_state
             self.async_write_ha_state()

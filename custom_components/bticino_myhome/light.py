@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, WHO_LIGHTING
+from .protocol import light_off, light_on
 from .entity import BticinoEntity
 
 
@@ -41,16 +42,17 @@ class BticinoLight(BticinoEntity, LightEntity):
         self._attr_is_on = False
 
     async def async_turn_on(self, **kwargs) -> None:
-        await self._gateway.async_send(f"*{WHO_LIGHTING}*1*{self._where}##")
+        await self._gateway.async_send(light_on(self._where))
 
     async def async_turn_off(self, **kwargs) -> None:
-        await self._gateway.async_send(f"*{WHO_LIGHTING}*0*{self._where}##")
+        await self._gateway.async_send(light_off(self._where))
 
-    def _handle_raw_event(self, raw_message: str) -> None:
-        raw = raw_message.strip()
-        if raw == f"*{WHO_LIGHTING}*1*{self._where}##":
+    def _handle_event(self, event) -> None:
+        if event.who != WHO_LIGHTING or event.where != self._where:
+            return
+        if event.state == "on":
             self._attr_is_on = True
             self.async_write_ha_state()
-        elif raw == f"*{WHO_LIGHTING}*0*{self._where}##":
+        elif event.state == "off":
             self._attr_is_on = False
             self.async_write_ha_state()

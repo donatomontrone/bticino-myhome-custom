@@ -10,7 +10,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 
 from .const import CONF_GATEWAY_HOST, CONF_GATEWAY_PASSWORD, CONF_GATEWAY_PORT, DOMAIN, PLATFORMS
 from .device import BticinoDeviceManager
-from .discovery import BticinoDiscovery, DiscoveredDevice
+from .discovery import DiscoveredDevice
 from .gateway import BticinoGateway, BticinoGatewayError
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,17 +53,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: BticinoConfigEntry) -> b
 
     devices = _load_devices(entry)
     if not devices:
-        try:
-            discovery = BticinoDiscovery(gateway)
-            devices = await discovery.async_run_full_scan(
-                include_scenarios=entry.options.get("include_scenarios", True),
-                listen_seconds=entry.options.get("discovery_listen_seconds", 3),
-            )
-            hass.config_entries.async_update_entry(
-                entry, data={**entry.data, "devices": [d.to_dict() for d in devices]}
-            )
-        except Exception:  # noqa: BLE001
-            _LOGGER.exception("Discovery iniziale BTicino fallita")
+        _LOGGER.info(
+            "Nessun dispositivo BTicino persistito: il gateway è pronto; "
+            "avviare discovery/learning dalle opzioni dell'integrazione."
+        )
 
     entry.runtime_data = BticinoRuntimeData(
         gateway=gateway, device_manager=BticinoDeviceManager(devices)

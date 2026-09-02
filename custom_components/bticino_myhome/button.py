@@ -6,7 +6,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, WHAT_VDE_LOCK_RELEASE, WHO_VIDEO_DOOR_ENTRY
+from .const import DOMAIN, WHO_VIDEO_DOOR_ENTRY
+from .protocol import door_lock_release
 from .entity import BticinoEntity
 
 
@@ -23,4 +24,4 @@ class BticinoDoorLockButton(BticinoEntity, ButtonEntity):
         self._attr_unique_id = f"{DOMAIN}_{who}_{where}_door_lock"
 
     async def async_press(self) -> None:
-        await self._gateway.async_send(f"*{WHO_VIDEO_DOOR_ENTRY}*{WHAT_VDE_LOCK_RELEASE}*{self._where}##")
+        await self._gateway.async_send(door_lock_release(self._where))

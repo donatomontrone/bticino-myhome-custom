@@ -117,7 +117,7 @@ ConfigEntry
           └── WHO/WHERE device
 ```
 
-This separation is intentional. Protocol handling stays in the gateway layer while Home Assistant platforms consume normalized discovered devices. It also gives us a clean foundation for future passive learning, device editing and additional device types.
+This separation is intentional. The gateway owns connection/lifecycle and OWNd transport, while the dedicated protocol layer parses OpenWebNet frames, builds commands and produces normalized events. Discovery and Home Assistant platforms consume those normalized events without knowing OpenWebNet wire syntax.
 
 ## State handling
 
@@ -308,6 +308,18 @@ If reporting an issue, include:
 - MH201 firmware if known;
 - the relevant log excerpt;
 - diagnostics with sensitive fields redacted automatically by Home Assistant.
+
+## Protocol layer
+The integration keeps OpenWebNet wire-format knowledge in `custom_components/bticino_myhome/protocol/`. The layer contains:
+
+- `frame.py` — immutable parsed frame model;
+- `parser.py` — raw event-frame parsing;
+- `commands.py` — command and status-request builders;
+- `normalizer.py` — semantic event normalization.
+
+The gateway exposes both a raw debug stream and a normalized event stream. Home Assistant entities and the Discovery Engine consume the normalized stream, so they do not need to construct or parse raw OpenWebNet frames themselves.
+
+An empty device inventory no longer triggers an implicit full scan during integration startup. Discovery remains an explicit operation through the integration options, which avoids coupling Home Assistant startup to a potentially long bus scan.
 
 ## Discovery Engine
 

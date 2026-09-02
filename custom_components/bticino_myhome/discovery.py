@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from typing import Any
@@ -29,10 +28,10 @@ from .const import (
     WHO_VIDEO_DOOR_ENTRY,
 )
 from .gateway import BticinoGateway
+from .protocol import NormalizedEvent, build_status_request, normalize_frame, parse_frame
 
 _LOGGER = logging.getLogger(__name__)
 _ADDRESS_RANGE = range(1, 100)
-_FRAME_RE = re.compile(r"^\*(?P<who>\d+)\*(?P<what>[^*#]*)\*(?P<where>[^#]+)##$")
 
 
 class DiscoverySource(StrEnum):
@@ -122,7 +121,7 @@ class BticinoDiscovery:
     async def async_passive_listen(self, listen_seconds: int = 15) -> list[DiscoveredDevice]:
         """Listen only to real bus traffic; no command is transmitted."""
         self._found.clear()
-        self._unsubscribe = self._gateway.add_listener(self._on_event)
+        self._unsubscribe = self._gateway.add_event_listener(self._on_event)
         try:
             seconds = max(1, min(int(listen_seconds), 120))
             _LOGGER.info("Passive learning OpenWebNet avviato per %ss", seconds)
@@ -146,7 +145,7 @@ class BticinoDiscovery:
         positives for empty addresses.
         """
         self._found.clear()
-        self._unsubscribe = self._gateway.add_listener(self._on_event)
+        self._unsubscribe = self._gateway.add_event_listener(self._on_event)
         try:
             for where in _ADDRESS_RANGE:
                 for who in (WHO_LIGHTING, WHO_AUTOMATION, WHO_LOAD_MANAGEMENT):
@@ -172,7 +171,7 @@ class BticinoDiscovery:
     async def _probe_status(self, who: str, where: str) -> None:
         # OpenWebNet status-query syntax varies by WHO. Keep the probe isolated;
         # receiving a matching event is the only thing that confirms discovery.
-        frame = f"*#{who}*{where}##"
+        frame = build_status_request(who, where)
         try:
             await self._gateway.async_send(frame)
             await asyncio.sleep(0.05)
@@ -181,24 +180,30 @@ class BticinoDiscovery:
 
     @classmethod
     def parse_event(cls, raw_message: str) -> DiscoveredDevice | None:
-        """Normalize one raw OpenWebNet event into a discovery candidate."""
-        match = _FRAME_RE.match(raw_message.strip())
-        if not match:
+        """Compatibility helper: parse a raw event through the protocol layer."""
+        frame = parse_frame(raw_message)
+        if frame is None:
             return None
-        who = match.group("who")
-        where = match.group("where")
-        mapped = cls._TYPE_MAP.get(who)
+        return cls._device_from_event(normalize_frame(frame))
+
+    @classmethod
+    def _device_from_event(cls, event: NormalizedEvent) -> DiscoveredDevice | None:
+        mapped = cls._TYPE_MAP.get(event.who)
         if mapped is None:
             return None
         dtype, capabilities = mapped
         return DiscoveredDevice(
-            who=who,
-            where=where,
+            who=event.who,
+            where=event.where,
             device_type=dtype,
-            name=cls.default_name(dtype, where),
+            name=cls.default_name(dtype, event.where),
             source=DiscoverySource.PASSIVE.value,
             capabilities=tuple(capabilities),
-            extra={"discovery": DiscoverySource.PASSIVE.value, "what": match.group("what")},
+            extra={
+                "discovery": DiscoverySource.PASSIVE.value,
+                "what": event.what,
+                "state": event.state,
+            },
         )
 
     @staticmethod
@@ -229,8 +234,8 @@ class BticinoDiscovery:
             )
             self._found.setdefault(device.key, device)
 
-    def _on_event(self, raw_message: str) -> None:
-        device = self.parse_event(raw_message)
+    def _on_event(self, event: NormalizedEvent) -> None:
+        device = self._device_from_event(event)
         if device is None:
             return
         existing = self._found.get(device.key)

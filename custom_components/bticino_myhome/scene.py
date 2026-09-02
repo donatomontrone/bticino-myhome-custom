@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, WHO_SCENARIO
+from .protocol import scene_activate
 from .entity import BticinoEntity
 
 
@@ -38,4 +39,4 @@ class BticinoScene(BticinoEntity, Scene):
         self._attr_unique_id = f"{DOMAIN}_{who}_{where}_scene"
 
     async def async_activate(self, **kwargs) -> None:
-        await self._gateway.async_send(f"*{WHO_SCENARIO}*1*{self._where}##")
+        await self._gateway.async_send(scene_activate(self._where))

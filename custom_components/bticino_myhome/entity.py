@@ -6,6 +6,7 @@ from homeassistant.helpers.entity import Entity
 
 from .const import DOMAIN
 from .gateway import BticinoGateway
+from .protocol import NormalizedEvent
 
 
 class BticinoEntity(Entity):
@@ -37,7 +38,7 @@ class BticinoEntity(Entity):
         self._unsubscribe_connection = self._gateway.add_connection_listener(
             self._handle_connection_state
         )
-        self._unsubscribe_event = self._gateway.add_listener(self._handle_raw_event)
+        self._unsubscribe_event = self._gateway.add_event_listener(self._handle_event)
 
     async def async_will_remove_from_hass(self) -> None:
         if self._unsubscribe_event:
@@ -53,6 +54,6 @@ class BticinoEntity(Entity):
         if self.hass is not None:
             self.async_write_ha_state()
 
-    def _handle_raw_event(self, raw_message: str) -> None:
-        """Override in subclasses."""
+    def _handle_event(self, event: NormalizedEvent) -> None:
+        """Override in subclasses to consume normalized OpenWebNet events."""
         return
