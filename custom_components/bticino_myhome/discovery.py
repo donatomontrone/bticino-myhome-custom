@@ -11,8 +11,8 @@ is therefore independent from how a device was discovered.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
 import logging
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from typing import Any
@@ -257,8 +257,7 @@ class BticinoDiscovery:
     def _sorted_found(self) -> list[DiscoveredDevice]:
         return [self._found[key] for key in sorted(self._found)]
 
-     def _stop_listener(self) -> None:
-         if self._unsubscribe:
-             self._unsubscribe()
--            self._unsubscribe: Callable[[], None] | None = None
-+            self._unsubscribe = None
+    def _stop_listener(self) -> None:
+        if self._unsubscribe:
+            self._unsubscribe()
+            self._unsubscribe = None
