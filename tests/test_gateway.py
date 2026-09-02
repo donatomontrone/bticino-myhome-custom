@@ -43,15 +43,9 @@ def test_async_test_connection_failure_is_typed() -> None:
 
     session.close.assert_awaited_once()
 
-
-def test_async_connect_opens_command_and_event_sessions() -> None:
-    gateway = _gateway()
-    command = MagicMock()
-    command.connect = AsyncMock(return_value={"Success": True})
-    command.close = AsyncMock()
-    event = MagicMock()
-    event.connect = AsyncMock(return_value={"Success": True})
-    event.close = AsyncMock()
+class SequenceEventFactory:
+    def __init__(self, sessions: list[FakeSession]) -> None:
+        self.sessions = iter(sessions)
 
     with (
         patch("custom_components.bticino_myhome.gateway.OWNCommandSession", return_value=command),
@@ -62,11 +56,17 @@ def test_async_connect_opens_command_and_event_sessions() -> None:
         assert gateway._event_task is not None
         asyncio.run(gateway.async_close())
 
-    command.connect.assert_awaited_once()
-    event.connect.assert_awaited_once()
-    command.close.assert_awaited_once()
-    event.close.assert_awaited_once()
-    assert gateway.connected is False
+
+def install_fakes(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    command: FakeSession | None = None,
+    event: FakeSession | None = None,
+    test: FakeSession | None = None,
+) -> tuple[FakeSession, FakeSession, FakeSession]:
+    command = command or FakeSession()
+    event = event or FakeSession()
+    test = test or FakeSession()
 
 
 def test_event_loop_normalizes_frame_and_notifies_listeners() -> None:
@@ -180,8 +180,13 @@ def test_async_send_rejects_closed_gateway() -> None:
         asyncio.run(gateway.async_send("*1*1*21##"))
 
 
-def test_async_close_is_idempotent() -> None:
-    gateway = _gateway()
-    asyncio.run(gateway.async_close())
-    asyncio.run(gateway.async_close())
-    assert gateway.connected is False
+    async def scenario() -> None:
+        await gateway.async_connect()
+        first_event.release_next.set()
+        await asyncio.sleep(0.03)
+        assert first_event.closed is True
+        assert gateway.connected is True
+        await gateway.async_close()
+
+    run(scenario())
+    assert second_event.closed is True
