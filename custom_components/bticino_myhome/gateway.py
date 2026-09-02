@@ -185,13 +185,19 @@ class BticinoGateway:
                 await self._close_command_session()
                 raise BticinoGatewayError(str(err)) from err
 
-    def add_listener(self, callback: Callable[[str], None]) -> Callable[[], None]:
+    def add_listener(
+        self, callback: Callable[[str], None]
+    ) -> Callable[[], None]:
         self._listeners.add(callback)
+
         def _remove() -> None:
             self._listeners.discard(callback)
+
         return _remove
 
-    def add_event_listener(self, callback: Callable[[NormalizedEvent], None]) -> Callable[[], None]:
+    def add_event_listener(
+        self, callback: Callable[[NormalizedEvent], None]
+    ) -> Callable[[], None]:
         """Subscribe to parsed and normalized OpenWebNet events."""
         self._event_listeners.add(callback)
 

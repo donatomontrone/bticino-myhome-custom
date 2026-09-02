@@ -92,7 +92,7 @@ class BticinoDiscovery:
     def __init__(self, gateway: BticinoGateway) -> None:
         self._gateway = gateway
         self._found: dict[str, DiscoveredDevice] = {}
-        self._unsubscribe = None
+        self._unsubscribe: Callable[[], None] | None = None
 
     @classmethod
     def from_manual(
