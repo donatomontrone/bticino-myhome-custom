@@ -1,19 +1,21 @@
 """Config flow for a local BTicino OpenWebNet gateway."""
 from __future__ import annotations
 
-from typing import Any
 import logging
+from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig, SelectSelectorMode
+
 from .const import CONF_GATEWAY_HOST, CONF_GATEWAY_PASSWORD, CONF_GATEWAY_PORT, DEFAULT_PORT, DOMAIN
 from .discovery import BticinoDiscovery
 from .gateway import BticinoGateway, BticinoGatewayError, async_discover_gateways
 
 _LOGGER = logging.getLogger(__name__)
+
 
 class BticinoMyHomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 2

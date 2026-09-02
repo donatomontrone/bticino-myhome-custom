@@ -124,7 +124,6 @@ class BticinoGateway:
                 backoff = 1.0
                 raw = str(message).strip()
                 _LOGGER.debug("OpenWebNet RX: %s", raw)
-                
                 raw_listeners: tuple[Callable[[str], None], ...] = tuple(self._listeners)
                 for raw_listener in raw_listeners:
                     try:
@@ -195,12 +194,9 @@ class BticinoGateway:
 
         def _remove() -> None:
             self._listeners.discard(callback)
-
         return _remove
 
-    def add_event_listener(
-        self, callback: Callable[[NormalizedEvent], None]
-    ) -> Callable[[], None]:
+    def add_event_listener(self, callback: Callable[[NormalizedEvent], None]) -> Callable[[], None]:
         """Subscribe to parsed and normalized OpenWebNet events."""
         self._event_listeners.add(callback)
 
@@ -215,7 +211,6 @@ class BticinoGateway:
 
         def _remove() -> None:
             self._connection_listeners.discard(callback)
-
         return _remove
 
     def _set_connected(self, connected: bool) -> None:
