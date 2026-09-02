@@ -260,4 +260,4 @@ class BticinoDiscovery:
     def _stop_listener(self) -> None:
         if self._unsubscribe:
             self._unsubscribe()
-            self._unsubscribe = None
+            self._unsubscribe: Callable[[], None] | None = None

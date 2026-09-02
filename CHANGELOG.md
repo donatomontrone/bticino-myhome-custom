@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.11 - Repository alignment
+
+- Integrated the latest workflow and typing fixes from the repository history.
+- Aligned the README with the latest repository changes, including the OWNd attribution.
+- No new protocol or runtime functionality is introduced in this release.
+
+
 ## 0.1.10 - Repository foundation
 
 * Aggiunto pyproject.toml con target Python 3.12/3.13 e configurazione per pytest, Ruff e mypy.
@@ -115,7 +122,13 @@
 
 ---
 
-## 0.1.10 - Repository foundation
+## 0.1.11 - Allineamento repository
+
+- Integrate le ultime correzioni dei workflow e della tipizzazione presenti negli ultimi commit della repository.
+- Allineato il README alle modifiche più recenti della repository, inclusa l'attribuzione di OWNd.
+- Nessuna nuova funzionalità di protocollo o runtime introdotta in questa release.
+
+## 0.1.10
 
 - Added `pyproject.toml` with Python 3.12/3.13 target, pytest, Ruff, and mypy configuration.
 - Added pinned development requirements for the minimum supported Home Assistant release and OWNd 0.7.49.
