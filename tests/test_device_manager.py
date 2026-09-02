@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 from custom_components.bticino_myhome.device import BticinoDeviceManager
 from custom_components.bticino_myhome.discovery import DiscoveredDevice
 
