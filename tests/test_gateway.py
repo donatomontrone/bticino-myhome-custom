@@ -41,13 +41,13 @@ class FakeSession:
         self.closed = True
 
 
-
 class SequenceEventFactory:
     def __init__(self, sessions: list[FakeSession]) -> None:
         self.sessions = iter(sessions)
 
     def __call__(self, **_: Any) -> FakeSession:
         return next(self.sessions)
+
 
 def install_fakes(
     monkeypatch: pytest.MonkeyPatch,
@@ -157,6 +157,7 @@ def test_event_worker_reconnects_after_closed_event_session(
 
     async def scenario() -> None:
         await gateway.async_connect()
+        first_event.release_next.set()
         await asyncio.sleep(0.03)
         assert first_event.closed is True
         assert gateway.connected is True
