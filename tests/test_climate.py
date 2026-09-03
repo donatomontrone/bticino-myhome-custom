@@ -23,6 +23,7 @@ from custom_components.bticino_myhome.protocol.thermoregulation import (
 
 def _climate(
     capabilities: tuple[str, ...] = (),
+    where: str = "1",
 ) -> tuple[BticinoClimate, BticinoGateway]:
     gateway = BticinoGateway("127.0.0.1", 20000, "pwd")
     gateway.async_send = AsyncMock()
@@ -30,7 +31,7 @@ def _climate(
         BticinoClimate(
             gateway,
             "4",
-            "1",
+            where,
             "Thermostat 1",
             capabilities=capabilities,
         ),
@@ -74,22 +75,36 @@ def test_heating_only_mode_and_temperature_frames_are_not_optimistic() -> None:
         assert climate.target_temperature is None
 
         await climate.async_set_hvac_mode(HVACMode.HEAT)
-        gateway.async_send.assert_awaited_once_with("*4*110*#1##")
+        gateway.async_send.assert_awaited_once_with("*4*110*1##")
         assert climate.hvac_mode is None
 
         gateway.async_send.reset_mock()
         await climate.async_set_hvac_mode(HVACMode.AUTO)
-        gateway.async_send.assert_awaited_once_with("*4*111*#1##")
+        gateway.async_send.assert_awaited_once_with("*4*111*1##")
 
         gateway.async_send.reset_mock()
         await climate.async_set_hvac_mode(HVACMode.OFF)
-        gateway.async_send.assert_awaited_once_with("*4*103*#1##")
+        gateway.async_send.assert_awaited_once_with("*4*103*1##")
 
         climate._attr_hvac_mode = HVACMode.AUTO
         gateway.async_send.reset_mock()
         await climate.async_set_temperature(temperature=21.5)
-        gateway.async_send.assert_awaited_once_with("*#4*#1*#14*0215*1##")
+        gateway.async_send.assert_awaited_once_with("*#4*1*#14*0215*1##")
         assert climate.target_temperature is None
+
+    asyncio.run(scenario())
+
+
+def test_central_where_syntax_is_preserved_for_commands() -> None:
+    async def scenario() -> None:
+        climate, gateway = _climate((CAPABILITY_HEATING,), where="#1")
+        await climate.async_set_hvac_mode(HVACMode.HEAT)
+        gateway.async_send.assert_awaited_once_with("*4*110*#1##")
+
+        gateway.async_send.reset_mock()
+        climate._attr_hvac_mode = HVACMode.HEAT
+        await climate.async_set_temperature(temperature=21.5)
+        gateway.async_send.assert_awaited_once_with("*#4*#1*#14*0215*1##")
 
     asyncio.run(scenario())
 
@@ -109,16 +124,16 @@ def test_protection_modes_are_explicit_presets_and_not_optimistic() -> None:
     async def scenario() -> None:
         climate, gateway = _climate((CAPABILITY_HEATING, CAPABILITY_COOLING))
         await climate.async_set_preset_mode(PRESET_ANTIFREEZE)
-        gateway.async_send.assert_awaited_once_with("*4*102*#1##")
+        gateway.async_send.assert_awaited_once_with("*4*102*1##")
         assert climate.preset_mode is None
 
         gateway.async_send.reset_mock()
         await climate.async_set_preset_mode(PRESET_THERMAL_PROTECTION)
-        gateway.async_send.assert_awaited_once_with("*4*202*#1##")
+        gateway.async_send.assert_awaited_once_with("*4*202*1##")
 
         gateway.async_send.reset_mock()
         await climate.async_set_preset_mode(PRESET_GENERIC_PROTECTION)
-        gateway.async_send.assert_awaited_once_with("*4*302*#1##")
+        gateway.async_send.assert_awaited_once_with("*4*302*1##")
 
     asyncio.run(scenario())
 
@@ -129,12 +144,12 @@ def test_set_temperature_uses_conditioning_and_generic_operation_modes() -> None
 
         climate._attr_hvac_mode = HVACMode.COOL
         await climate.async_set_temperature(temperature=20)
-        gateway.async_send.assert_awaited_once_with("*#4*#1*#14*0200*2##")
+        gateway.async_send.assert_awaited_once_with("*#4*1*#14*0200*2##")
 
         gateway.async_send.reset_mock()
         climate._attr_hvac_mode = HVACMode.AUTO
         await climate.async_set_temperature(temperature=19.5)
-        gateway.async_send.assert_awaited_once_with("*#4*#1*#14*0195*3##")
+        gateway.async_send.assert_awaited_once_with("*#4*1*#14*0195*3##")
 
     asyncio.run(scenario())
 
