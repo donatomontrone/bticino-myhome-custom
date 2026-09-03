@@ -55,7 +55,7 @@ def test_attach_trigger_uses_standard_ha_event_trigger() -> None:
         event_config = attach.await_args.args[1]
         assert len(event_config["event_type"]) == 1
         assert event_config["event_type"][0].template == EVENT_OPENWEBNET
-        assert event_config["event_type"][0].hass is hass
         assert event_config["event_data"] == {"who": "0", "where": "12"}
+        assert attach.await_args.kwargs["platform_type"] == "device"
 
     asyncio.run(scenario())
