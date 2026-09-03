@@ -88,24 +88,31 @@ def test_dimension_write_is_not_treated_as_received_state() -> None:
     assert parse_frame("*#4*#1*#14*0215*1##") is None
 
 
-def test_zone_where_is_routed_through_central_unit() -> None:
+def test_zone_where_preserves_standalone_or_central_routing() -> None:
     assert central_zone_where("1") == "#1"
     assert central_zone_where("#1") == "#1"
-    assert build_zone_mode_command("1", "110") == "*4*110*#1##"
+    assert build_zone_mode_command("1", "110") == "*4*110*1##"
+    assert build_zone_mode_command("#1", "110") == "*4*110*#1##"
 
 
-def test_setpoint_builder_encodes_temperature_and_operation_mode() -> None:
+def test_setpoint_builder_encodes_temperature_and_preserves_routing() -> None:
     assert (
         build_zone_setpoint_command("10", 21.5, OPERATION_MODE_HEATING)
+        == "*#4*10*#14*0215*1##"
+    )
+    assert (
+        build_zone_setpoint_command(
+            central_zone_where("10"), 21.5, OPERATION_MODE_HEATING
+        )
         == "*#4*#10*#14*0215*1##"
     )
     assert (
         build_zone_setpoint_command("10", 20.0, OPERATION_MODE_CONDITIONING)
-        == "*#4*#10*#14*0200*2##"
+        == "*#4*10*#14*0200*2##"
     )
     assert (
         build_zone_setpoint_command("10", 19.5, OPERATION_MODE_GENERIC)
-        == "*#4*#10*#14*0195*3##"
+        == "*#4*10*#14*0195*3##"
     )
 
 
