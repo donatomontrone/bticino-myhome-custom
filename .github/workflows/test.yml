@@ -22,10 +22,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: "pip"
@@ -37,6 +37,9 @@ jobs:
 
       - name: Lint with ruff
         run: python -m ruff check custom_components/bticino_myhome tests
+
+      - name: Type check with mypy
+        run: python -m mypy custom_components/bticino_myhome
 
       - name: Run tests with pytest
         run: python -m pytest --tb=short
