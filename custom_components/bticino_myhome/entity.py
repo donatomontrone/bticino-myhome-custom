@@ -22,7 +22,7 @@ class BticinoEntity(Entity):
 
     _attr_should_poll = False
     _attr_has_entity_name = True
-    _attr_name = None
+    _attr_name: str | None = None
     _request_initial_state_on_add = False
 
     def __init__(
