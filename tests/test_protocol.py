@@ -29,6 +29,17 @@ def test_standard_event_is_parsed_and_normalized() -> None:
     assert event.state == "on"
 
 
+def test_thermoregulation_central_where_is_parseable() -> None:
+    frame = parse_frame("*4*110*#1##")
+    assert frame is not None
+    assert (frame.who, frame.what, frame.where) == ("4", "110", "#1")
+
+
+def test_parameterized_standard_where_is_not_generic_endpoint_evidence() -> None:
+    assert parse_frame("*1*1*#1##") is None
+    assert parse_frame("*2*1*#11##") is None
+
+
 def test_status_requests_and_malformed_frames_are_not_events() -> None:
     assert parse_frame("*#1*21##") is None
     assert parse_frame("*#4*1*#14*0215##") is None
