@@ -3,6 +3,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .alarm import (
+    ALARM_TRIGGER_WHATS,
+    WHAT_SYSTEM_DISENGAGED,
+    WHAT_SYSTEM_ENGAGED,
+)
 from .frame import OpenWebNetFrame
 from .thermoregulation import THERMOREGULATION_STATE_MAP
 
@@ -58,16 +63,20 @@ _STATE_MAP = {
     "1": {"0": "off", "1": "on"},
     "2": {"0": "stopped", "1": "opening", "2": "closing"},
     "4": THERMOREGULATION_STATE_MAP,
-    "5": {
-        "0": "disarmed",
-        "1": "armed_away",
-        "3": "armed_home",
-        "4": "triggered",
-    },
 }
 
 
 def normalize_frame(frame: OpenWebNetFrame) -> NormalizedEvent:
     device_type = _DEVICE_TYPES.get(frame.who)
-    state = None if frame.what is None else _STATE_MAP.get(frame.who, {}).get(frame.what)
+    if frame.who == "5":
+        if frame.what == WHAT_SYSTEM_ENGAGED:
+            state = "armed_away"
+        elif frame.what == WHAT_SYSTEM_DISENGAGED:
+            state = "disarmed"
+        elif frame.what in ALARM_TRIGGER_WHATS:
+            state = "triggered"
+        else:
+            state = None
+    else:
+        state = None if frame.what is None else _STATE_MAP.get(frame.who, {}).get(frame.what)
     return NormalizedEvent(frame=frame, device_type=device_type, state=state)
