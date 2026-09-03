@@ -32,25 +32,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await gateway.async_connect()
     except BticinoGatewayError as err:
+        await gateway.async_close()
         raise ConfigEntryNotReady(f"Failed to connect to gateway: {err}") from err
 
     devices = [DiscoveredDevice.from_dict(d) for d in entry.data.get("devices", [])]
     device_manager = BticinoDeviceManager(devices)
+    runtime = BticinoMyHomeData(gateway=gateway, device_manager=device_manager)
 
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = BticinoMyHomeData(gateway=gateway, device_manager=device_manager)
+    hass.data[DOMAIN][entry.entry_id] = runtime
 
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    try:
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    except Exception:
+        hass.data[DOMAIN].pop(entry.entry_id, None)
+        await gateway.async_close()
+        raise
+
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
+    """Unload a config entry and release gateway resources."""
     data: BticinoMyHomeData = hass.data[DOMAIN][entry.entry_id]
-    await data.gateway.async_close()
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    await data.gateway.async_close()
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
+        hass.data[DOMAIN].pop(entry.entry_id, None)
     return unload_ok
 
 
