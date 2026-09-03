@@ -34,10 +34,10 @@ class BticinoLoadSwitch(BticinoEntity, SwitchEntity):
     _request_initial_state_on_add = True
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        await self.gateway.async_send(load_on(self.where))
+        await self._async_send_command(load_on(self.where))
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        await self.gateway.async_send(load_off(self.where))
+        await self._async_send_command(load_off(self.where))
 
     def _handle_event(self, event: NormalizedEvent) -> None:
         if event.who != self.who or event.where != self.where:
