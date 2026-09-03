@@ -70,8 +70,8 @@ def encode_setpoint_temperature(temperature: float) -> str:
     value = float(temperature)
     if not 5.0 <= value <= 40.0:
         raise ValueError(f"Temperature out of range: {value}")
-    rounded = round(value * 2) / 2
-    return f"{round(rounded * 10):04d}"
+    rounded = int(value * 2 + 0.5) / 2
+    return f"{int(rounded * 10):04d}"
 
 
 def build_zone_mode_command(where: str, what: str) -> str:
