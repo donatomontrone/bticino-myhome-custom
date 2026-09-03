@@ -317,10 +317,13 @@ class BticinoDiscovery:
             "dimension": event.dimension,
             "state": event.state,
         }
-        if event.who == WHO_AUTOMATION and event.dimension == DIM_SHUTTER_STATUS:
-            if decode_shutter_status(event.values) is not None:
-                capabilities = (*capabilities, CAPABILITY_POSITION_CONTROL)
-                extra["advanced_shutter"] = True
+        if (
+            event.who == WHO_AUTOMATION
+            and event.dimension == DIM_SHUTTER_STATUS
+            and decode_shutter_status(event.values) is not None
+        ):
+            capabilities = (*capabilities, CAPABILITY_POSITION_CONTROL)
+            extra["advanced_shutter"] = True
         if event.who == WHO_THERMOREGULATION:
             capabilities = (
                 *capabilities,
