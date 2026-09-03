@@ -109,13 +109,15 @@
           "who": "WHO",
           "where": "WHERE",
           "device_type": "Tipo dispositivo",
+          "advanced_shutter": "Controllo posizione tapparella avanzata (solo WHO=2)",
           "climate_profile": "Profilo termico (solo termoregolazione)",
           "name": "Nome (opzionale)"
         },
         "data_description": {
-          "who": "Numero della famiglia funzionale OpenWebNet, ad esempio 4 per la termoregolazione.",
+          "who": "Numero della famiglia funzionale OpenWebNet, ad esempio 2 per l'automazione o 4 per la termoregolazione.",
           "where": "Indirizzo OpenWebNet dell'endpoint esattamente come utilizzato dall'impianto.",
           "device_type": "Superficie Home Assistant da associare a questa famiglia WHO supportata.",
+          "advanced_shutter": "Abilita solo per un attuatore motore avanzato WHO=2 che espone posizione/stato OpenWebNet DIM=10 e GoToLevel DIM=11.",
           "climate_profile": "Per gli endpoint climate WHO=4 limita esplicitamente la zona a riscaldamento, raffrescamento o entrambi. Lascia non impostato se non noto.",
           "name": "Nome opzionale dell'endpoint mostrato in Home Assistant."
         }
@@ -132,7 +134,7 @@
       }
     },
     "error": {
-      "invalid_device": "Il tipo di dispositivo o il profilo termico selezionato non è valido per il WHO specificato."
+      "invalid_device": "Il tipo di dispositivo, il profilo termico o l'opzione tapparella avanzata non è valido per il WHO specificato."
     },
     "abort": {
       "no_devices_found": "Nessun dispositivo supportato è stato rilevato durante l'ascolto.",
@@ -223,6 +225,12 @@
     },
     "entity_command_failed": {
       "message": "Comando OpenWebNet non riuscito: {detail}"
+    },
+    "cover_position_not_supported": {
+      "message": "Il controllo posizione non è abilitato per questa tapparella MyHOME."
+    },
+    "cover_position_out_of_range": {
+      "message": "La posizione tapparella {position}% è fuori dall'intervallo supportato 0–100%."
     },
     "unsupported_hvac_mode": {
       "message": "La modalità HVAC {hvac_mode} non è supportata da questa zona di termoregolazione MyHOME."
