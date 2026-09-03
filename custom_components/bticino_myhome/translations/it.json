@@ -157,7 +157,6 @@
         "scene": "Scenario",
         "light": "Luce",
         "cover": "Tapparella / automazione",
-        "load": "Carico gestito",
         "climate": "Termoregolazione",
         "alarm": "Allarme",
         "intercom": "Videocitofonia",
@@ -175,8 +174,8 @@
   },
   "entity": {
     "binary_sensor": {
-      "intercom_call": {
-        "name": "Chiamata"
+      "alarm_partition": {
+        "name": "Partizione {partition}"
       }
     },
     "button": {
@@ -185,7 +184,7 @@
       }
     },
     "sensor": {
-      "who7_raw_event": {
+      "door_entry_raw_event": {
         "name": "Ultimo evento videocitofonico grezzo"
       }
     }
@@ -208,6 +207,38 @@
           "description": "Abilita solo quando il frame grezzo è una richiesta di stato e le risposte devono essere normalizzate come evidenza dello stato."
         }
       }
+    },
+    "arm_alarm_partitions": {
+      "name": "Inserisci partizioni allarme",
+      "description": "Inserisce l'allarme WHO=5 usando la maschera delle partizioni attive selezionate. Il comando BTicino legacy è supportato da documentazione/riferimenti ma richiede ancora validazione sulla centrale 4200C attraverso MH201.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Gateway",
+          "description": "Configurazione BTicino MyHome proprietaria della connessione MH201 di destinazione."
+        },
+        "partitions": {
+          "name": "Partizioni attive",
+          "description": "Partizioni da 1 a 8 che devono restare attive; quelle non selezionate vengono parzializzate."
+        }
+      }
+    },
+    "set_alarm_partition": {
+      "name": "Imposta partizione allarme",
+      "description": "Attiva o parzializza una singola partizione WHO=5. Il comando è supportato da specifica/riferimenti ma richiede ancora validazione sulla centrale 4200C attraverso MH201.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Gateway",
+          "description": "Configurazione BTicino MyHome proprietaria della connessione MH201 di destinazione."
+        },
+        "partition": {
+          "name": "Partizione",
+          "description": "Numero della partizione allarme da 1 a 8."
+        },
+        "active": {
+          "name": "Attiva",
+          "description": "Abilita per rendere attiva la partizione; disabilita per parzializzarla."
+        }
+      }
     }
   },
   "exceptions": {
@@ -225,6 +256,9 @@
     },
     "entity_command_failed": {
       "message": "Comando OpenWebNet non riuscito: {detail}"
+    },
+    "alarm_partitions_invalid": {
+      "message": "Selezione delle partizioni allarme non valida: {detail}"
     },
     "cover_position_not_supported": {
       "message": "Il controllo posizione non è abilitato per questa tapparella MyHOME."
