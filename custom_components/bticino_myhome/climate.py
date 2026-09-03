@@ -268,10 +268,8 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
         elif state in {STATE_CONDITIONING, STATE_MANUAL_CONDITIONING}:
             self._attr_hvac_mode = HVACMode.COOL
             self._attr_hvac_action = HVACAction.IDLE
-        elif state == STATE_MANUAL_GENERIC:
-            self._attr_hvac_mode = HVACMode.AUTO
-            self._attr_hvac_action = HVACAction.IDLE
         elif state in {
+            STATE_MANUAL_GENERIC,
             STATE_PROGRAMMING_HEATING,
             STATE_PROGRAMMING_CONDITIONING,
             STATE_PROGRAMMING_GENERIC,
