@@ -7,14 +7,10 @@ from unittest.mock import MagicMock
 
 from homeassistant.helpers.entity import EntityCategory
 
-from custom_components.bticino_myhome.binary_sensor import async_setup_entry as setup_binary_sensor
+from custom_components.bticino_myhome import binary_sensor, sensor
 from custom_components.bticino_myhome.device import BticinoDeviceManager
 from custom_components.bticino_myhome.discovery import DiscoveredDevice
 from custom_components.bticino_myhome.gateway import BticinoGateway
-from custom_components.bticino_myhome.sensor import (
-    BticinoIntercomEventLog,
-    async_setup_entry as setup_sensor,
-)
 
 
 def _entry(manager: BticinoDeviceManager):
@@ -31,8 +27,8 @@ def test_no_synthetic_who7_entities_without_inventory_evidence() -> None:
         add_binary = MagicMock()
         add_sensor = MagicMock()
 
-        await setup_binary_sensor(MagicMock(), entry, add_binary)
-        await setup_sensor(MagicMock(), entry, add_sensor)
+        await binary_sensor.async_setup_entry(MagicMock(), entry, add_binary)
+        await sensor.async_setup_entry(MagicMock(), entry, add_sensor)
 
         add_binary.assert_not_called()
         add_sensor.assert_not_called()
@@ -55,12 +51,12 @@ def test_raw_who7_sensor_is_gateway_diagnostic_and_disabled_by_default() -> None
         entry = _entry(manager)
         add_sensor = MagicMock()
 
-        await setup_sensor(MagicMock(), entry, add_sensor)
+        await sensor.async_setup_entry(MagicMock(), entry, add_sensor)
 
         entities = add_sensor.call_args.args[0]
         assert len(entities) == 1
         entity = entities[0]
-        assert isinstance(entity, BticinoIntercomEventLog)
+        assert isinstance(entity, sensor.BticinoIntercomEventLog)
         assert entity.entity_category == EntityCategory.DIAGNOSTIC
         assert entity.entity_registry_enabled_default is False
         assert entity.unique_id == f"{entry.runtime_data.gateway.identity}:who7_raw_event"

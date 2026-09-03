@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TypeVar
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -11,8 +10,6 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .discovery import DiscoveredDevice
-
-EntityT = TypeVar("EntityT", bound=Entity)
 
 
 def remove_runtime_entity(hass: HomeAssistant, entity: Entity) -> None:
@@ -29,7 +26,7 @@ def remove_runtime_entity(hass: HomeAssistant, entity: Entity) -> None:
     )
 
 
-def setup_dynamic_entities(
+def setup_dynamic_entities[EntityT: Entity](
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
