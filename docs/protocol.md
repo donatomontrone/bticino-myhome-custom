@@ -39,9 +39,23 @@ The WHO=4 software model currently covers:
 - documented heating / conditioning / generic operation families;
 - anti-freeze, thermal-protection and generic-protection states;
 - manual / programming / OFF mode families;
+- explicit heating-only, cooling-only and heating+cooling zone capabilities;
+- passive capability inference only from documented heating/cooling WHAT families;
 - zone commands routed through the central-unit `#WHERE` form;
-- DIM=14 setpoint writes with temperature plus operation-mode value;
+- profile-aware OFF/programming commands (`103/111`, `203/211`, `303/311`);
+- DIM=14 setpoint writes with temperature plus the matching operation-mode value;
 - conservative DIM=19 active-output decoding.
+
+A KW4691 configured for a floor-heating-only zone is therefore represented as a
+heating-only WHO=4 climate endpoint: Home Assistant exposes OFF / HEAT / AUTO and
+anti-freeze protection, while COOL and cooling protection are not offered. This
+is a zone configuration profile, not a hard-coded assumption about the KW4691
+model; the same device family can be configured differently in other MyHOME
+installations.
+
+When no explicit or observed thermal direction exists, legacy/discovered entries
+retain the previous dual heating+cooling surface rather than silently narrowing
+capabilities without evidence.
 
 This is specification-aligned software behavior, not a claim of physical MH201
 validation. Gateway/installation-specific behavior remains experimental until a
