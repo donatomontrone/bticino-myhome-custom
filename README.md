@@ -16,20 +16,20 @@ Version 0.2.0 is the first architecture/runtime consolidation milestone. The rep
 - Home Assistant 2026.9 / Python 3.14 as the current primary target;
 - Ruff, mypy, pytest, Hassfest and HACS validation.
 
-CI green does **not** replace validation against a physical MH201. Protocol-sensitive areas are deliberately marked experimental until representative real OpenWebNet captures confirm their semantics.
+CI green does **not** replace validation against a physical MH201. Protocol-sensitive areas are deliberately marked experimental or hardware-validation-pending until representative real OpenWebNet captures confirm their runtime behavior.
 
 ## Current functional surface
 
 | WHO | Area | Current status |
 | --- | --- | --- |
 | 0 | Scenarios | Basic activation entity and Home Assistant device triggers implemented; real MH201 event fixtures still required |
-| 1 | Lighting | Basic ON/OFF command and event state implemented; dimmer/brightness permanently excluded from project scope |
+| 1 | Lighting | ON/OFF-only surface complete software-side; dimmer/brightness permanently excluded from project scope; real MH201 status-query validation pending |
 | 2 | Automation / shutters | Open/close/stop plus spec/reference-backed advanced position handling implemented; real MH201 validation still required |
-| 3 | Load management | Basic on/off state/control implemented |
+| 3 | Load management | Basic on/off state/control present; broader semantics remain provisional pending stronger protocol evidence |
 | 4 | Thermoregulation | Spec/reference-aligned climate surface; real MH201/KW4691 validation still required |
 | 5 | Alarm | Experimental minimal alarm-control-panel surface; mappings remain provisional |
 | 7 | Video door entry | Experimental call-event / door-release surfaces; real traffic validation still required |
-| 18 | Energy | Family recognized by protocol/discovery only; production energy entities are not yet implemented |
+| 18 | Energy | Read-only active-power sensor (DIM=113) implemented for documented 5N energy-meter endpoints; totalizers and other measurements remain pending |
 | 22 | Audio / sound diffusion | Explicitly unsupported and outside the roadmap |
 
 The integration also provides passive bus learning, explicit active discovery, manual endpoint registration, diagnostics and a read-only OpenWebNet capture tool.
@@ -59,7 +59,8 @@ Wire-format knowledge is isolated in `custom_components/bticino_myhome/protocol/
 - `commands.py` — semantic command/status request -> wire frame;
 - `normalizer.py` — parsed frame -> normalized semantic event;
 - `automation.py` — WHO=2 advanced shutter status/position helpers;
-- `thermoregulation.py` — WHO=4 thermoregulation semantics and command builders.
+- `thermoregulation.py` — WHO=4 thermoregulation semantics and command builders;
+- `energy.py` — conservative WHO=18 active-power decoding and documented energy-meter addressing.
 
 The Home Assistant platforms consume normalized events rather than parsing raw OpenWebNet strings themselves.
 
@@ -125,7 +126,7 @@ Passive learning only listens to actual OpenWebNet traffic. It sends no discover
 
 ### Active discovery
 
-Active discovery sends supported status probes and accepts endpoints only when matching bus traffic confirms them. WHO=4 remains excluded from broad active probing while its semantics are capture-led.
+Active discovery sends supported status probes and accepts endpoints only when matching bus traffic confirms them. WHO=4 and WHO=18 remain excluded from broad active probing; their endpoint semantics are intentionally evidence-driven rather than discovered by speculative bus-wide scans.
 
 Version 0.2.0 no longer creates scenario addresses 1-30 merely because they could exist. WHO=0 scenarios are included only when observed during the scan or explicitly configured.
 
@@ -133,11 +134,13 @@ Version 0.2.0 no longer creates scenario addresses 1-30 merely because they coul
 
 Endpoints that cannot be safely discovered can be registered manually with WHO, WHERE, device type and an optional name. Manual records have precedence over later generic discovery updates.
 
+For WHO=18, the current production sensor surface is deliberately limited to documented `5N` energy-meter addresses (`N=1..255`) and DIM=113 active power.
+
 ## State model
 
 For the stable/basic surfaces, a transmitted command is not treated as proof that the physical device changed state. State is expected to come back through OpenWebNet events/status responses.
 
-WHO=2 advanced position and WHO=4 climate likewise keep their modeled state evidence-driven rather than relying on optimistic local writes.
+WHO=2 advanced position and WHO=4 climate likewise keep their modeled state evidence-driven rather than relying on optimistic local writes. WHO=18 active power is read-only: the integration requests DIM=113 for initial hydration and only updates watt values from received OpenWebNet evidence; it does not poll periodically or synthesize measurements.
 
 ## Configuration
 
@@ -202,7 +205,7 @@ The capture workflow is the preferred source of evidence for extending WHO=4, WH
 - Real MH201 clean-install, upgrade, restart/reload and long-running disconnect/recovery testing is still required.
 - Active discovery cannot infer the complete configuration stored in Home+Project and intentionally avoids manufacturing unconfirmed endpoints.
 - WHO=4/5/7 semantics are not declared hardware-stable until backed by real captures.
-- WHO=18 energy entities are not yet implemented.
+- WHO=18 currently exposes only documented active power (DIM=113) for 5N energy-meter endpoints; totalizers and additional dimensions remain deferred until their units, reset semantics and real MH201 behavior are validated.
 - Final Home Assistant lifecycle validation is still pending.
 
 ## Development
