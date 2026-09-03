@@ -36,16 +36,16 @@ The next milestone is therefore **runtime solidity before protocol breadth**. Th
 
 ### Command/event lifecycle
 
-- [ ] Serialize access to the persistent command session so concurrent entity/discovery commands cannot overlap
-- [ ] Define and test command-session self-healing after disconnect/reset/timeout
+- [x] Serialize access to the persistent command session so concurrent entity/discovery commands cannot overlap
+- [x] Re-open a missing command session on the next command after a prior close/failure
+- [ ] Define and test retry semantics after disconnect/reset/timeout without duplicating OWNd internal retries
 - [ ] Introduce an explicit command-result abstraction above OWNd so ACK/NACK/transport failure are not represented only by logging
 - [ ] Audit the overlap between OWNd internal reconnect/retry behavior and the integration gateway lifecycle; keep one clear owner for each recovery path
-- [ ] Distinguish event-stream health from command/control health when computing integration/entity availability
+- [x] Track command-channel and event-channel health separately; aggregate entity availability requires both channels healthy
 - [ ] Use Home Assistant-owned task creation/lifecycle for the persistent event worker
 - [ ] Replace generic `BticinoGatewayError` cases with structured connection/authentication/command/protocol exceptions
 - [ ] Log availability transitions once when unavailable and once when recovered instead of logging every retry cycle
-- [ ] Add command concurrency, command recovery, reconnect, cancellation and close-during-retry tests
-- [ ] Define the OWNd dependency strategy: remain pinned while stable, prefer upstream fixes, and keep a minimal adapter/fork escape hatch only if required lifecycle/result semantics cannot be obtained upstream
+- [x] Add command concurrency, missing-session recovery, cancellation and close lifecycle tests
 
 ### Gateway identity and discovery
 
@@ -65,10 +65,10 @@ The next milestone is therefore **runtime solidity before protocol breadth**. Th
 
 ### Discovery safety
 
-- [ ] Stop pre-populating WHO=0 scenario addresses 1–30 during a normal active scan; scenario endpoints should be observed, manually registered, or explicitly selected by address
 - [ ] Correlate active probes with the responses that confirm them
 - [ ] Add explicit probe rate limiting/batching suitable for the SCS/OpenWebNet bus
 - [ ] Stop or surface active discovery when gateway transport becomes unavailable instead of silently swallowing every probe failure
+- [ ] Do not synthesize scenario endpoints 1-30 during active discovery; scenarios must be observed, manually configured, or explicitly selected by address
 - [ ] Validate manual WHO/device-type combinations so impossible semantic combinations cannot be persisted
 
 A separate low-level transport rewrite is **not** currently a goal. A dedicated adapter may be introduced only where OWNd does not expose the lifecycle/result semantics required by the integration.
@@ -108,7 +108,6 @@ A separate low-level transport rewrite is **not** currently a goal. A dedicated 
 
 - [x] Scenario activation entity
 - [x] Scenario device-trigger adapter
-- [ ] Replace broad 1–30 candidate generation with observed/manual or explicitly selected scenario addresses
 - [ ] Real MH201 scenario event fixture set and end-to-end trigger validation
 
 ### WHO=1 — lighting
@@ -138,8 +137,8 @@ A separate low-level transport rewrite is **not** currently a goal. A dedicated 
 - [x] Parser support for observed dimension-response shapes
 - [x] Basic HVAC mode / setpoint / temperature unit tests
 - [ ] Validate every read and write frame against real MH201 thermoregulation captures before declaring climate support stable
+- [ ] Remove optimistic local state changes after climate writes unless real protocol evidence proves that no asynchronous confirmation is available
 - [ ] Validate setpoint-write value/mode semantics rather than inferring optional dimension values
-- [ ] Make climate state-confirmation behavior consistent with the project rule that a transmitted command is not proof of physical state change
 - [ ] Move thermoregulation-specific builders/decoders/mappings into a dedicated protocol module after capture validation
 - [ ] Validate valve/HVAC-action semantics from real traffic
 
