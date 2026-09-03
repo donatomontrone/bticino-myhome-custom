@@ -4,18 +4,24 @@ from custom_components.bticino_myhome.discovery import BticinoDiscovery, Discove
 
 def test_parse_light_event() -> None:
     """Verify light event parsing."""
+    # Frame: *WHO*WHERE*DIM## = *1*1*21##
+    # WHO=1 (lighting), WHERE=1 (address), DIM=21 (dimension/data)
     device = BticinoDiscovery.parse_event("*1*1*21##")
     assert device is not None
-    assert device.address == "21"
+    assert device.address == "1"  # WHERE is the address
     assert device.device_type == "light"
+    assert device.who == "1"
 
 
 def test_parse_energy_event() -> None:
     """Verify energy event parsing."""
+    # Frame: *WHO*WHERE*DIM## = *18*1*31##
+    # WHO=18 (energy), WHERE=1 (address), DIM=31 (dimension/data)
     device = BticinoDiscovery.parse_event("*18*1*31##")
     assert device is not None
-    assert device.address == "31"
+    assert device.address == "1"  # WHERE is the address
     assert device.device_type == "energy"
+    assert device.who == "18"
 
 
 def test_manual_unknown_who_is_allowed() -> None:
