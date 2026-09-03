@@ -3,6 +3,22 @@
 DOMAIN = "bticino_myhome"
 MANUFACTURER = "BTicino"
 
+# Config entry keys
+CONF_GATEWAY_HOST = "host"
+CONF_GATEWAY_PORT = "port"
+CONF_GATEWAY_PASSWORD = "password"
+CONF_DEVICES = "devices"
+
+# Platforms
+PLATFORMS = [
+    "light",
+    "cover",
+    "switch",
+    "scene",
+    "alarm_control_panel",
+    "button",
+]
+
 # WHO (What OpenWebNet)
 WHO_SCENARIO = "0"
 WHO_LIGHTING = "1"
