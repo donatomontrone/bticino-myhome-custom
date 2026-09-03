@@ -1,21 +1,26 @@
-"""Video door-entry call indication (OpenWebNet WHO=7)."""
+"""Binary sensors for BTicino MyHome alarm partitions."""
 from __future__ import annotations
 
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
+import logging
+
+from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import (
-    WHAT_VDE_CALL_END_1,
-    WHAT_VDE_CALL_END_2,
-    WHAT_VDE_CALL_START,
-    WHO_VIDEO_DOOR_ENTRY,
-)
+from .const import WHO_ALARM
 from .data import BticinoConfigEntry
+from .discovery import DiscoveredDevice
 from .entity import BticinoEntity
-from .gateway import BticinoGateway
-from .platform import setup_dynamic_entities
-from .protocol import NormalizedEvent
+from .gateway import BticinoGateway, BticinoGatewayError
+from .platform import remove_runtime_entity
+from .protocol import NormalizedEvent, alarm_partition_status_request
+from .protocol.alarm import (
+    MAX_LEGACY_PARTITIONS,
+    WHAT_ZONE_DISENGAGED,
+    WHAT_ZONE_ENGAGED,
+)
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -23,34 +28,81 @@ async def async_setup_entry(
     entry: BticinoConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    """Expose the documented WHO=5 central-zone/partition state surface."""
     gateway = entry.runtime_data.gateway
-    setup_dynamic_entities(
-        hass,
-        entry,
-        async_add_entities,
-        matches=lambda device: device.device_type == "intercom",
-        factory=lambda device: BticinoIntercomCallSensor(
-            gateway, device.who, device.where, device.name
-        ),
-    )
+    manager = entry.runtime_data.device_manager
+    groups: dict[str, list[BticinoAlarmPartitionSensor]] = {}
+
+    def _build_group(device: DiscoveredDevice) -> list[BticinoAlarmPartitionSensor]:
+        return [
+            BticinoAlarmPartitionSensor(gateway, device.where, device.name, partition)
+            for partition in range(1, MAX_LEGACY_PARTITIONS + 1)
+        ]
+
+    initial: list[BticinoAlarmPartitionSensor] = []
+    for device in manager.devices:
+        if device.device_type != "alarm":
+            continue
+        entities = _build_group(device)
+        groups[device.key] = entities
+        initial.extend(entities)
+    if initial:
+        async_add_entities(initial)
+
+    def _device_added(device: DiscoveredDevice) -> None:
+        if device.device_type != "alarm" or device.key in groups:
+            return
+        entities = _build_group(device)
+        groups[device.key] = entities
+        async_add_entities(entities)
+
+    def _device_removed(device: DiscoveredDevice) -> None:
+        for entity in groups.pop(device.key, []):
+            remove_runtime_entity(hass, entity)
+
+    entry.async_on_unload(manager.add_listener(_device_added))
+    entry.async_on_unload(manager.add_remove_listener(_device_removed))
 
 
-class BticinoIntercomCallSensor(BticinoEntity, BinarySensorEntity):
-    _attr_device_class = BinarySensorDeviceClass.SOUND
-    _attr_translation_key = "intercom_call"
+class BticinoAlarmPartitionSensor(BticinoEntity, BinarySensorEntity):
+    """Active/partialized state for one documented WHO=5 central zone."""
+
+    _request_initial_state_on_add = True
 
     def __init__(
-        self, gateway: BticinoGateway, who: str, where: str, name: str
+        self,
+        gateway: BticinoGateway,
+        alarm_where: str,
+        alarm_name: str,
+        partition: int,
     ) -> None:
-        super().__init__(gateway, who, where, name)
-        self._attr_is_on = False
+        super().__init__(gateway, WHO_ALARM, alarm_where, alarm_name)
+        self._partition = partition
+        self._attr_name = f"Partition {partition}"
+        self._attr_unique_id = (
+            f"{gateway.identity}:{WHO_ALARM}:{alarm_where}:partition:{partition}"
+        )
+        self._attr_is_on = None
+
+    async def _async_request_initial_state(self) -> None:
+        try:
+            await self.gateway.async_send(
+                alarm_partition_status_request(self._partition),
+                is_status_request=True,
+            )
+        except BticinoGatewayError as err:
+            _LOGGER.debug(
+                "WHO=5 partition %s status request failed: %s",
+                self._partition,
+                err,
+            )
 
     def _handle_event(self, event: NormalizedEvent) -> None:
-        if event.who != WHO_VIDEO_DOOR_ENTRY or event.where != self.where:
+        if event.who != WHO_ALARM or event.where != f"#{self._partition}":
             return
-        if event.what == WHAT_VDE_CALL_START:
+        if event.what == WHAT_ZONE_ENGAGED:
             self._attr_is_on = True
-        elif event.what in (WHAT_VDE_CALL_END_1, WHAT_VDE_CALL_END_2):
+        elif event.what == WHAT_ZONE_DISENGAGED:
             self._attr_is_on = False
         else:
             return
