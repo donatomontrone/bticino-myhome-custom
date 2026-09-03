@@ -15,7 +15,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, WHO_VIDEO_DOOR_ENTRY
+from .const import DOMAIN, WHO_DOOR_ENTRY, WHO_MULTIMEDIA
 from .data import BticinoConfigEntry
 from .discovery import DiscoveredDevice
 from .entity import BticinoEntity
@@ -52,27 +52,27 @@ async def async_setup_entry(
     )
 
     manager = entry.runtime_data.device_manager
-    entity: BticinoIntercomEventLog | None = None
+    entity: BticinoDoorEntryEventLog | None = None
 
     def _ensure_entity() -> None:
         nonlocal entity
         if entity is not None:
             return
-        entity = BticinoIntercomEventLog(gateway)
+        entity = BticinoDoorEntryEventLog(gateway)
         async_add_entities([entity])
 
-    if any(device.who == WHO_VIDEO_DOOR_ENTRY for device in manager.devices):
+    if any(device.who == WHO_DOOR_ENTRY for device in manager.devices):
         _ensure_entity()
 
     def _device_added(device: DiscoveredDevice) -> None:
-        if device.who == WHO_VIDEO_DOOR_ENTRY:
+        if device.who == WHO_DOOR_ENTRY:
             _ensure_entity()
 
     def _device_removed(device: DiscoveredDevice) -> None:
         nonlocal entity
-        if device.who != WHO_VIDEO_DOOR_ENTRY or entity is None:
+        if device.who != WHO_DOOR_ENTRY or entity is None:
             return
-        if any(item.who == WHO_VIDEO_DOOR_ENTRY for item in manager.devices):
+        if any(item.who == WHO_DOOR_ENTRY for item in manager.devices):
             return
         remove_runtime_entity(hass, entity)
         entity = None
@@ -125,16 +125,18 @@ class BticinoActivePowerSensor(BticinoEntity, SensorEntity):
             self.async_write_ha_state()
 
 
-class BticinoIntercomEventLog(SensorEntity):
+class BticinoDoorEntryEventLog(SensorEntity):
+    """Disabled-by-default raw VDE evidence surface for WHO=6/7 captures."""
+
     _attr_should_poll = False
     _attr_has_entity_name = True
-    _attr_translation_key = "who7_raw_event"
+    _attr_translation_key = "door_entry_raw_event"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, gateway: BticinoGateway) -> None:
         self._gateway = gateway
-        self._attr_unique_id = f"{gateway.identity}:who7_raw_event"
+        self._attr_unique_id = f"{gateway.identity}:door_entry_raw_event"
         self._attr_native_value = None
         self._unsubscribe_event: Callable[[], None] | None = None
 
@@ -153,7 +155,7 @@ class BticinoIntercomEventLog(SensorEntity):
         await super().async_will_remove_from_hass()
 
     def _handle_event(self, event: NormalizedEvent) -> None:
-        if event.who != WHO_VIDEO_DOOR_ENTRY:
+        if event.who not in {WHO_DOOR_ENTRY, WHO_MULTIMEDIA}:
             return
         self._attr_native_value = event.raw
         if self.hass is not None:
