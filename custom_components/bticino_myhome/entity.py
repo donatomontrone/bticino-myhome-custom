@@ -72,7 +72,11 @@ class BticinoEntity(Entity):
                 self._async_request_initial_state(),
                 f"bticino_myhome-initial-state-{self._who}-{self._where}",
             )
-            self.async_on_remove(task.cancel)
+
+            def _cancel_initial_state_task() -> None:
+                task.cancel()
+
+            self.async_on_remove(_cancel_initial_state_task)
 
     async def async_will_remove_from_hass(self) -> None:
         if self._unsubscribe_event:

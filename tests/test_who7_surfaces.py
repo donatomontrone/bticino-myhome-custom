@@ -7,11 +7,16 @@ from unittest.mock import MagicMock
 
 from homeassistant.helpers.entity import EntityCategory
 
-from custom_components.bticino_myhome.binary_sensor import async_setup_entry as setup_binary_sensor
+from custom_components.bticino_myhome.binary_sensor import (
+    async_setup_entry as setup_binary_sensor,
+)
 from custom_components.bticino_myhome.device import BticinoDeviceManager
 from custom_components.bticino_myhome.discovery import DiscoveredDevice
 from custom_components.bticino_myhome.gateway import BticinoGateway
-from custom_components.bticino_myhome.sensor import BticinoIntercomEventLog, async_setup_entry as setup_sensor
+from custom_components.bticino_myhome.sensor import (
+    BticinoIntercomEventLog,
+    async_setup_entry as setup_sensor,
+)
 
 
 def _entry(manager: BticinoDeviceManager):

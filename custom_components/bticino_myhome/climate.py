@@ -106,7 +106,11 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
                 self._async_hydrate_climate_state(),
                 f"bticino_myhome-climate-state-{self.where}",
             )
-            self.async_on_remove(task.cancel)
+
+            def _cancel_climate_state_task() -> None:
+                task.cancel()
+
+            self.async_on_remove(_cancel_climate_state_task)
 
     async def _async_hydrate_climate_state(self) -> None:
         for dimension in ("0", "14", "12"):

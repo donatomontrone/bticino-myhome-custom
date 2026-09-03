@@ -202,7 +202,7 @@ class BticinoGateway:
         if reader is None:
             raise BticinoGatewayConnectionError("event_stream_unavailable")
         data = await reader.readuntil(OWNSession.SEPARATOR)
-        return data.decode().strip()
+        return str(data.decode()).strip()
 
     async def _event_loop(self) -> None:
         backoff = _RECONNECT_INITIAL_DELAY
