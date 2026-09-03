@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.bticino_myhome.device_trigger import async_get_triggers, async_get_trigger_capabilities
+from custom_components.bticino_myhome.device_trigger import async_get_trigger_capabilities, async_get_triggers
 
 
 async def test_get_triggers_empty_when_no_scenes(hass: HomeAssistant) -> None:
