@@ -1,4 +1,4 @@
-"""Tests for the WHO=5 alarm-control and partition surfaces."""
+"""Tests for the WHO=5 alarm-control, partition and diagnostic surfaces."""
 from __future__ import annotations
 
 import asyncio
@@ -7,7 +7,12 @@ from unittest.mock import AsyncMock, call
 from homeassistant.components.alarm_control_panel.const import AlarmControlPanelState
 
 from custom_components.bticino_myhome.alarm_control_panel import BticinoAlarmControlPanel
-from custom_components.bticino_myhome.binary_sensor import BticinoAlarmPartitionSensor
+from custom_components.bticino_myhome.binary_sensor import (
+    BticinoAlarmBatteryProblemSensor,
+    BticinoAlarmNetworkConnectivitySensor,
+    BticinoAlarmPartitionSensor,
+    BticinoAlarmTechnicalAlarmSensor,
+)
 from custom_components.bticino_myhome.gateway import BticinoGateway
 from custom_components.bticino_myhome.protocol import normalize_frame, parse_frame
 
@@ -95,3 +100,45 @@ def test_alarm_partition_sensor_ignores_other_partitions() -> None:
     partition = BticinoAlarmPartitionSensor(_gateway(), "0", "4200C", 3)
     partition._handle_event(_event("*5*11*#2##"))
     assert partition.is_on is None
+
+
+def test_alarm_battery_diagnostic_tracks_fault_ok_and_unloaded() -> None:
+    async def scenario() -> None:
+        gateway = _gateway()
+        sensor = BticinoAlarmBatteryProblemSensor(gateway, "0", "4200C")
+
+        await sensor._async_request_initial_state()
+        gateway.async_send.assert_awaited_once_with(
+            "*#5*0##", is_status_request=True
+        )
+
+        sensor._handle_event(_event("*5*4**##"))
+        assert sensor.is_on is True
+        sensor._handle_event(_event("*5*5**##"))
+        assert sensor.is_on is False
+        sensor._handle_event(_event("*5*10**##"))
+        assert sensor.is_on is True
+
+    asyncio.run(scenario())
+
+
+def test_alarm_network_diagnostic_tracks_connectivity() -> None:
+    sensor = BticinoAlarmNetworkConnectivitySensor(_gateway(), "0", "4200C")
+
+    sensor._handle_event(_event("*5*6**##"))
+    assert sensor.is_on is False
+    sensor._handle_event(_event("*5*7**##"))
+    assert sensor.is_on is True
+
+
+def test_alarm_technical_alarm_tracks_only_its_auxiliary() -> None:
+    sensor = BticinoAlarmTechnicalAlarmSensor(_gateway(), "0", "4200C", 2)
+
+    sensor._handle_event(_event("*5*12*#3##"))
+    assert sensor.is_on is None
+
+    sensor._handle_event(_event("*5*12*#2##"))
+    assert sensor.is_on is True
+
+    sensor._handle_event(_event("*5*13*#2##"))
+    assert sensor.is_on is False
