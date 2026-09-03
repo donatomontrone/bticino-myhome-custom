@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from homeassistant.components.climate import HVACMode
+from homeassistant.exceptions import ServiceValidationError
 
 from custom_components.bticino_myhome.climate import (
     PRESET_ANTIFREEZE,
@@ -109,13 +110,26 @@ def test_central_where_syntax_is_preserved_for_commands() -> None:
     asyncio.run(scenario())
 
 
-def test_heating_only_rejects_cooling_commands() -> None:
+def test_heating_only_rejects_cooling_commands_with_translated_errors() -> None:
     async def scenario() -> None:
         climate, _ = _climate((CAPABILITY_HEATING,))
-        with pytest.raises(ValueError):
+        with pytest.raises(ServiceValidationError) as mode_error:
             await climate.async_set_hvac_mode(HVACMode.COOL)
-        with pytest.raises(ValueError):
+        assert mode_error.value.translation_key == "unsupported_hvac_mode"
+
+        with pytest.raises(ServiceValidationError) as preset_error:
             await climate.async_set_preset_mode(PRESET_THERMAL_PROTECTION)
+        assert preset_error.value.translation_key == "unsupported_preset_mode"
+
+    asyncio.run(scenario())
+
+
+def test_temperature_out_of_range_uses_translated_validation_error() -> None:
+    async def scenario() -> None:
+        climate, _ = _climate((CAPABILITY_HEATING,))
+        with pytest.raises(ServiceValidationError) as error:
+            await climate.async_set_temperature(temperature=45)
+        assert error.value.translation_key == "temperature_out_of_range"
 
     asyncio.run(scenario())
 
