@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, call
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
@@ -12,10 +12,13 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from custom_components.bticino_myhome.const import DOMAIN
 from custom_components.bticino_myhome.gateway import BticinoGatewayError
 from custom_components.bticino_myhome.services import (
+    ATTR_ACTIVE,
     ATTR_CONFIG_ENTRY_ID,
+    ATTR_PARTITION,
     ATTR_PARTITIONS,
     SERVICE_ARM_ALARM_PARTITIONS,
     SERVICE_SEND_FRAME,
+    SERVICE_SET_ALARM_PARTITION,
     async_setup_services,
 )
 
@@ -192,6 +195,65 @@ def test_arm_alarm_partitions_rejects_invalid_partition_list() -> None:
                     {
                         ATTR_CONFIG_ENTRY_ID: "entry-a",
                         ATTR_PARTITIONS: [9],
+                    }
+                )
+            )
+        assert invalid.value.translation_key == "alarm_partitions_invalid"
+        gateway.async_send.assert_not_awaited()
+
+    asyncio.run(scenario())
+
+
+def test_set_alarm_partition_activates_and_partializes_one_partition() -> None:
+    async def scenario() -> None:
+        hass = _Hass()
+        gateway = SimpleNamespace(async_send=AsyncMock())
+        hass.config_entries.entries["entry-a"] = _loaded_entry(gateway)
+        await async_setup_services(hass)
+        handler = hass.services.handlers[(DOMAIN, SERVICE_SET_ALARM_PARTITION)]
+
+        await handler(
+            _Call(
+                {
+                    ATTR_CONFIG_ENTRY_ID: "entry-a",
+                    ATTR_PARTITION: 3,
+                    ATTR_ACTIVE: True,
+                }
+            )
+        )
+        await handler(
+            _Call(
+                {
+                    ATTR_CONFIG_ENTRY_ID: "entry-a",
+                    ATTR_PARTITION: 3,
+                    ATTR_ACTIVE: False,
+                }
+            )
+        )
+
+        assert gateway.async_send.await_args_list == [
+            call("*5*11*#3##"),
+            call("*5*18*#3##"),
+        ]
+
+    asyncio.run(scenario())
+
+
+def test_set_alarm_partition_rejects_invalid_partition() -> None:
+    async def scenario() -> None:
+        hass = _Hass()
+        gateway = SimpleNamespace(async_send=AsyncMock())
+        hass.config_entries.entries["entry-a"] = _loaded_entry(gateway)
+        await async_setup_services(hass)
+        handler = hass.services.handlers[(DOMAIN, SERVICE_SET_ALARM_PARTITION)]
+
+        with pytest.raises(ServiceValidationError) as invalid:
+            await handler(
+                _Call(
+                    {
+                        ATTR_CONFIG_ENTRY_ID: "entry-a",
+                        ATTR_PARTITION: 9,
+                        ATTR_ACTIVE: True,
                     }
                 )
             )
