@@ -5,6 +5,11 @@ import pytest
 
 from custom_components.bticino_myhome.protocol import normalize_frame, parse_frame
 from custom_components.bticino_myhome.protocol.thermoregulation import (
+    CAPABILITY_COOLING,
+    CAPABILITY_HEATING,
+    CLIMATE_PROFILE_COOLING,
+    CLIMATE_PROFILE_HEATING,
+    CLIMATE_PROFILE_HEATING_COOLING,
     OPERATION_MODE_CONDITIONING,
     OPERATION_MODE_GENERIC,
     OPERATION_MODE_HEATING,
@@ -14,6 +19,8 @@ from custom_components.bticino_myhome.protocol.thermoregulation import (
     STATE_THERMAL_PROTECTION,
     build_zone_mode_command,
     build_zone_setpoint_command,
+    capabilities_for_climate_profile,
+    capabilities_for_thermoregulation_state,
     central_zone_where,
     encode_setpoint_temperature,
     output_is_active,
@@ -49,6 +56,35 @@ def test_parse_thermo_mode_events_use_documented_protection_semantics() -> None:
         frame = parse_frame(f"*4*{what}*1##")
         assert frame is not None
         assert normalize_frame(frame).state == state
+
+
+def test_climate_profiles_map_to_explicit_capabilities() -> None:
+    assert capabilities_for_climate_profile(CLIMATE_PROFILE_HEATING) == (
+        CAPABILITY_HEATING,
+    )
+    assert capabilities_for_climate_profile(CLIMATE_PROFILE_COOLING) == (
+        CAPABILITY_COOLING,
+    )
+    assert capabilities_for_climate_profile(CLIMATE_PROFILE_HEATING_COOLING) == (
+        CAPABILITY_HEATING,
+        CAPABILITY_COOLING,
+    )
+    with pytest.raises(ValueError):
+        capabilities_for_climate_profile("unsupported")
+
+
+def test_documented_mode_families_prove_thermal_direction() -> None:
+    assert capabilities_for_thermoregulation_state(STATE_MANUAL_HEATING) == (
+        CAPABILITY_HEATING,
+    )
+    assert capabilities_for_thermoregulation_state(STATE_THERMAL_PROTECTION) == (
+        CAPABILITY_COOLING,
+    )
+    assert capabilities_for_thermoregulation_state(STATE_GENERIC_PROTECTION) == (
+        CAPABILITY_HEATING,
+        CAPABILITY_COOLING,
+    )
+    assert capabilities_for_thermoregulation_state(None) == ()
 
 
 def test_dimension_write_is_not_treated_as_received_state() -> None:
