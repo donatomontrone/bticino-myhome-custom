@@ -3,19 +3,22 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from . import BticinoConfigEntry
 from .discovery import DiscoveredDevice
 
 
 def remove_runtime_entity(hass: HomeAssistant, entity: Entity) -> None:
     """Remove a live entity and its entity-registry entry when present."""
     registry = er.async_get(hass)
-    if entity.entity_id is not None and registry.async_get(entity.entity_id) is not None:
+    if (
+        entity.entity_id is not None
+        and registry.async_get(entity.entity_id) is not None
+    ):
         registry.async_remove(entity.entity_id)
         return
     if entity.hass is None:
@@ -28,7 +31,7 @@ def remove_runtime_entity(hass: HomeAssistant, entity: Entity) -> None:
 
 def setup_dynamic_entities[EntityT: Entity](
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: BticinoConfigEntry,
     async_add_entities: AddEntitiesCallback,
     *,
     matches: Callable[[DiscoveredDevice], bool],

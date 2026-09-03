@@ -17,14 +17,38 @@
           "port": "OpenWebNet port",
           "password": "OpenWebNet password (optional)"
         }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate BTicino MyHome",
+        "description": "The MH201 gateway at {host} rejected the stored credentials. Enter the current OpenWebNet password.",
+        "data": {
+          "password": "OpenWebNet password"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure BTicino MyHome",
+        "description": "Update the network connection for this MH201 gateway. Stable serial/UDN identity is checked when discovery data is available.",
+        "data": {
+          "host": "IP address or hostname",
+          "port": "OpenWebNet port",
+          "password": "New OpenWebNet password (optional)"
+        },
+        "data_description": {
+          "password": "Leave blank to keep the currently stored password."
+        }
       }
     },
     "error": {
-      "cannot_connect": "Unable to connect to the gateway. Check address, port and password."
+      "cannot_connect": "Unable to connect to the gateway. Check address and port.",
+      "invalid_auth": "The gateway rejected the OpenWebNet credentials.",
+      "wrong_gateway": "The discovered serial/UDN does not match this configured gateway.",
+      "already_configured": "Another configuration entry already uses this gateway identity."
     },
     "abort": {
       "already_configured": "This gateway is already configured.",
-      "cannot_connect": "The discovered gateway does not provide a usable network address."
+      "cannot_connect": "The discovered gateway does not provide a usable network address.",
+      "reauth_successful": "Re-authentication was successful.",
+      "reconfigure_successful": "The gateway configuration was updated successfully."
     }
   },
   "options": {
@@ -40,12 +64,16 @@
       "passive_learning": {
         "title": "Learn BTicino devices",
         "description": "Listen to the BUS without sending commands. Use the physical controls you want to identify while listening.",
-        "data": {"listen_seconds": "Listening time (seconds)"}
+        "data": {
+          "listen_seconds": "Listening time (seconds)"
+        }
       },
       "select_learned": {
         "title": "Discovered devices",
         "description": "Select the devices to add to the inventory.",
-        "data": {"devices": "Devices"}
+        "data": {
+          "devices": "Devices"
+        }
       },
       "manual_device": {
         "title": "Add device manually",
@@ -56,11 +84,46 @@
           "device_type": "Device type",
           "name": "Name (optional)"
         }
+      },
+      "remove_device": {
+        "title": "Remove configured devices",
+        "description": "Select inventory endpoints to remove. Their Home Assistant entities and endpoint device entries are removed as well.",
+        "data": {
+          "devices": "Devices"
+        }
       }
+    },
+    "error": {
+      "invalid_device": "The selected device type is not valid for the specified WHO."
     },
     "abort": {
       "no_devices_found": "No supported device was detected during listening.",
-      "cannot_connect": "The integration is not currently loaded."
+      "no_devices_configured": "There are no configured endpoints to remove.",
+      "cannot_connect": "The integration is not currently loaded or the gateway connection failed."
+    }
+  },
+  "selector": {
+    "options_action": {
+      "options": {
+        "none": "No action",
+        "scan": "Automatic scan",
+        "learn": "Learn from physical controls",
+        "manual": "Add device manually",
+        "remove": "Remove configured devices"
+      }
+    },
+    "device_type": {
+      "options": {
+        "scene": "Scenario",
+        "light": "Light",
+        "cover": "Cover / shutter",
+        "load": "Managed load",
+        "climate": "Thermoregulation",
+        "alarm": "Alarm",
+        "intercom": "Video door entry",
+        "door_lock": "Door release",
+        "energy": "Energy"
+      }
     }
   }
 }

@@ -17,14 +17,38 @@
           "port": "Porta OpenWebNet",
           "password": "Password OpenWebNet (opzionale)"
         }
+      },
+      "reauth_confirm": {
+        "title": "Riautentica BTicino MyHome",
+        "description": "Il gateway MH201 all'indirizzo {host} ha rifiutato le credenziali memorizzate. Inserisci la password OpenWebNet attuale.",
+        "data": {
+          "password": "Password OpenWebNet"
+        }
+      },
+      "reconfigure": {
+        "title": "Riconfigura BTicino MyHome",
+        "description": "Aggiorna la connessione di rete di questo gateway MH201. Quando disponibili, seriale e UDN vengono verificati per confermare l'identità del gateway.",
+        "data": {
+          "host": "Indirizzo IP o nome host",
+          "port": "Porta OpenWebNet",
+          "password": "Nuova password OpenWebNet (opzionale)"
+        },
+        "data_description": {
+          "password": "Lascia vuoto per mantenere la password attualmente memorizzata."
+        }
       }
     },
     "error": {
-      "cannot_connect": "Impossibile connettersi al gateway. Controlla indirizzo, porta e password."
+      "cannot_connect": "Impossibile connettersi al gateway. Controlla indirizzo e porta.",
+      "invalid_auth": "Il gateway ha rifiutato le credenziali OpenWebNet.",
+      "wrong_gateway": "Il seriale/UDN rilevato non corrisponde al gateway configurato.",
+      "already_configured": "Un'altra configurazione utilizza già questa identità del gateway."
     },
     "abort": {
       "already_configured": "Questo gateway è già configurato.",
-      "cannot_connect": "Il gateway rilevato non espone un indirizzo di rete utilizzabile."
+      "cannot_connect": "Il gateway rilevato non espone un indirizzo di rete utilizzabile.",
+      "reauth_successful": "Riautenticazione completata correttamente.",
+      "reconfigure_successful": "Configurazione del gateway aggiornata correttamente."
     }
   },
   "options": {
@@ -40,12 +64,16 @@
       "passive_learning": {
         "title": "Apprendi dispositivi BTicino",
         "description": "Ascolta il BUS senza inviare comandi. Durante l'ascolto usa i comandi fisici dei dispositivi che vuoi identificare.",
-        "data": {"listen_seconds": "Tempo di ascolto (secondi)"}
+        "data": {
+          "listen_seconds": "Tempo di ascolto (secondi)"
+        }
       },
       "select_learned": {
         "title": "Dispositivi rilevati",
         "description": "Seleziona i dispositivi da aggiungere all'inventario.",
-        "data": {"devices": "Dispositivi"}
+        "data": {
+          "devices": "Dispositivi"
+        }
       },
       "manual_device": {
         "title": "Aggiungi dispositivo manualmente",
@@ -56,11 +84,46 @@
           "device_type": "Tipo dispositivo",
           "name": "Nome (opzionale)"
         }
+      },
+      "remove_device": {
+        "title": "Rimuovi dispositivi configurati",
+        "description": "Seleziona gli endpoint da rimuovere dall'inventario. Verranno rimosse anche le relative entità e il dispositivo endpoint di Home Assistant.",
+        "data": {
+          "devices": "Dispositivi"
+        }
       }
+    },
+    "error": {
+      "invalid_device": "Il tipo di dispositivo selezionato non è valido per il WHO specificato."
     },
     "abort": {
       "no_devices_found": "Nessun dispositivo supportato è stato rilevato durante l'ascolto.",
-      "cannot_connect": "L'integrazione non è attualmente caricata."
+      "no_devices_configured": "Non ci sono endpoint configurati da rimuovere.",
+      "cannot_connect": "L'integrazione non è caricata oppure la connessione al gateway non è disponibile."
+    }
+  },
+  "selector": {
+    "options_action": {
+      "options": {
+        "none": "Nessuna azione",
+        "scan": "Scansione automatica",
+        "learn": "Apprendi dai comandi fisici",
+        "manual": "Aggiungi dispositivo manualmente",
+        "remove": "Rimuovi dispositivi configurati"
+      }
+    },
+    "device_type": {
+      "options": {
+        "scene": "Scenario",
+        "light": "Luce",
+        "cover": "Tapparella / automazione",
+        "load": "Carico gestito",
+        "climate": "Termoregolazione",
+        "alarm": "Allarme",
+        "intercom": "Videocitofonia",
+        "door_lock": "Apriporta",
+        "energy": "Energia"
+      }
     }
   }
 }
