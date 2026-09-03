@@ -69,11 +69,11 @@ class BticinoAlarmControlPanel(BticinoEntity, AlarmControlPanelEntity):
             return
 
         if event.what in ALARM_TRIGGER_WHATS:
-            self._attr_state = AlarmControlPanelState.TRIGGERED
+            self._attr_alarm_state = AlarmControlPanelState.TRIGGERED
         elif event.where == "0" and event.what == WHAT_SYSTEM_ENGAGED:
-            self._attr_state = AlarmControlPanelState.ARMED_AWAY
+            self._attr_alarm_state = AlarmControlPanelState.ARMED_AWAY
         elif event.where == "0" and event.what == WHAT_SYSTEM_DISENGAGED:
-            self._attr_state = AlarmControlPanelState.DISARMED
+            self._attr_alarm_state = AlarmControlPanelState.DISARMED
         else:
             return
 
