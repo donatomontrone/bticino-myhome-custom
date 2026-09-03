@@ -106,11 +106,18 @@ def capabilities_for_thermoregulation_state(state: str | None) -> tuple[str, ...
 
 
 def central_zone_where(where: str) -> str:
-    """Return the WHO=4 WHERE form used for commands through the central unit."""
+    """Return the WHO=4 WHERE form used for commands through a central unit."""
     value = str(where).strip()
     if not value:
         raise ValueError("Thermoregulation WHERE is required")
     return value if value.startswith("#") else f"#{value}"
+
+
+def _validated_where(where: str) -> str:
+    value = str(where).strip()
+    if not value:
+        raise ValueError("Thermoregulation WHERE is required")
+    return value
 
 
 def encode_setpoint_temperature(temperature: float) -> str:
@@ -123,8 +130,8 @@ def encode_setpoint_temperature(temperature: float) -> str:
 
 
 def build_zone_mode_command(where: str, what: str) -> str:
-    """Build a WHO=4 zone mode command routed through the central unit."""
-    return build_command(WHO_THERMOREGULATION, what, central_zone_where(where))
+    """Build a WHO=4 mode command preserving standalone/central WHERE syntax."""
+    return build_command(WHO_THERMOREGULATION, what, _validated_where(where))
 
 
 def build_zone_setpoint_command(
@@ -140,7 +147,7 @@ def build_zone_setpoint_command(
         raise ValueError(f"Unsupported thermoregulation operation mode: {mode}")
     return build_dimension_write(
         WHO_THERMOREGULATION,
-        central_zone_where(where),
+        _validated_where(where),
         DIM_SETPOINT_TEMPERATURE,
         encode_setpoint_temperature(temperature),
         mode,
