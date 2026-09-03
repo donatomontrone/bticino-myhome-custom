@@ -63,6 +63,27 @@ THERMOREGULATION_STATE_MAP = {
     "311": STATE_PROGRAMMING_GENERIC,
 }
 
+_HEATING_STATES = {
+    STATE_HEATING,
+    STATE_ANTIFREEZE,
+    STATE_OFF_HEATING,
+    STATE_MANUAL_HEATING,
+    STATE_PROGRAMMING_HEATING,
+}
+_COOLING_STATES = {
+    STATE_CONDITIONING,
+    STATE_THERMAL_PROTECTION,
+    STATE_OFF_CONDITIONING,
+    STATE_MANUAL_CONDITIONING,
+    STATE_PROGRAMMING_CONDITIONING,
+}
+_GENERIC_STATES = {
+    STATE_GENERIC_PROTECTION,
+    STATE_OFF_GENERIC,
+    STATE_MANUAL_GENERIC,
+    STATE_PROGRAMMING_GENERIC,
+}
+
 # WHO=4 DIM=19 documents 1/2 and 6/7/8 as active states. Values 0, 3,
 # 4 and 5 are explicitly inactive. Community clarification from the MyOPEN
 # team additionally identifies 14/15/16 as OFF fan-coil speed states.
@@ -79,6 +100,17 @@ def capabilities_for_climate_profile(profile: str) -> tuple[str, ...]:
     if value == CLIMATE_PROFILE_HEATING_COOLING:
         return (CAPABILITY_HEATING, CAPABILITY_COOLING)
     raise ValueError(f"Unsupported climate profile: {profile}")
+
+
+def capabilities_for_thermoregulation_state(state: str | None) -> tuple[str, ...]:
+    """Infer thermal direction only when the documented WHAT family proves it."""
+    if state in _HEATING_STATES:
+        return (CAPABILITY_HEATING,)
+    if state in _COOLING_STATES:
+        return (CAPABILITY_COOLING,)
+    if state in _GENERIC_STATES:
+        return (CAPABILITY_HEATING, CAPABILITY_COOLING)
+    return ()
 
 
 def central_zone_where(where: str) -> str:
