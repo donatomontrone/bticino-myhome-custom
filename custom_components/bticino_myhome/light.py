@@ -42,10 +42,10 @@ class BticinoLight(BticinoEntity, LightEntity):
         self._attr_supported_color_modes = {ColorMode.ONOFF}
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        await self.gateway.async_send(light_on(self.where))
+        await self._async_send_command(light_on(self.where))
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        await self.gateway.async_send(light_off(self.where))
+        await self._async_send_command(light_off(self.where))
 
     def _handle_event(self, event: NormalizedEvent) -> None:
         if event.who != self.who or event.where != self.where:
