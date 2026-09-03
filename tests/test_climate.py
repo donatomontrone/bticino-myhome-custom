@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 
 from homeassistant.components.climate import HVACMode
 
-from custom_components.bticino_myhome.climate import BticinoClimate, PRESET_ECO
+from custom_components.bticino_myhome.climate import PRESET_ECO, BticinoClimate
 from custom_components.bticino_myhome.gateway import BticinoGateway
 from custom_components.bticino_myhome.protocol import normalize_frame, parse_frame
 
