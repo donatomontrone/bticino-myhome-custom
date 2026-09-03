@@ -30,6 +30,7 @@ from .protocol import NormalizedEvent, build_status_request, normalize_frame, pa
 from .protocol.thermoregulation import (
     CLIMATE_PROFILES,
     capabilities_for_climate_profile,
+    capabilities_for_thermoregulation_state,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -289,14 +290,20 @@ class BticinoDiscovery:
         mapped = cls._TYPE_MAP.get(event.who)
         if mapped is None:
             return None
-        dtype, capabilities = mapped
+        dtype, base_capabilities = mapped
+        capabilities = tuple(base_capabilities)
+        if event.who == WHO_THERMOREGULATION:
+            capabilities = (
+                *capabilities,
+                *capabilities_for_thermoregulation_state(event.state),
+            )
         return DiscoveredDevice(
             who=event.who,
             where=event.where,
             device_type=dtype,
             name=cls.default_name(dtype, event.where),
             source=source.value,
-            capabilities=tuple(capabilities),
+            capabilities=tuple(dict.fromkeys(capabilities)),
             extra={
                 "discovery": source.value,
                 "what": event.what,
@@ -327,6 +334,13 @@ class BticinoDiscovery:
         existing = self._found.get(device.key)
         if existing is None:
             self._found[device.key] = device
+            return
+        merged_capabilities = tuple(
+            dict.fromkeys((*existing.capabilities, *device.capabilities))
+        )
+        if merged_capabilities != existing.capabilities:
+            existing.capabilities = merged_capabilities
+        existing.extra.update(device.extra)
 
     def _sorted_found(
         self, *, include_scenarios: bool = True
