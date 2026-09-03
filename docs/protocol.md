@@ -17,10 +17,16 @@ Standard event frames have the shape:
 *WHO*WHAT*WHERE##
 ```
 
-The parser accepts OpenWebNet parameterized WHERE forms such as `#1` on received
-standard events, while requests and dimension writes are still excluded from the
-device-event path.
+Generic standard events are accepted only with endpoint-style WHERE values that
+do not contain the OpenWebNet parameter marker `#`. WHO=4 has one explicit
+exception: central-unit thermoregulation events such as `*4*110*#1##` are parsed
+because that address form is documented and modeled by the dedicated WHO=4
+protocol layer. Dimension responses preserve their received WHERE, including
+parameterized WHO=4 addresses. Group/broadcast/parameterized standard WHERE
+semantics for other WHO families are intentionally not treated as endpoint
+evidence until that family is explicitly modeled and capture-validated.
 
+Requests and dimension writes remain excluded from the device-event path.
 Status requests use the separate form:
 
 ```text
@@ -70,9 +76,11 @@ When no explicit or observed thermal direction exists, legacy/discovered entries
 retain the previous dual heating+cooling surface rather than silently narrowing
 capabilities without evidence.
 
-This is specification-aligned software behavior, not a claim of physical MH201
-validation. Gateway/installation-specific behavior remains experimental until a
-real capture campaign is available.
+The current WHO=4 implementation is **spec/reference validated in software**: its
+mode/state tables, address forms and DIM=14 command shape are derived from public
+BTicino/Legrand OpenWebNet documentation and cross-checked against established
+MyHOME/OWNd implementations. It is **not hardware validated** until the same
+behaviour is replayed against captures from a real MH201/KW4691 installation.
 
 The generic normalized event model provides state mappings for:
 
