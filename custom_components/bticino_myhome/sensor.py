@@ -89,6 +89,12 @@ class BticinoActivePowerSensor(BticinoEntity, SensorEntity):
     _attr_state_class = SensorStateClass.MEASUREMENT
     _request_initial_state_on_add = True
 
+    def __init__(
+        self, gateway: BticinoGateway, who: str, where: str, name: str
+    ) -> None:
+        super().__init__(gateway, who, where, name)
+        self._attr_unique_id = f"{gateway.identity}:{who}:{where}:active_power"
+
     async def _async_request_initial_state(self) -> None:
         try:
             await self.gateway.async_send(
