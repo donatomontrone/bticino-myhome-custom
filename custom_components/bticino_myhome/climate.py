@@ -1,7 +1,7 @@
 """Climate platform for BTicino MyHome WHO=4."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Never
 
 from homeassistant.components.climate import (
     ClimateEntity,
@@ -240,7 +240,7 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
         return OPERATION_MODE_GENERIC
 
     @staticmethod
-    def _raise_unsupported_hvac_mode(hvac_mode: HVACMode) -> None:
+    def _raise_unsupported_hvac_mode(hvac_mode: HVACMode) -> Never:
         raise ServiceValidationError(
             translation_domain=DOMAIN,
             translation_key="unsupported_hvac_mode",
