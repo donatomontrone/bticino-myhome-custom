@@ -43,7 +43,3 @@ def cover_stop(where: str) -> str:
 
 def scene_activate(where: str) -> str:
     return build_command("0", "1", where)
-
-
-def door_lock_release(where: str) -> str:
-    return build_command("7", "10", where)
