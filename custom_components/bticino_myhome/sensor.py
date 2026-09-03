@@ -12,6 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, WHO_VIDEO_DOOR_ENTRY
 from .gateway import BticinoGateway
+from .platform import remove_runtime_entity
 from .protocol import NormalizedEvent
 
 
@@ -20,23 +21,36 @@ async def async_setup_entry(
 ) -> None:
     gateway = entry.runtime_data.gateway
     manager = entry.runtime_data.device_manager
-    created = any(device.who == WHO_VIDEO_DOOR_ENTRY for device in manager.devices)
-    if created:
-        async_add_entities([BticinoIntercomEventLog(gateway)])
+    entity: BticinoIntercomEventLog | None = None
+
+    def _ensure_entity() -> None:
+        nonlocal entity
+        if entity is not None:
+            return
+        entity = BticinoIntercomEventLog(gateway)
+        async_add_entities([entity])
+
+    if any(device.who == WHO_VIDEO_DOOR_ENTRY for device in manager.devices):
+        _ensure_entity()
 
     def _device_added(device) -> None:
-        nonlocal created
-        if created or device.who != WHO_VIDEO_DOOR_ENTRY:
+        if device.who == WHO_VIDEO_DOOR_ENTRY:
+            _ensure_entity()
+
+    def _device_removed(device) -> None:
+        nonlocal entity
+        if device.who != WHO_VIDEO_DOOR_ENTRY or entity is None:
             return
-        created = True
-        async_add_entities([BticinoIntercomEventLog(gateway)])
+        if any(item.who == WHO_VIDEO_DOOR_ENTRY for item in manager.devices):
+            return
+        remove_runtime_entity(hass, entity)
+        entity = None
 
     entry.async_on_unload(manager.add_listener(_device_added))
+    entry.async_on_unload(manager.add_remove_listener(_device_removed))
 
 
 class BticinoIntercomEventLog(SensorEntity):
-    """Disabled-by-default gateway diagnostic for the last WHO=7 frame."""
-
     _attr_should_poll = False
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_entity_registry_enabled_default = False

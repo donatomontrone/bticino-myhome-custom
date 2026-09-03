@@ -8,11 +8,12 @@ from .discovery import DiscoveredDevice, DiscoverySource
 
 
 class BticinoDeviceManager:
-    """In-memory device inventory with listener notifications."""
+    """In-memory device inventory with explicit add/remove notifications."""
 
     def __init__(self, devices: Iterable[DiscoveredDevice] = ()) -> None:
         self._devices: dict[str, DiscoveredDevice] = {device.key: device for device in devices}
         self._listeners: set[Callable[[DiscoveredDevice], None]] = set()
+        self._remove_listeners: set[Callable[[DiscoveredDevice], None]] = set()
 
     @property
     def devices(self) -> list[DiscoveredDevice]:
@@ -30,8 +31,7 @@ class BticinoDeviceManager:
             and device.source != DiscoverySource.MANUAL.value
         ):
             return False
-        changed = previous != device
-        if not changed:
+        if previous == device:
             return False
         self._devices[device.key] = device
         for listener in tuple(self._listeners):
@@ -46,25 +46,36 @@ class BticinoDeviceManager:
 
         return _remove
 
+    def add_remove_listener(
+        self, callback: Callable[[DiscoveredDevice], None]
+    ) -> Callable[[], None]:
+        """Subscribe to explicit inventory removals."""
+        self._remove_listeners.add(callback)
+
+        def _remove() -> None:
+            self._remove_listeners.discard(callback)
+
+        return _remove
+
     def remove(self, key: str) -> bool:
-        return self._devices.pop(key, None) is not None
+        """Explicitly remove one device and notify runtime consumers."""
+        device = self._devices.pop(key, None)
+        if device is None:
+            return False
+        for listener in tuple(self._remove_listeners):
+            listener(device)
+        return True
 
     def replace(self, devices: Iterable[DiscoveredDevice]) -> list[DiscoveredDevice]:
-        """Merge a discovery snapshot and return only actually changed devices.
+        """Merge a discovery snapshot without treating absence as removal.
 
-        Manual devices survive discovery snapshots even when they are absent
-        from the new result.
+        OpenWebNet discovery is observational and may be incomplete. A device is
+        therefore removed only through ``remove`` after an explicit user action.
         """
-        incoming = list(devices)
-        incoming_keys = {device.key for device in incoming}
         changed: list[DiscoveredDevice] = []
-        for device in incoming:
+        for device in devices:
             if self.add(device):
                 changed.append(device)
-
-        for key, current in list(self._devices.items()):
-            if key not in incoming_keys and current.source != DiscoverySource.MANUAL.value:
-                del self._devices[key]
         return changed
 
     def as_dicts(self) -> list[dict[str, Any]]:

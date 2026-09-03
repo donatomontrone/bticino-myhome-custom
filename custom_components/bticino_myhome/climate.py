@@ -16,6 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import BticinoEntity
 from .gateway import BticinoGatewayError
+from .platform import setup_dynamic_entities
 from .protocol import (
     NormalizedEvent,
     build_command,
@@ -54,30 +55,19 @@ _PROBE_MODE = {
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    runtime = entry.runtime_data
-    gateway = runtime.gateway
-    manager = runtime.device_manager
-    known = {device.key for device in manager.devices if device.device_type == "climate"}
-    async_add_entities(
-        [
-            BticinoClimate(gateway, device.who, device.where, device.name)
-            for device in manager.devices
-            if device.device_type == "climate"
-        ]
+    gateway = entry.runtime_data.gateway
+    setup_dynamic_entities(
+        hass,
+        entry,
+        async_add_entities,
+        matches=lambda device: device.device_type == "climate",
+        factory=lambda device: BticinoClimate(
+            gateway, device.who, device.where, device.name
+        ),
     )
-
-    def _device_added(device) -> None:
-        if device.device_type != "climate" or device.key in known:
-            return
-        known.add(device.key)
-        async_add_entities([BticinoClimate(gateway, device.who, device.where, device.name)])
-
-    entry.async_on_unload(manager.add_listener(_device_added))
 
 
 class BticinoClimate(BticinoEntity, ClimateEntity):
-    """Thermoregulation endpoint exposed as a Home Assistant climate entity."""
-
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_supported_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
@@ -154,7 +144,6 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
     def _handle_event(self, event: NormalizedEvent) -> None:
         if event.who != "4" or event.where != self.where:
             return
-
         if event.dimension == "0" and event.values:
             self._attr_current_temperature = _decode_temperature(event.values[0])
         elif event.dimension == "14" and event.values:

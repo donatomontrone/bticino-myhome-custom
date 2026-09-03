@@ -21,11 +21,16 @@ from .const import (
     WHO_THERMOREGULATION,
     WHO_VIDEO_DOOR_ENTRY,
 )
-from .gateway import BticinoGateway
+from .gateway import (
+    BticinoGateway,
+    BticinoGatewayCommandRejected,
+    BticinoGatewayError,
+)
 from .protocol import NormalizedEvent, build_status_request, normalize_frame, parse_frame
 
 _LOGGER = logging.getLogger(__name__)
 _ADDRESS_RANGE = range(1, 100)
+_PROBE_INTERVAL = 0.05
 
 
 class DiscoverySource(StrEnum):
@@ -48,7 +53,6 @@ class DiscoveredGateway:
 
     @property
     def identity(self) -> str:
-        """Return the most stable available gateway identity."""
         if self.serial:
             return f"serial:{self.serial.strip().lower()}"
         if self.udn:
@@ -57,7 +61,6 @@ class DiscoveredGateway:
 
     @classmethod
     def from_ownd(cls, data: dict[str, Any]) -> DiscoveredGateway | None:
-        """Build normalized gateway information from OWNd discovery data."""
         host = data.get("address") or data.get("host")
         if not host:
             return None
@@ -135,6 +138,16 @@ class BticinoDiscovery:
         WHO_VIDEO_DOOR_ENTRY: ("intercom", ("events", "lock")),
         WHO_ENERGY_MANAGEMENT: ("energy", ("measurement",)),
     }
+    _ALLOWED_MANUAL_TYPES: ClassVar[dict[str, set[str]]] = {
+        WHO_SCENARIO: {"scene"},
+        WHO_LIGHTING: {"light"},
+        WHO_AUTOMATION: {"cover"},
+        WHO_LOAD_MANAGEMENT: {"load"},
+        WHO_THERMOREGULATION: {"climate"},
+        WHO_ALARM: {"alarm"},
+        WHO_VIDEO_DOOR_ENTRY: {"intercom", "door_lock"},
+        WHO_ENERGY_MANAGEMENT: {"energy"},
+    }
 
     def __init__(self, gateway: BticinoGateway) -> None:
         self._gateway = gateway
@@ -152,8 +165,18 @@ class BticinoDiscovery:
     ) -> DiscoveredDevice:
         who = str(who).strip()
         where = str(where).strip()
-        dtype, capabilities = cls._TYPE_MAP.get(who, (device_type or "unknown", ()))
-        dtype = device_type or dtype
+        if not who or not where:
+            raise ValueError("WHO and WHERE are required")
+        mapped_type, mapped_capabilities = cls._TYPE_MAP.get(
+            who, (device_type or "unknown", ())
+        )
+        dtype = device_type or mapped_type
+        allowed = cls._ALLOWED_MANUAL_TYPES.get(who)
+        if allowed is not None and dtype not in allowed:
+            raise ValueError(f"Device type {dtype!r} is not valid for WHO={who}")
+        capabilities = mapped_capabilities
+        if who == WHO_VIDEO_DOOR_ENTRY and dtype == "door_lock":
+            capabilities = ("lock",)
         return DiscoveredDevice(
             who=who,
             where=where,
@@ -183,11 +206,7 @@ class BticinoDiscovery:
         listen_seconds: int = 10,
         include_scenarios: bool = False,
     ) -> list[DiscoveredDevice]:
-        """Run conservative event-confirmed discovery.
-
-        WHO=4 is intentionally passive-only here. Scenario endpoints are returned
-        only if a real WHO=0 event is observed while the scan listener is active.
-        """
+        """Run conservative response-correlated discovery."""
         self._found.clear()
         self._unsubscribe = self._gateway.add_event_listener(self._on_event)
         try:
@@ -210,12 +229,24 @@ class BticinoDiscovery:
         )
 
     async def _probe_status(self, who: str, where: str) -> None:
+        """Probe one address and accept only responses from that exchange as active."""
         frame = build_status_request(who, where)
         try:
-            await self._gateway.async_send(frame, is_status_request=True)
-            await asyncio.sleep(0.05)
-        except Exception as err:
-            _LOGGER.debug("Probe %s failed: %s", frame, err)
+            result = await self._gateway.async_send(frame, is_status_request=True)
+        except BticinoGatewayCommandRejected:
+            await asyncio.sleep(_PROBE_INTERVAL)
+            return
+        except BticinoGatewayError:
+            raise
+
+        for raw in result.responses:
+            device = self.parse_event(raw)
+            if device is None or device.who != who or device.where != where:
+                continue
+            device.source = DiscoverySource.ACTIVE.value
+            device.extra["discovery"] = DiscoverySource.ACTIVE.value
+            self._found[device.key] = device
+        await asyncio.sleep(_PROBE_INTERVAL)
 
     @classmethod
     def parse_event(cls, raw_message: str) -> DiscoveredDevice | None:
@@ -225,7 +256,11 @@ class BticinoDiscovery:
         return cls._device_from_event(normalize_frame(frame))
 
     @classmethod
-    def _device_from_event(cls, event: NormalizedEvent) -> DiscoveredDevice | None:
+    def _device_from_event(
+        cls,
+        event: NormalizedEvent,
+        source: DiscoverySource = DiscoverySource.PASSIVE,
+    ) -> DiscoveredDevice | None:
         mapped = cls._TYPE_MAP.get(event.who)
         if mapped is None:
             return None
@@ -235,10 +270,10 @@ class BticinoDiscovery:
             where=event.where,
             device_type=dtype,
             name=cls.default_name(dtype, event.where),
-            source=DiscoverySource.PASSIVE.value,
+            source=source.value,
             capabilities=tuple(capabilities),
             extra={
-                "discovery": DiscoverySource.PASSIVE.value,
+                "discovery": source.value,
                 "what": event.what,
                 "dimension": event.dimension,
                 "state": event.state,
@@ -254,6 +289,7 @@ class BticinoDiscovery:
             "climate": "Termostato",
             "alarm": "Allarme",
             "intercom": "Citofono",
+            "door_lock": "Apriporta",
             "scene": "Scenario",
             "energy": "Energia",
         }
@@ -264,9 +300,7 @@ class BticinoDiscovery:
         if device is None:
             return
         existing = self._found.get(device.key)
-        if existing is None or existing.source == DiscoverySource.ACTIVE.value:
-            if existing is not None:
-                device.name = existing.name
+        if existing is None:
             self._found[device.key] = device
 
     def _sorted_found(
@@ -285,7 +319,6 @@ class BticinoDiscovery:
 
     @classmethod
     async def discover_gateways(cls, timeout: int = 5) -> list[DiscoveredGateway]:
-        """Discover OpenWebNet gateways through the actual OWNd discovery API."""
         try:
             async with asyncio.timeout(max(1, int(timeout))):
                 gateways = await find_gateways()
@@ -306,7 +339,6 @@ class BticinoDiscovery:
     async def discover_gateway(
         cls, host: str, timeout: int = 5
     ) -> DiscoveredGateway | None:
-        """Return discovery metadata for one gateway host when available."""
         normalized_host = host.strip().lower()
         for gateway in await cls.discover_gateways(timeout=timeout):
             if gateway.host.strip().lower() == normalized_host:

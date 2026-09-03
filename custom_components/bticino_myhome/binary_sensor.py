@@ -8,32 +8,22 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import WHAT_VDE_CALL_END_1, WHAT_VDE_CALL_END_2, WHAT_VDE_CALL_START, WHO_VIDEO_DOOR_ENTRY
 from .entity import BticinoEntity
+from .platform import setup_dynamic_entities
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     gateway = entry.runtime_data.gateway
-    manager = entry.runtime_data.device_manager
-    devices = [device for device in manager.devices if device.device_type == "intercom"]
-    known = {device.key for device in devices}
-    if devices:
-        async_add_entities(
-            [
-                BticinoIntercomCallSensor(gateway, device.who, device.where, device.name)
-                for device in devices
-            ]
-        )
-
-    def _device_added(device) -> None:
-        if device.device_type != "intercom" or device.key in known:
-            return
-        known.add(device.key)
-        async_add_entities(
-            [BticinoIntercomCallSensor(gateway, device.who, device.where, device.name)]
-        )
-
-    entry.async_on_unload(manager.add_listener(_device_added))
+    setup_dynamic_entities(
+        hass,
+        entry,
+        async_add_entities,
+        matches=lambda device: device.device_type == "intercom",
+        factory=lambda device: BticinoIntercomCallSensor(
+            gateway, device.who, device.where, device.name
+        ),
+    )
 
 
 class BticinoIntercomCallSensor(BticinoEntity, BinarySensorEntity):
