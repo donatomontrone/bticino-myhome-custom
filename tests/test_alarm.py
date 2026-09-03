@@ -29,13 +29,17 @@ def test_alarm_arm_disarm_use_reference_frames_without_optimistic_state() -> Non
         gateway = _gateway()
         panel = BticinoAlarmControlPanel(gateway, "5", "0", "4200C")
 
+        panel._handle_event(_event("*5*9**##"))
+        assert panel.state == AlarmControlPanelState.DISARMED
         await panel.async_alarm_arm_away()
-        assert panel.state is None
+        assert panel.state == AlarmControlPanelState.DISARMED
         gateway.async_send.assert_awaited_once_with("*5*8##")
 
+        panel._handle_event(_event("*5*8**##"))
+        assert panel.state == AlarmControlPanelState.ARMED_AWAY
         gateway.async_send.reset_mock()
         await panel.async_alarm_disarm()
-        assert panel.state is None
+        assert panel.state == AlarmControlPanelState.ARMED_AWAY
         gateway.async_send.assert_awaited_once_with("*5*9##")
 
     asyncio.run(scenario())
