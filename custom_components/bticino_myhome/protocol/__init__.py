@@ -14,8 +14,6 @@ from .commands import (
     door_lock_release,
     light_off,
     light_on,
-    load_off,
-    load_on,
     scene_activate,
 )
 from .frame import OpenWebNetFrame
@@ -38,8 +36,6 @@ __all__ = [
     "door_lock_release",
     "light_off",
     "light_on",
-    "load_off",
-    "load_on",
     "normalize_frame",
     "parse_frame",
     "scene_activate",
