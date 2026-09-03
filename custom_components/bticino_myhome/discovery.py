@@ -1,161 +1,87 @@
-"""BTicino MyHome discovery engine."""
+"""Discovery logic for BTicino MyHome integration."""
 from __future__ import annotations
 
-import asyncio
 import logging
 from dataclasses import dataclass
-from enum import StrEnum
-from typing import Any, ClassVar
 
-from OWNd.connection import OWNGateway
-
-from .const import (
-    WHO_ALARM,
-    WHO_AUTOMATION,
-    WHO_ENERGY_MANAGEMENT,
-    WHO_LIGHTING,
-    WHO_LOAD_MANAGEMENT,
-    WHO_SCENARIO,
-    WHO_VIDEO_DOOR_ENTRY,
-)
-from .gateway import BticinoGateway
+from .protocol import WHO_THERMOREGULATION
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class DiscoverySource(StrEnum):
-    """Source of device discovery."""
-
-    PASSIVE = "passive"
-    ACTIVE = "active"
-    MANUAL = "manual"
-
-
-@dataclass(frozen=True)
+@dataclass
 class DiscoveredDevice:
-    """A discovered or manually configured device."""
+    """Discovered device representation."""
 
-    who: str
-    address: str
     device_type: str
-    capabilities: tuple[str, ...]
-    source: str
-
-    @property
-    def key(self) -> str:
-        return f"{self.who}_{self.address}"
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> DiscoveredDevice:
-        return cls(
-            who=str(data["who"]),
-            address=str(data["address"]),
-            device_type=str(data["device_type"]),
-            capabilities=tuple(data.get("capabilities", [])),
-            source=str(data.get("source", DiscoverySource.PASSIVE.value)),
-        )
+    device_id: str
+    unique_id: str
+    name: str
+    where: str
+    who: int
 
     @classmethod
-    def from_manual(cls, who: str, where: str, device_type: str, name: str) -> DiscoveredDevice:
-        """Create a manually configured device."""
+    def from_manual(
+        cls,
+        device_type: str,
+        device_id: str,
+        unique_id: str,
+        name: str,
+        where: str,
+        who: int,
+    ) -> DiscoveredDevice:
+        """Create a discovered device from manual configuration."""
         return cls(
-            who=who,
-            address=where,
             device_type=device_type,
-            capabilities=(),
-            source=DiscoverySource.MANUAL.value,
+            device_id=device_id,
+            unique_id=unique_id,
+            name=name,
+            where=where,
+            who=who,
         )
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "who": self.who,
-            "address": self.address,
-            "device_type": self.device_type,
-            "capabilities": list(self.capabilities),
-            "source": self.source,
-        }
 
 
 class BticinoDiscovery:
-    """Coordinate passive, active and manual discovery for one gateway."""
+    """Discovery engine for BTicino MyHome devices."""
 
-    _TYPE_MAP: ClassVar[dict[str, tuple[str, tuple[str, ...]]]] = {
-        WHO_SCENARIO: ("scene", ("activate",)),
-        WHO_LIGHTING: ("light", ("on_off",)),
-        WHO_AUTOMATION: ("cover", ("open_close",)),
-        WHO_LOAD_MANAGEMENT: ("load", ("state",)),
-        WHO_ALARM: ("alarm", ("arm_disarm", "events")),
-        WHO_VIDEO_DOOR_ENTRY: ("intercom", ("events", "lock")),
-        WHO_ENERGY_MANAGEMENT: ("energy", ("measurement",)),
-    }
+    def __init__(self) -> None:
+        """Initialize discovery."""
+        self._candidates: dict[str, DiscoveredDevice] = {}
 
-    def __init__(self, gateway: BticinoGateway) -> None:
-        self._gateway = gateway
-        self._devices: dict[str, DiscoveredDevice] = {}
+    def process_event(self, who: int, where: str) -> DiscoveredDevice | None:
+        """Process an OpenWebNet event and return discovered device if any."""
+        # Thermoregulation (WHO=4)
+        if who == WHO_THERMOREGULATION:
+            return self._process_thermo(where)
 
-    async def discover(self) -> list[DiscoveredDevice]:
-        """Run active discovery and return devices."""
-        devices: list[DiscoveredDevice] = []
-        for who, (device_type, capabilities) in self._TYPE_MAP.items():
-            frame = f"*{who}#*1#"
-            try:
-                await self._gateway.async_send(frame, is_status_request=True)
-                await asyncio.sleep(0.05)
-            except Exception as err:
-                _LOGGER.debug("Probe %s failed: %s", frame, err)
-            devices.append(
-                DiscoveredDevice(
-                    who=who,
-                    address="0",
-                    device_type=device_type,
-                    capabilities=capabilities,
-                    source=DiscoverySource.ACTIVE.value,
-                )
-            )
-        return devices
+        # Add other WHO handlers here
+        return None
 
-    @classmethod
-    def parse_event(cls, raw_frame: str) -> DiscoveredDevice | None:
-        """Parse a raw OpenWebNet frame into a discovered device."""
-        # Parse the frame manually since NormalizedEvent API may vary
-        # Frame format: *WHO*WHERE## or *WHO*WHERE*DIM##
-        parts = raw_frame.strip("*").split("*")
-        if len(parts) < 2:
-            return None
+    def _process_thermo(self, where: str) -> DiscoveredDevice | None:
+        """Process WHO=4 event."""
+        device_id = f"thermo_{where}"
 
-        who = parts[0]
-        where = parts[1]
+        # Check if already discovered
+        if device_id in self._candidates:
+            return self._candidates[device_id]
 
-        # Map WHO to device type
-        device_type_info = cls._TYPE_MAP.get(who)
-        if not device_type_info:
-            return None
-
-        device_type, capabilities = device_type_info
-        return DiscoveredDevice(
-            who=who,
-            address=where,
-            device_type=device_type,
-            capabilities=capabilities,
-            source=DiscoverySource.PASSIVE.value,
+        # Create new device
+        device = DiscoveredDevice(
+            device_type="climate",
+            device_id=device_id,
+            unique_id=f"bticino_thermo_{where}",
+            name=f"Thermostat {where}",
+            where=where,
+            who=WHO_THERMOREGULATION,
         )
 
-    @classmethod
-    async def discover_gateways(cls, timeout: int = 5) -> list[dict[str, Any]]:
-        """Discover gateways on the network."""
-        try:
-            gateways = await OWNGateway.discover(timeout=timeout)
-        except Exception as err:
-            _LOGGER.warning("Gateway discovery failed: %s", err)
-            return []
+        self._candidates[device_id] = device
+        return device
 
-        result = []
-        for gw in gateways:
-            result.append({
-                "host": gw.get("host"),
-                "port": gw.get("port", 20000),
-                "serial": gw.get("serial"),
-                "model": gw.get("modelName") or "OpenWebNet Gateway",
-                "manufacturer": gw.get("manufacturer"),
-            })
-        return [item for item in result if item["host"]]
+    def get_candidates(self) -> list[DiscoveredDevice]:
+        """Return all discovered candidates."""
+        return list(self._candidates.values())
+
+    def clear(self) -> None:
+        """Clear all candidates."""
+        self._candidates.clear()
