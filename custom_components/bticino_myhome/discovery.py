@@ -16,7 +16,6 @@ from .const import (
     WHO_AUTOMATION,
     WHO_ENERGY_MANAGEMENT,
     WHO_LIGHTING,
-    WHO_LOAD_MANAGEMENT,
     WHO_SCENARIO,
     WHO_THERMOREGULATION,
     WHO_VIDEO_DOOR_ENTRY,
@@ -153,7 +152,6 @@ class BticinoDiscovery:
         WHO_SCENARIO: ("scene", ("activate",)),
         WHO_LIGHTING: ("light", ("on_off",)),
         WHO_AUTOMATION: ("cover", ("open_close",)),
-        WHO_LOAD_MANAGEMENT: ("load", ("state",)),
         WHO_THERMOREGULATION: ("climate", ("temperature", "setpoint", "mode")),
         WHO_ALARM: ("alarm", ("arm_disarm", "events")),
         WHO_VIDEO_DOOR_ENTRY: ("intercom", ("events", "lock")),
@@ -163,7 +161,6 @@ class BticinoDiscovery:
         WHO_SCENARIO: {"scene"},
         WHO_LIGHTING: {"light"},
         WHO_AUTOMATION: {"cover"},
-        WHO_LOAD_MANAGEMENT: {"load"},
         WHO_THERMOREGULATION: {"climate"},
         WHO_ALARM: {"alarm"},
         WHO_VIDEO_DOOR_ENTRY: {"intercom", "door_lock"},
@@ -251,7 +248,7 @@ class BticinoDiscovery:
         self._unsubscribe = self._gateway.add_event_listener(self._on_event)
         try:
             for where in _ADDRESS_RANGE:
-                for who in (WHO_LIGHTING, WHO_AUTOMATION, WHO_LOAD_MANAGEMENT):
+                for who in (WHO_LIGHTING, WHO_AUTOMATION):
                     await self._probe_status(who, str(where))
             await self._probe_status(WHO_ALARM, "0")
             if listen_seconds > 0:
@@ -344,7 +341,6 @@ class BticinoDiscovery:
         labels = {
             "light": "Luce",
             "cover": "Tapparella",
-            "load": "Gestione carichi",
             "climate": "Termostato",
             "alarm": "Allarme",
             "intercom": "Citofono",
