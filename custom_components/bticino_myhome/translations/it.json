@@ -125,5 +125,56 @@
         "energy": "Energia"
       }
     }
+  },
+  "entity": {
+    "binary_sensor": {
+      "intercom_call": {
+        "name": "Chiamata"
+      }
+    },
+    "button": {
+      "door_release": {
+        "name": "Apriporta"
+      }
+    },
+    "sensor": {
+      "who7_raw_event": {
+        "name": "Ultimo evento videocitofonico grezzo"
+      }
+    }
+  },
+  "services": {
+    "send_frame": {
+      "name": "Invia frame OpenWebNet",
+      "description": "Azione avanzata/diagnostica che invia un frame OpenWebNet grezzo tramite uno specifico gateway MH201 configurato.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Gateway",
+          "description": "Configurazione BTicino MyHome proprietaria della connessione MH201 di destinazione."
+        },
+        "frame": {
+          "name": "Frame",
+          "description": "Frame OpenWebNet grezzo da inviare, ad esempio *1*1*21##."
+        },
+        "is_status_request": {
+          "name": "Richiesta di stato",
+          "description": "Abilita solo quando il frame grezzo è una richiesta di stato e le risposte devono essere normalizzate come evidenza dello stato."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "send_frame_missing_frame": {
+      "message": "È necessario specificare un frame OpenWebNet."
+    },
+    "send_frame_entry_not_found": {
+      "message": "La configurazione BTicino MyHome selezionata non è stata trovata."
+    },
+    "send_frame_entry_not_loaded": {
+      "message": "Il gateway BTicino MyHome selezionato non è attualmente caricato."
+    },
+    "send_frame_failed": {
+      "message": "Invio del frame OpenWebNet non riuscito: {detail}"
+    }
   }
 }

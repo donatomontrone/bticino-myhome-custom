@@ -6,17 +6,19 @@ from homeassistant.components.alarm_control_panel.const import (
     AlarmControlPanelEntityFeature,
     AlarmControlPanelState,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .data import BticinoConfigEntry
 from .entity import BticinoEntity
 from .platform import setup_dynamic_entities
 from .protocol import NormalizedEvent, alarm_arm_away, alarm_arm_home, alarm_disarm
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: BticinoConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     gateway = entry.runtime_data.gateway
     setup_dynamic_entities(

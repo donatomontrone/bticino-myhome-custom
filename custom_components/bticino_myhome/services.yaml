@@ -1,18 +1,16 @@
-# Services
 send_frame:
-  name: Send OpenWebNet Frame
-  description: Send a raw OpenWebNet frame to the gateway
   fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: bticino_myhome
     frame:
-      name: Frame
-      description: OpenWebNet frame (e.g., *1*1*21##)
       required: true
       example: "*1*1*21##"
       selector:
         text:
     is_status_request:
-      name: Is Status Request
-      description: Set to true if this is a status request frame
       required: false
       default: false
       selector:

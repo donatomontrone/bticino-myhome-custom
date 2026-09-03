@@ -17,14 +17,20 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class BticinoEntity(Entity):
+    """Base entity for one inventory-backed MyHome endpoint."""
+
     _attr_should_poll = False
+    _attr_has_entity_name = True
+    _attr_name = None
     _request_initial_state_on_add = False
 
-    def __init__(self, gateway: BticinoGateway, who: str, where: str, name: str) -> None:
+    def __init__(
+        self, gateway: BticinoGateway, who: str, where: str, device_name: str
+    ) -> None:
         self._gateway = gateway
         self._who = str(who)
         self._where = str(where)
-        self._attr_name = name or f"BTicino {who}/{where}"
+        self._device_name = device_name or f"BTicino {who}/{where}"
         self._attr_unique_id = f"{gateway.identity}:{self._who}:{self._where}"
         self._attr_available = gateway.connected
         self._unsubscribe_event: Callable[[], None] | None = None
@@ -46,7 +52,7 @@ class BticinoEntity(Entity):
     def device_info(self) -> DeviceInfo:
         info: dict[str, Any] = {
             "identifiers": {(DOMAIN, f"{self._gateway.identity}:{self._who}:{self._where}")},
-            "name": self._attr_name,
+            "name": self._device_name,
             "manufacturer": "BTicino / Legrand",
             "model": f"MyHome OpenWebNet WHO={self._who}",
         }

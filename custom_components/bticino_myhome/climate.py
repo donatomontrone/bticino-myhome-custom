@@ -9,13 +9,13 @@ from homeassistant.components.climate import (
     HVACAction,
     HVACMode,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .data import BticinoConfigEntry
 from .entity import BticinoEntity
-from .gateway import BticinoGatewayError
+from .gateway import BticinoGateway, BticinoGatewayError
 from .platform import setup_dynamic_entities
 from .protocol import (
     NormalizedEvent,
@@ -53,7 +53,9 @@ _PROBE_MODE = {
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: BticinoConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     gateway = entry.runtime_data.gateway
     setup_dynamic_entities(
@@ -76,7 +78,9 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
     _attr_min_temp = MIN_TEMP
     _attr_max_temp = MAX_TEMP
 
-    def __init__(self, gateway, who: str, where: str, name: str) -> None:
+    def __init__(
+        self, gateway: BticinoGateway, who: str, where: str, name: str
+    ) -> None:
         super().__init__(gateway, who, where, name)
         self._attr_hvac_modes = [
             HVACMode.OFF,

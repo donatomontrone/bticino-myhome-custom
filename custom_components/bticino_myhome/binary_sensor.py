@@ -2,17 +2,26 @@
 from __future__ import annotations
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import WHAT_VDE_CALL_END_1, WHAT_VDE_CALL_END_2, WHAT_VDE_CALL_START, WHO_VIDEO_DOOR_ENTRY
+from .const import (
+    WHAT_VDE_CALL_END_1,
+    WHAT_VDE_CALL_END_2,
+    WHAT_VDE_CALL_START,
+    WHO_VIDEO_DOOR_ENTRY,
+)
+from .data import BticinoConfigEntry
 from .entity import BticinoEntity
+from .gateway import BticinoGateway
 from .platform import setup_dynamic_entities
+from .protocol import NormalizedEvent
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: BticinoConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     gateway = entry.runtime_data.gateway
     setup_dynamic_entities(
@@ -28,12 +37,15 @@ async def async_setup_entry(
 
 class BticinoIntercomCallSensor(BticinoEntity, BinarySensorEntity):
     _attr_device_class = BinarySensorDeviceClass.SOUND
+    _attr_translation_key = "intercom_call"
 
-    def __init__(self, gateway, who: str, where: str, name: str) -> None:
-        BticinoEntity.__init__(self, gateway, who, where, name)
+    def __init__(
+        self, gateway: BticinoGateway, who: str, where: str, name: str
+    ) -> None:
+        super().__init__(gateway, who, where, name)
         self._attr_is_on = False
 
-    def _handle_event(self, event) -> None:
+    def _handle_event(self, event: NormalizedEvent) -> None:
         if event.who != WHO_VIDEO_DOOR_ENTRY or event.where != self.where:
             return
         if event.what == WHAT_VDE_CALL_START:

@@ -4,17 +4,20 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.components.light import ColorMode, LightEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .data import BticinoConfigEntry
 from .entity import BticinoEntity
+from .gateway import BticinoGateway
 from .platform import setup_dynamic_entities
 from .protocol import NormalizedEvent, light_off, light_on
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: BticinoConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     gateway = entry.runtime_data.gateway
     setup_dynamic_entities(
@@ -32,7 +35,9 @@ class BticinoLight(BticinoEntity, LightEntity):
     _attr_color_mode = ColorMode.ONOFF
     _request_initial_state_on_add = True
 
-    def __init__(self, gateway, who: str, where: str, name: str) -> None:
+    def __init__(
+        self, gateway: BticinoGateway, who: str, where: str, name: str
+    ) -> None:
         super().__init__(gateway, who, where, name)
         self._attr_supported_color_modes = {ColorMode.ONOFF}
 

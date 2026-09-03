@@ -4,20 +4,23 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, WHO_VIDEO_DOOR_ENTRY
+from .data import BticinoConfigEntry
+from .discovery import DiscoveredDevice
 from .gateway import BticinoGateway
 from .platform import remove_runtime_entity
 from .protocol import NormalizedEvent
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: BticinoConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     gateway = entry.runtime_data.gateway
     manager = entry.runtime_data.device_manager
@@ -33,11 +36,11 @@ async def async_setup_entry(
     if any(device.who == WHO_VIDEO_DOOR_ENTRY for device in manager.devices):
         _ensure_entity()
 
-    def _device_added(device) -> None:
+    def _device_added(device: DiscoveredDevice) -> None:
         if device.who == WHO_VIDEO_DOOR_ENTRY:
             _ensure_entity()
 
-    def _device_removed(device) -> None:
+    def _device_removed(device: DiscoveredDevice) -> None:
         nonlocal entity
         if device.who != WHO_VIDEO_DOOR_ENTRY or entity is None:
             return
@@ -52,9 +55,10 @@ async def async_setup_entry(
 
 class BticinoIntercomEventLog(SensorEntity):
     _attr_should_poll = False
+    _attr_has_entity_name = True
+    _attr_translation_key = "who7_raw_event"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_entity_registry_enabled_default = False
-    _attr_name = "Video door entry - last raw event"
 
     def __init__(self, gateway: BticinoGateway) -> None:
         self._gateway = gateway

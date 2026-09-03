@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config import ConfigType
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
@@ -24,6 +23,7 @@ from .const import (
     EVENT_OPENWEBNET,
     PLATFORMS,
 )
+from .data import BticinoConfigEntry, BticinoMyHomeData
 from .device import BticinoDeviceManager
 from .discovery import DiscoveredDevice
 from .gateway import (
@@ -32,18 +32,15 @@ from .gateway import (
     BticinoGatewayError,
 )
 from .protocol import NormalizedEvent
-from .services import async_setup_services, async_unload_services
+from .services import async_setup_services
 
 _LOGGER = logging.getLogger(__name__)
 
 
-@dataclass(slots=True)
-class BticinoMyHomeData:
-    gateway: BticinoGateway
-    device_manager: BticinoDeviceManager
-
-
-type BticinoConfigEntry = ConfigEntry[BticinoMyHomeData]
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Set up integration-wide actions independently from config entries."""
+    await async_setup_services(hass)
+    return True
 
 
 async def async_setup_entry(
@@ -121,7 +118,6 @@ async def async_setup_entry(
         )
 
     entry.async_on_unload(gateway.add_event_listener(_forward_bus_event))
-    await async_setup_services(hass)
     return True
 
 
@@ -138,8 +134,6 @@ async def async_unload_entry(
         return False
     await runtime.gateway.async_close()
     hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
-    if not hass.data.get(DOMAIN):
-        await async_unload_services(hass)
     return True
 
 

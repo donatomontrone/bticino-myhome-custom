@@ -8,7 +8,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import BticinoConfigEntry
+from .data import BticinoConfigEntry
 from .discovery import DiscoveredDevice
 
 

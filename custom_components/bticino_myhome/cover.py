@@ -4,17 +4,19 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.components.cover import CoverDeviceClass, CoverEntity, CoverEntityFeature
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .data import BticinoConfigEntry
 from .entity import BticinoEntity
 from .platform import setup_dynamic_entities
 from .protocol import NormalizedEvent, cover_close, cover_open, cover_stop
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: BticinoConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     gateway = entry.runtime_data.gateway
     setup_dynamic_entities(

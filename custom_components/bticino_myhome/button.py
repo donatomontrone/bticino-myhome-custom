@@ -2,17 +2,19 @@
 from __future__ import annotations
 
 from homeassistant.components.button import ButtonEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .data import BticinoConfigEntry
 from .entity import BticinoEntity
 from .platform import setup_dynamic_entities
 from .protocol import door_lock_release
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: BticinoConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     gateway = entry.runtime_data.gateway
     setup_dynamic_entities(
@@ -27,5 +29,7 @@ async def async_setup_entry(
 
 
 class BticinoDoorLockRelease(BticinoEntity, ButtonEntity):
+    _attr_translation_key = "door_release"
+
     async def async_press(self) -> None:
         await self.gateway.async_send(door_lock_release(self.where))

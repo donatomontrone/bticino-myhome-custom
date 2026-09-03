@@ -3,11 +3,11 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.redact_data import async_redact_data
 
 from .const import CONF_GATEWAY_HOST, CONF_GATEWAY_PASSWORD
+from .data import BticinoConfigEntry
 
 TO_REDACT = {
     CONF_GATEWAY_PASSWORD,
@@ -20,7 +20,7 @@ TO_REDACT = {
 
 
 async def async_get_config_entry_diagnostics(
-    hass: HomeAssistant, entry: ConfigEntry
+    hass: HomeAssistant, entry: BticinoConfigEntry
 ) -> dict[str, Any]:
     """Return safe diagnostics for a BTicino config entry."""
     runtime = entry.runtime_data

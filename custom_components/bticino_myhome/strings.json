@@ -125,5 +125,56 @@
         "energy": "Energy"
       }
     }
+  },
+  "entity": {
+    "binary_sensor": {
+      "intercom_call": {
+        "name": "Call"
+      }
+    },
+    "button": {
+      "door_release": {
+        "name": "Door release"
+      }
+    },
+    "sensor": {
+      "who7_raw_event": {
+        "name": "Last raw video door-entry event"
+      }
+    }
+  },
+  "services": {
+    "send_frame": {
+      "name": "Send OpenWebNet frame",
+      "description": "Advanced/debug action that sends one raw OpenWebNet frame through a specific configured MH201 gateway.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Gateway",
+          "description": "BTicino MyHome configuration entry that owns the target MH201 connection."
+        },
+        "frame": {
+          "name": "Frame",
+          "description": "Raw OpenWebNet frame to send, for example *1*1*21##."
+        },
+        "is_status_request": {
+          "name": "Status request",
+          "description": "Enable only when the raw frame is a status request whose returned data frames should be normalized as state evidence."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "send_frame_missing_frame": {
+      "message": "An OpenWebNet frame is required."
+    },
+    "send_frame_entry_not_found": {
+      "message": "The selected BTicino MyHome configuration entry was not found."
+    },
+    "send_frame_entry_not_loaded": {
+      "message": "The selected BTicino MyHome gateway is not currently loaded."
+    },
+    "send_frame_failed": {
+      "message": "Failed to send the OpenWebNet frame: {detail}"
+    }
   }
 }
