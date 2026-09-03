@@ -32,4 +32,4 @@ async def async_setup_entry(
 
 class BticinoScene(BticinoEntity, Scene):
     async def async_activate(self, **kwargs: Any) -> None:
-        await self.gateway.async_send(scene_activate(self.where))
+        await self._async_send_command(scene_activate(self.where))
