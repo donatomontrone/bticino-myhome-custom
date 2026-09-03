@@ -1,4 +1,4 @@
-"""Tests for the raw OpenWebNet send_frame action."""
+"""Tests for BTicino MyHome integration-wide actions."""
 from __future__ import annotations
 
 import asyncio
@@ -13,6 +13,8 @@ from custom_components.bticino_myhome.const import DOMAIN
 from custom_components.bticino_myhome.gateway import BticinoGatewayError
 from custom_components.bticino_myhome.services import (
     ATTR_CONFIG_ENTRY_ID,
+    ATTR_PARTITIONS,
+    SERVICE_ARM_ALARM_PARTITIONS,
     SERVICE_SEND_FRAME,
     async_setup_services,
 )
@@ -150,5 +152,50 @@ def test_send_frame_validates_frame_and_translates_gateway_failure() -> None:
             )
         assert failed.value.translation_key == "send_frame_failed"
         assert failed.value.translation_placeholders == {"detail": "transport down"}
+
+    asyncio.run(scenario())
+
+
+def test_arm_alarm_partitions_sends_active_partition_mask() -> None:
+    async def scenario() -> None:
+        hass = _Hass()
+        gateway = SimpleNamespace(async_send=AsyncMock())
+        hass.config_entries.entries["entry-a"] = _loaded_entry(gateway)
+        await async_setup_services(hass)
+        handler = hass.services.handlers[(DOMAIN, SERVICE_ARM_ALARM_PARTITIONS)]
+
+        await handler(
+            _Call(
+                {
+                    ATTR_CONFIG_ENTRY_ID: "entry-a",
+                    ATTR_PARTITIONS: [6, 1, 2, 5],
+                }
+            )
+        )
+
+        gateway.async_send.assert_awaited_once_with("*5*8#1256##")
+
+    asyncio.run(scenario())
+
+
+def test_arm_alarm_partitions_rejects_invalid_partition_list() -> None:
+    async def scenario() -> None:
+        hass = _Hass()
+        gateway = SimpleNamespace(async_send=AsyncMock())
+        hass.config_entries.entries["entry-a"] = _loaded_entry(gateway)
+        await async_setup_services(hass)
+        handler = hass.services.handlers[(DOMAIN, SERVICE_ARM_ALARM_PARTITIONS)]
+
+        with pytest.raises(ServiceValidationError) as invalid:
+            await handler(
+                _Call(
+                    {
+                        ATTR_CONFIG_ENTRY_ID: "entry-a",
+                        ATTR_PARTITIONS: [9],
+                    }
+                )
+            )
+        assert invalid.value.translation_key == "alarm_partitions_invalid"
+        gateway.async_send.assert_not_awaited()
 
     asyncio.run(scenario())
