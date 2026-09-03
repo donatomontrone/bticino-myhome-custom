@@ -40,7 +40,7 @@ The WHO=4 software model currently covers:
 - anti-freeze, thermal-protection and generic-protection states;
 - manual / programming / OFF mode families;
 - explicit heating-only, cooling-only and heating+cooling zone capabilities;
-- passive capability inference only from documented heating/cooling WHAT families;
+- passive capability inference only from documented directional heating/cooling WHAT families;
 - zone commands routed through the central-unit `#WHERE` form;
 - profile-aware OFF/programming commands (`103/111`, `203/211`, `303/311`);
 - DIM=14 setpoint writes with temperature plus the matching operation-mode value;
@@ -54,10 +54,10 @@ model; the same device family can be configured differently in other MyHOME
 installations.
 
 Manual/inventory construction supports an explicit thermal profile. Passive
-learning can also infer direction when a documented mode event proves heating,
-cooling or generic operation; multiple observations are merged so evidence is
-not lost during the same learning window. A temperature-only dimension frame is
-not enough to infer heating or cooling.
+learning can also infer direction when a documented directional mode event proves
+heating or cooling; multiple observations are merged so evidence is not lost
+during the same learning window. A temperature-only dimension frame or a generic
+WHAT family is not enough to infer heating or cooling support.
 
 When no explicit or observed thermal direction exists, legacy/discovered entries
 retain the previous dual heating+cooling surface rather than silently narrowing
