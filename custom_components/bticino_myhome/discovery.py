@@ -19,6 +19,7 @@ from .const import (
     WHO_VIDEO_DOOR_ENTRY,
 )
 from .gateway import BticinoGateway
+from .protocol import NormalizedEvent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,6 +54,17 @@ class DiscoveredDevice:
             device_type=str(data["device_type"]),
             capabilities=tuple(data.get("capabilities", [])),
             source=str(data.get("source", DiscoverySource.PASSIVE.value)),
+        )
+
+    @classmethod
+    def from_manual(cls, who: str, address: str, device_type: str, capabilities: tuple[str, ...]) -> DiscoveredDevice:
+        """Create a manually configured device."""
+        return cls(
+            who=who,
+            address=address,
+            device_type=device_type,
+            capabilities=capabilities,
+            source=DiscoverySource.MANUAL.value,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -102,6 +114,21 @@ class BticinoDiscovery:
                 )
             )
         return devices
+
+    @classmethod
+    def parse_event(cls, event: NormalizedEvent) -> DiscoveredDevice | None:
+        """Parse a normalized event into a discovered device."""
+        type_info = cls._TYPE_MAP.get(event.device_type)
+        if not type_info:
+            return None
+        device_type, capabilities = type_info
+        return DiscoveredDevice(
+            who=event.device_type,
+            address=event.address,
+            device_type=device_type,
+            capabilities=capabilities,
+            source=DiscoverySource.PASSIVE.value,
+        )
 
     @classmethod
     async def discover_gateways(cls, timeout: int = 5) -> list[dict[str, Any]]:

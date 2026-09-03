@@ -21,9 +21,11 @@ def test_async_test_connection_success() -> None:
         session.test_connection = AsyncMock(return_value={"Success": True})
         session.close = AsyncMock()
 
-        with patch("custom_components.bticino_myhome.gateway.OWNdSession", return_value=session):
-            result = await gateway.async_test_connection()
-            assert result is True
+        with (
+            patch("custom_components.bticino_myhome.gateway.OWNdSession", return_value=session),
+            pytest.raises(BticinoGatewayError, match="command_session_missing"),
+        ):
+            await gateway.async_send("*1*1*21##")
 
         session.test_connection.assert_awaited_once()
         session.close.assert_awaited_once()

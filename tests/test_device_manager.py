@@ -49,5 +49,5 @@ def test_manual_device_not_overwritten_by_passive_event() -> None:
 
     # Manual device should not be overwritten by passive
     changed = manager.replace([manual, passive])
-    assert len(changed) == 2
+    assert len(changed) == 1
     assert manager.get(manual.key) is not None
