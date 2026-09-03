@@ -33,6 +33,7 @@ def test_get_triggers_from_scene_device_identifier() -> None:
 
 def test_attach_trigger_uses_standard_ha_event_trigger() -> None:
     async def scenario() -> None:
+        hass = MagicMock()
         action = MagicMock()
         trigger_info = MagicMock()
         with patch(
@@ -40,7 +41,7 @@ def test_attach_trigger_uses_standard_ha_event_trigger() -> None:
             new=AsyncMock(return_value=MagicMock()),
         ) as attach:
             await async_attach_trigger(
-                MagicMock(),
+                hass,
                 {
                     "platform": "device",
                     "domain": DOMAIN,
@@ -52,7 +53,9 @@ def test_attach_trigger_uses_standard_ha_event_trigger() -> None:
                 trigger_info,
             )
         event_config = attach.await_args.args[1]
-        assert event_config["event_type"] == EVENT_OPENWEBNET
+        assert len(event_config["event_type"]) == 1
+        assert event_config["event_type"][0].template == EVENT_OPENWEBNET
+        assert event_config["event_type"][0].hass is hass
         assert event_config["event_data"] == {"who": "0", "where": "12"}
 
     asyncio.run(scenario())

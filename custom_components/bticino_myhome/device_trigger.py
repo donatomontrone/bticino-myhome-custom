@@ -9,6 +9,7 @@ from homeassistant.components.homeassistant.triggers import event as event_trigg
 from homeassistant.const import CONF_DEVICE_ID, CONF_DOMAIN, CONF_PLATFORM, CONF_TYPE
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.template import Template
 from homeassistant.helpers.trigger import TriggerActionType, TriggerInfo
 from homeassistant.helpers.typing import ConfigType
 
@@ -60,16 +61,26 @@ async def async_attach_trigger(
     trigger_info: TriggerInfo,
 ) -> CALLBACK_TYPE:
     """Attach a scenario event trigger using Home Assistant's event helper."""
-    event_config = event_trigger.TRIGGER_SCHEMA(
-        {
-            event_trigger.CONF_PLATFORM: "event",
-            event_trigger.CONF_EVENT_TYPE: EVENT_OPENWEBNET,
-            event_trigger.CONF_EVENT_DATA: {
-                "who": WHO_SCENARIO,
-                "where": config[CONF_SUBTYPE],
-            },
+    raw_event_config: ConfigType = {
+        event_trigger.CONF_PLATFORM: "event",
+        event_trigger.CONF_EVENT_TYPE: EVENT_OPENWEBNET,
+        event_trigger.CONF_EVENT_DATA: {
+            "who": WHO_SCENARIO,
+            "where": config[CONF_SUBTYPE],
+        },
+    }
+
+    if validator := getattr(event_trigger, "async_validate_trigger_config", None):
+        event_config = await validator(hass, raw_event_config)
+    else:
+        # HA Core 2025.1 has no async trigger validator yet. Build the only
+        # schema-transformed value required by async_attach_trigger explicitly,
+        # while passing hass to Template for HA 2025.10+ compatibility.
+        event_config = {
+            **raw_event_config,
+            event_trigger.CONF_EVENT_TYPE: [Template(EVENT_OPENWEBNET, hass)],
         }
-    )
+
     return await event_trigger.async_attach_trigger(
         hass,
         event_config,
