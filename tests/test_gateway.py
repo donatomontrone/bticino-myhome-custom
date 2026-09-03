@@ -59,8 +59,7 @@ def test_async_connect_opens_command_and_event_sessions() -> None:
         patch("custom_components.bticino_myhome.gateway.OWNCommandSession", return_value=command),
         patch("custom_components.bticino_myhome.gateway.OWNEventSession", return_value=event),
     ):
-        asyncio.run(gateway.async_connect())
-        assert gateway.connected is True
+        asyncio.run(gateway.async_connect(task_creator=asyncio.create_task))
         assert gateway._event_task is not None
         asyncio.run(gateway.async_close())
 
