@@ -5,7 +5,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+from typing import Any, ClassVar
 
 from OWNd.connection import OWNGateway
 
@@ -68,7 +68,7 @@ class DiscoveredDevice:
 class BticinoDiscovery:
     """Coordinate passive, active and manual discovery for one gateway."""
 
-    _TYPE_MAP: dict[str, tuple[str, tuple[str, ...]]] = {
+    _TYPE_MAP: ClassVar[dict[str, tuple[str, tuple[str, ...]]]] = {
         WHO_SCENARIO: ("scene", ("activate",)),
         WHO_LIGHTING: ("light", ("on_off",)),
         WHO_AUTOMATION: ("cover", ("open_close",)),

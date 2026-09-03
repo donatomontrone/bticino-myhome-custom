@@ -1,7 +1,7 @@
 """BTicino MyHome light entity."""
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from homeassistant.components.light import ColorMode, LightEntity
 from homeassistant.config_entries import ConfigEntry
