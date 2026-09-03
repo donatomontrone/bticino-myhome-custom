@@ -24,6 +24,21 @@ class BticinoEntity(Entity):
         self._attr_available = gateway.connected
 
     @property
+    def gateway(self) -> BticinoGateway:
+        """Return the gateway used by this entity."""
+        return self._gateway
+
+    @property
+    def who(self) -> str:
+        """Return the OpenWebNet WHO address."""
+        return self._who
+
+    @property
+    def where(self) -> str:
+        """Return the OpenWebNet WHERE address."""
+        return self._where
+
+    @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
             identifiers={(DOMAIN, f"{self._gateway.host}:{self._gateway.port}")},
