@@ -84,7 +84,6 @@ async def async_setup_entry(
 class BticinoActivePowerSensor(BticinoEntity, SensorEntity):
     """Read-only active-power measurement for a documented WHO=18 5N meter."""
 
-    _attr_translation_key = "active_power"
     _attr_device_class = SensorDeviceClass.POWER
     _attr_native_unit_of_measurement = UnitOfPower.WATT
     _attr_state_class = SensorStateClass.MEASUREMENT
