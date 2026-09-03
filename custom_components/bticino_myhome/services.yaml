@@ -15,3 +15,25 @@ send_frame:
       default: false
       selector:
         boolean:
+
+arm_alarm_partitions:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: bticino_myhome
+    partitions:
+      required: true
+      selector:
+        select:
+          multiple: true
+          options:
+            - "1"
+            - "2"
+            - "3"
+            - "4"
+            - "5"
+            - "6"
+            - "7"
+            - "8"
