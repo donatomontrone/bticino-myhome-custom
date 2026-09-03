@@ -697,13 +697,11 @@ def _gateway_identity_conflicts(
         and unique_id != f"serial:{gateway_info.serial.casefold()}"
     ):
         return True
-    if (
+    return bool(
         unique_id.startswith("udn:")
         and gateway_info.udn
         and unique_id != f"udn:{gateway_info.udn.casefold()}"
-    ):
-        return True
-    return False
+    )
 
 
 def _optional_text(value: Any) -> str | None:
