@@ -69,8 +69,11 @@ class BticinoGateway:
             except Exception:
                 _LOGGER.warning("Failed to close OWNd test session", exc_info=True)
 
-    async def async_connect(self, task_creator: Callable[[Callable[[], Any], str], asyncio.Task[Any]] | None = None) -> None:
-        """Connect command/event sessions and optionally start the persistent event worker."""
+    async def async_connect(
+        self,
+        task_creator: Callable[[Callable[[], Any], str], asyncio.Task[Any]] | None = None,
+    ) -> None:
+        """Connect command/event sessions and start the persistent event worker."""
         self._closing = False
         await self._connect_command_session()
         try:
@@ -79,10 +82,15 @@ class BticinoGateway:
             await self._close_command_session()
             raise
 
-        # Only start event loop if task_creator is provided
-        # This allows tests to connect without starting the infinite loop
-        if task_creator is not None and (self._event_task is None or self._event_task.done()):
-            self._event_task = task_creator(self._event_loop(), "bticino_myhome-event-loop")
+        if self._event_task is None or self._event_task.done():
+            if task_creator is None:
+                self._event_task = asyncio.create_task(
+                    self._event_loop(), name="bticino_myhome-event-loop"
+                )
+            else:
+                self._event_task = task_creator(
+                    self._event_loop(), "bticino_myhome-event-loop"
+                )
 
     async def _connect_command_session(self) -> None:
         """Open command session for sending frames."""
@@ -133,6 +141,8 @@ class BticinoGateway:
             try:
                 await self._connect_event_session()
                 session = self._event_session
+                if session is None:
+                    raise BticinoGatewayError("event_session_missing")
                 while True:
                     message = await session.get_next()
                     if message is None:
@@ -140,7 +150,7 @@ class BticinoGateway:
                         await self._close_event_session()
                         await asyncio.sleep(backoff)
                         backoff = min(backoff * 2, _RECONNECT_MAX_DELAY)
-                        continue
+                        break
                     self._set_connected(True)
                     backoff = _RECONNECT_INITIAL_DELAY
                     raw = str(message).strip()
@@ -286,7 +296,7 @@ async def async_discover_gateways(timeout: int = 5) -> list[dict[str, Any]]:
     """Discover MH201 gateways via OWNd's SSDP/OWS discovery."""
     # Lazy import to avoid circular dependency
     from .discovery import BticinoDiscovery
-    
+
     try:
         gateways = await BticinoDiscovery.discover_gateways(timeout=timeout)
     except Exception as err:
