@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from custom_components.bticino_myhome.device import BticinoDeviceManager
-from custom_components.bticino_myhome.discovery import DiscoveredDevice
+from custom_components.bticino_myhome.discovery import DiscoverySource, DiscoveredDevice
 
 
 def test_replace_notifies_only_changed_devices() -> None:
@@ -49,20 +49,26 @@ def test_replace_notifies_only_changed_devices() -> None:
 
 
 def test_manual_device_not_overwritten_by_passive_event() -> None:
-    """Verify manually added devices are not overwritten by passive events with same key."""
+    """Verify manually added devices keep precedence over passive events."""
     manager = BticinoDeviceManager()
 
     manual = DiscoveredDevice(
-        who="1", where="1", device_type="light", name="Manual Light",
-        extra={"source": "manual"}
+        who="1",
+        where="1",
+        device_type="light",
+        name="Manual Light",
+        source=DiscoverySource.MANUAL.value,
     )
     manager.add(manual)
 
     passive = DiscoveredDevice(
-        who="1", where="1", device_type="light", name="Passive Light",
-        extra={"source": "passive"}
+        who="1",
+        where="1",
+        device_type="light",
+        name="Passive Light",
+        source=DiscoverySource.PASSIVE.value,
     )
 
-    manager.add(passive)
-
-    assert manager.get("1-1").name == "Passive Light"
+    assert manager.add(passive) is False
+    assert manager.get("1-1") is manual
+    assert manager.get("1-1").name == "Manual Light"
