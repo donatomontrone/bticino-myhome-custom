@@ -1,4 +1,4 @@
-"""Door-lock release button via OpenWebNet WHO=7."""
+"""Reference-backed door-release button via OpenWebNet WHO=6."""
 from __future__ import annotations
 
 from homeassistant.components.button import ButtonEntity
