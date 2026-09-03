@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.config import ConfigType
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     CONF_DEVICES,
