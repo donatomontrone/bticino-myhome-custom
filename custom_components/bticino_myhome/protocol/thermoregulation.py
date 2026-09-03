@@ -19,6 +19,18 @@ OPERATION_MODE_HEATING = "1"
 OPERATION_MODE_CONDITIONING = "2"
 OPERATION_MODE_GENERIC = "3"
 
+CLIMATE_PROFILE_HEATING = "heating"
+CLIMATE_PROFILE_COOLING = "cooling"
+CLIMATE_PROFILE_HEATING_COOLING = "heating_cooling"
+CLIMATE_PROFILES = {
+    CLIMATE_PROFILE_HEATING,
+    CLIMATE_PROFILE_COOLING,
+    CLIMATE_PROFILE_HEATING_COOLING,
+}
+
+CAPABILITY_HEATING = "heating"
+CAPABILITY_COOLING = "cooling"
+
 STATE_CONDITIONING = "conditioning"
 STATE_HEATING = "heating"
 STATE_ANTIFREEZE = "antifreeze"
@@ -55,6 +67,18 @@ THERMOREGULATION_STATE_MAP = {
 # 4 and 5 are explicitly inactive. Community clarification from the MyOPEN
 # team additionally identifies 14/15/16 as OFF fan-coil speed states.
 _ACTIVE_OUTPUT_STATES = {1, 2, 6, 7, 8}
+
+
+def capabilities_for_climate_profile(profile: str) -> tuple[str, ...]:
+    """Return explicit heating/cooling capabilities for a configured zone profile."""
+    value = str(profile).strip()
+    if value == CLIMATE_PROFILE_HEATING:
+        return (CAPABILITY_HEATING,)
+    if value == CLIMATE_PROFILE_COOLING:
+        return (CAPABILITY_COOLING,)
+    if value == CLIMATE_PROFILE_HEATING_COOLING:
+        return (CAPABILITY_HEATING, CAPABILITY_COOLING)
+    raise ValueError(f"Unsupported climate profile: {profile}")
 
 
 def central_zone_where(where: str) -> str:
