@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
   pull_request:
-  workflow_dispatch:
+    branches: [master]
 
 permissions:
   contents: read
@@ -22,23 +22,24 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.12"]
+
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install OWNd explicitly
-        run: pip install OWNd==0.7.49
+          cache: "pip"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install homeassistant==2025.1.0
-          pip install pytest>=8.3 pytest-asyncio>=0.23 ruff>=0.12 mypy>=1.17
-      - name: Run pytest
-        run: python -m pytest
-      - name: Run Ruff
-        run: ruff check .
-      - name: Run mypy
-        run: mypy
+          pip install .[test]
+
+      - name: Lint with ruff
+        run: ruff check custom_components/bticino_myhome tests
+
+      - name: Run tests with pytest
+        run: python -m pytest --tb=short
