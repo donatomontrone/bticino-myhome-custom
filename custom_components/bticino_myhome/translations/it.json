@@ -8,6 +8,11 @@
           "host": "Indirizzo IP o nome host",
           "port": "Porta OpenWebNet",
           "password": "Password OpenWebNet (opzionale)"
+        },
+        "data_description": {
+          "host": "Indirizzo di rete locale del gateway MH201.",
+          "port": "Porta TCP utilizzata dal server OpenWebNet locale.",
+          "password": "Lascia vuoto solo se il gateway non richiede una password OpenWebNet."
         }
       },
       "confirm": {
@@ -16,6 +21,10 @@
         "data": {
           "port": "Porta OpenWebNet",
           "password": "Password OpenWebNet (opzionale)"
+        },
+        "data_description": {
+          "port": "Porta TCP utilizzata dal server OpenWebNet locale del gateway rilevato.",
+          "password": "Lascia vuoto solo se il gateway non richiede una password OpenWebNet."
         }
       },
       "reauth_confirm": {
@@ -23,6 +32,9 @@
         "description": "Il gateway MH201 all'indirizzo {host} ha rifiutato le credenziali memorizzate. Inserisci la password OpenWebNet attuale.",
         "data": {
           "password": "Password OpenWebNet"
+        },
+        "data_description": {
+          "password": "Password attualmente accettata dal gateway OpenWebNet locale."
         }
       },
       "reconfigure": {
@@ -31,10 +43,14 @@
         "data": {
           "host": "Indirizzo IP o nome host",
           "port": "Porta OpenWebNet",
-          "password": "Nuova password OpenWebNet (opzionale)"
+          "password": "Nuova password OpenWebNet (opzionale)",
+          "clear_password": "Rimuovi la password memorizzata"
         },
         "data_description": {
-          "password": "Lascia vuoto per mantenere la password attualmente memorizzata."
+          "host": "Nuovo indirizzo di rete locale dello stesso gateway MH201.",
+          "port": "Porta TCP utilizzata dal server OpenWebNet locale.",
+          "password": "Lascia vuoto per mantenere la password attualmente memorizzata.",
+          "clear_password": "Abilita solo se il gateway non richiede più autenticazione. Questa opzione ha precedenza sul campo password."
         }
       }
     },
@@ -59,6 +75,11 @@
           "action": "Azione",
           "include_scenarios": "Includi gli eventi scenario osservati durante la scansione",
           "discovery_listen_seconds": "Tempo di ascolto durante la scansione"
+        },
+        "data_description": {
+          "action": "Scegli se eseguire una scansione, apprendere passivamente, aggiungere manualmente o rimuovere endpoint.",
+          "include_scenarios": "Mantiene gli endpoint scenario osservati durante la finestra di scansione attiva.",
+          "discovery_listen_seconds": "Finestra aggiuntiva di ascolto eventi dopo il completamento delle sonde attive conservative."
         }
       },
       "passive_learning": {
@@ -66,6 +87,9 @@
         "description": "Ascolta il BUS senza inviare comandi. Durante l'ascolto usa i comandi fisici dei dispositivi che vuoi identificare.",
         "data": {
           "listen_seconds": "Tempo di ascolto (secondi)"
+        },
+        "data_description": {
+          "listen_seconds": "Durata dell'ascolto degli eventi OpenWebNet senza eseguire sonde attive sul BUS."
         }
       },
       "select_learned": {
@@ -73,6 +97,9 @@
         "description": "Seleziona i dispositivi da aggiungere all'inventario.",
         "data": {
           "devices": "Dispositivi"
+        },
+        "data_description": {
+          "devices": "Solo gli endpoint selezionati vengono salvati nell'inventario di questo gateway."
         }
       },
       "manual_device": {
@@ -82,7 +109,15 @@
           "who": "WHO",
           "where": "WHERE",
           "device_type": "Tipo dispositivo",
+          "climate_profile": "Profilo termico (solo termoregolazione)",
           "name": "Nome (opzionale)"
+        },
+        "data_description": {
+          "who": "Numero della famiglia funzionale OpenWebNet, ad esempio 4 per la termoregolazione.",
+          "where": "Indirizzo OpenWebNet dell'endpoint esattamente come utilizzato dall'impianto.",
+          "device_type": "Superficie Home Assistant da associare a questa famiglia WHO supportata.",
+          "climate_profile": "Per gli endpoint climate WHO=4 limita esplicitamente la zona a riscaldamento, raffrescamento o entrambi. Lascia non impostato se non noto.",
+          "name": "Nome opzionale dell'endpoint mostrato in Home Assistant."
         }
       },
       "remove_device": {
@@ -90,11 +125,14 @@
         "description": "Seleziona gli endpoint da rimuovere dall'inventario. Verranno rimosse anche le relative entità e il dispositivo endpoint di Home Assistant.",
         "data": {
           "devices": "Dispositivi"
+        },
+        "data_description": {
+          "devices": "La rimozione è sempre esplicita: una risposta di discovery mancante non elimina mai automaticamente un dispositivo."
         }
       }
     },
     "error": {
-      "invalid_device": "Il tipo di dispositivo selezionato non è valido per il WHO specificato."
+      "invalid_device": "Il tipo di dispositivo o il profilo termico selezionato non è valido per il WHO specificato."
     },
     "abort": {
       "no_devices_found": "Nessun dispositivo supportato è stato rilevato durante l'ascolto.",
@@ -123,6 +161,13 @@
         "intercom": "Videocitofonia",
         "door_lock": "Apriporta",
         "energy": "Energia"
+      }
+    },
+    "climate_profile": {
+      "options": {
+        "heating": "Solo riscaldamento",
+        "cooling": "Solo raffrescamento",
+        "heating_cooling": "Riscaldamento e raffrescamento"
       }
     }
   },
@@ -175,6 +220,18 @@
     },
     "send_frame_failed": {
       "message": "Invio del frame OpenWebNet non riuscito: {detail}"
+    },
+    "entity_command_failed": {
+      "message": "Comando OpenWebNet non riuscito: {detail}"
+    },
+    "unsupported_hvac_mode": {
+      "message": "La modalità HVAC {hvac_mode} non è supportata da questa zona di termoregolazione MyHOME."
+    },
+    "unsupported_preset_mode": {
+      "message": "Il preset {preset_mode} non è supportato da questa zona di termoregolazione MyHOME."
+    },
+    "temperature_out_of_range": {
+      "message": "La temperatura {temperature} °C è fuori dall'intervallo supportato {min_temp}–{max_temp} °C."
     }
   }
 }
