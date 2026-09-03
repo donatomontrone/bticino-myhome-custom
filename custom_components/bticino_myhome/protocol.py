@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any
 
 
 @dataclass(frozen=True)
@@ -21,7 +20,7 @@ class ParsedFrame:
 
 def parse_frame(raw: str) -> ParsedFrame | None:
     """Parse an OpenWebNet frame into structured data.
-    
+
     Handles:
     - Simple frames: *WHO*WHAT*WHERE##
     - Composite addresses: *WHO*WHAT*WHERE#bus##
