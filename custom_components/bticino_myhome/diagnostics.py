@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.redact_data import async_redact_data
 
 from .const import (
     CONF_GATEWAY_HOST,
