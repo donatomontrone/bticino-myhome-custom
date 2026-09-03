@@ -44,17 +44,19 @@ jobs:
           cache-dependency-path: requirements-test.txt
 
       - name: Install dependencies
+        id: install
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-test.txt "homeassistant==${{ matrix.ha_version }}"
 
       - name: Lint with ruff
-        if: matrix.run_quality
+        if: matrix.run_quality && steps.install.outcome == 'success' && !cancelled()
         run: python -m ruff check custom_components/bticino_myhome tests
 
       - name: Type check with mypy
-        if: matrix.run_quality
+        if: matrix.run_quality && steps.install.outcome == 'success' && !cancelled()
         run: python -m mypy custom_components/bticino_myhome
 
       - name: Run tests with pytest
+        if: steps.install.outcome == 'success' && !cancelled()
         run: python -m pytest --tb=short
