@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import Any
 
-from .discovery import DiscoverySource, DiscoveredDevice
+from .discovery import DiscoveredDevice, DiscoverySource
 
 
 class BticinoDeviceManager:

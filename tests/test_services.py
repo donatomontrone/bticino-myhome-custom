@@ -5,8 +5,8 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
-import pytest
 from homeassistant.exceptions import HomeAssistantError
+import pytest
 
 from custom_components.bticino_myhome.const import DOMAIN
 from custom_components.bticino_myhome.services import SERVICE_SEND_FRAME, async_setup_services

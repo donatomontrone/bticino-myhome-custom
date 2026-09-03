@@ -108,8 +108,6 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
                     is_status_request=True,
                 )
             except BticinoGatewayError:
-                # Initial state is best-effort; the persistent event session can
-                # still populate the entity when bus traffic arrives.
                 continue
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
@@ -143,7 +141,7 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
         value = float(temperature)
         if not MIN_TEMP <= value <= MAX_TEMP:
             raise ValueError(f"Temperature out of range: {value}")
-        encoded = f"{int(round(value * 10)):04d}"
+        encoded = f"{round(value * 10):04d}"
         await self.gateway.async_send(
             build_dimension_write("4", self.where, "14", encoded)
         )
