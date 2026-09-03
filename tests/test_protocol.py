@@ -1,10 +1,4 @@
 """Test protocol."""
-from custom_components.bticino_myhome.protocol import (
-    build_command,
-    build_status_request,
-    normalize_frame,
-    parse_frame,
-)
 from custom_components.bticino_myhome.protocol.commands import (
     alarm_arm_away,
     cover_open,
@@ -17,6 +11,14 @@ from custom_components.bticino_myhome.protocol.commands import (
 )
 
 
-def test_protocol():
-    """Verify protocol functions work correctly."""
-    pass
+def test_protocol_imports() -> None:
+    """Placeholder test for protocol imports."""
+    # Verify imports work
+    assert alarm_arm_away is not None
+    assert cover_open is not None
+    assert door_lock_release is not None
+    assert light_off is not None
+    assert light_on is not None
+    assert load_off is not None
+    assert load_on is not None
+    assert scene_activate is not None

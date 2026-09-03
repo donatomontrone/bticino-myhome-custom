@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from collections.abc import Callable
 from typing import Any
@@ -284,10 +285,8 @@ class BticinoGateway:
         self._event_task = None
         if event_task is not None and not event_task.done():
             event_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await event_task
-            except asyncio.CancelledError:
-                pass
         await self._close_command_session()
         await self._close_event_session()
         self._set_connected(False)
@@ -301,7 +300,6 @@ class BticinoGateway:
 
 async def async_discover_gateways(timeout: int = 5) -> list[dict[str, Any]]:
     """Discover MH201 gateways via OWNd's SSDP/OWS discovery."""
-    # Lazy import to avoid circular dependency
     from .discovery import BticinoDiscovery
 
     try:

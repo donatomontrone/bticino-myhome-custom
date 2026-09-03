@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.bticino_myhome.gateway import BticinoGateway, BticinoGatewayError
-from custom_components.bticino_myhome.protocol import NormalizedEvent
 
 
 def _gateway() -> BticinoGateway:
@@ -40,9 +39,11 @@ def test_async_test_connection_failure_is_typed() -> None:
         session.test_connection = AsyncMock(return_value={"Success": False, "Message": "auth_failed"})
         session.close = AsyncMock()
 
-        with patch("custom_components.bticino_myhome.gateway.OWNdSession", return_value=session):
-            with pytest.raises(BticinoGatewayError, match="auth_failed"):
-                await gateway.async_test_connection()
+        with (
+            patch("custom_components.bticino_myhome.gateway.OWNdSession", return_value=session),
+            pytest.raises(BticinoGatewayError, match="auth_failed"),
+        ):
+            await gateway.async_test_connection()
 
         session.test_connection.assert_awaited_once()
         session.close.assert_awaited_once()
@@ -144,9 +145,9 @@ def test_event_loop_reconnects_after_connection_error() -> None:
                 side_effect=[first, second],
             ),
             patch("custom_components.bticino_myhome.gateway.asyncio.sleep", new=AsyncMock()),
+            pytest.raises(asyncio.CancelledError),
         ):
-            with pytest.raises(asyncio.CancelledError):
-                await asyncio.wait_for(gateway._event_loop(), timeout=1.0)
+            await asyncio.wait_for(gateway._event_loop(), timeout=1.0)
 
         first.connect.assert_awaited_once()
         first.close.assert_awaited_once()

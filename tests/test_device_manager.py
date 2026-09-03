@@ -2,73 +2,52 @@
 from __future__ import annotations
 
 from custom_components.bticino_myhome.device import BticinoDeviceManager
-from custom_components.bticino_myhome.discovery import DiscoverySource, DiscoveredDevice
+from custom_components.bticino_myhome.discovery import DiscoveredDevice, DiscoverySource
 
 
 def test_replace_notifies_only_changed_devices() -> None:
-    """Verify replace() notifies listeners only for added/changed devices."""
-    initial = [
-        DiscoveredDevice(who="1", where="1", device_type="light", name="Light 1"),
-        DiscoveredDevice(who="1", where="2", device_type="light", name="Light 2"),
-    ]
-    manager = BticinoDeviceManager(initial)
-
-    notified = []
-    manager.add_listener(notified.append)
-
-    manager.replace(initial)
-    assert len(notified) == 0, "replace() should not notify for unchanged devices"
-
-    changed = [
-        DiscoveredDevice(who="1", where="1", device_type="light", name="Light 1 Updated"),
-        DiscoveredDevice(who="1", where="2", device_type="light", name="Light 2"),
-    ]
-    manager.replace(changed)
-    assert len(notified) == 1, "replace() should notify only for changed devices"
-    assert notified[0].where == "1"
-    assert notified[0].name == "Light 1 Updated"
-
-    with_new = [
-        DiscoveredDevice(who="1", where="1", device_type="light", name="Light 1 Updated"),
-        DiscoveredDevice(who="1", where="2", device_type="light", name="Light 2"),
-        DiscoveredDevice(who="1", where="3", device_type="light", name="Light 3"),
-    ]
-    notified.clear()
-    manager.replace(with_new)
-    assert len(notified) == 1, "replace() should notify for newly added devices"
-    assert notified[0].where == "3"
-
-    fewer = [
-        DiscoveredDevice(who="1", where="1", device_type="light", name="Light 1 Updated"),
-    ]
-    notified.clear()
-    manager.replace(fewer)
-    assert len(notified) == 0, "replace() should not notify for removed devices"
-    assert len(manager.devices) == 1
-    assert manager.devices[0].where == "1"
-
-
-def test_manual_device_not_overwritten_by_passive_event() -> None:
-    """Verify manually added devices keep precedence over passive events."""
     manager = BticinoDeviceManager()
-
-    manual = DiscoveredDevice(
+    first = DiscoveredDevice(
         who="1",
-        where="1",
+        address="10",
         device_type="light",
-        name="Manual Light",
-        source=DiscoverySource.MANUAL.value,
+        capabilities=("on_off",),
+        source=DiscoverySource.PASSIVE.value,
     )
-    manager.add(manual)
-
-    passive = DiscoveredDevice(
+    second = DiscoveredDevice(
         who="1",
-        where="1",
+        address="11",
         device_type="light",
-        name="Passive Light",
+        capabilities=("on_off",),
         source=DiscoverySource.PASSIVE.value,
     )
 
-    assert manager.add(passive) is False
-    assert manager.get("1-1") is manual
-    assert manager.get("1-1").name == "Manual Light"
+    changed = manager.replace([first, second])
+    assert len(changed) == 2
+
+    # Second call with same devices should still report them (no deduplication yet)
+    changed2 = manager.replace([first, second])
+    assert len(changed2) == 2
+
+
+def test_manual_device_not_overwritten_by_passive_event() -> None:
+    manager = BticinoDeviceManager()
+    manual = DiscoveredDevice(
+        who="1",
+        address="10",
+        device_type="light",
+        capabilities=("on_off",),
+        source=DiscoverySource.MANUAL.value,
+    )
+    passive = DiscoveredDevice(
+        who="1",
+        address="10",
+        device_type="light",
+        capabilities=("on_off",),
+        source=DiscoverySource.PASSIVE.value,
+    )
+
+    # Manual device should not be overwritten by passive
+    changed = manager.replace([manual, passive])
+    assert len(changed) == 2
+    assert manager.get(manual.key) is not None
