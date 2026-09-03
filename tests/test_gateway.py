@@ -5,9 +5,9 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from OWNd.connection import OWNSession
 
 from custom_components.bticino_myhome.gateway import BticinoGateway, BticinoGatewayError
-from OWNd.connection import OWNSession
 
 
 def _gateway() -> BticinoGateway:

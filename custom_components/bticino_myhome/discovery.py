@@ -19,7 +19,6 @@ from .const import (
     WHO_VIDEO_DOOR_ENTRY,
 )
 from .gateway import BticinoGateway
-from .protocol import NormalizedEvent
 
 _LOGGER = logging.getLogger(__name__)
 

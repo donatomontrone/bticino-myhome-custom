@@ -1,6 +1,6 @@
 """Test manifest metadata."""
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 
 def test_no_python_cache_files() -> None:
