@@ -37,22 +37,28 @@ def test_async_connect_starts_worker_and_close_cancels_it() -> None:
         event.connect = AsyncMock(return_value={"Success": True})
         event.close = AsyncMock()
         blocker = asyncio.Event()
+        created_tasks: list[str] = []
 
         async def get_next() -> str:
             await blocker.wait()
             return "*1*1*21##"
+
+        def create_task(coroutine, name: str):
+            created_tasks.append(name)
+            return asyncio.create_task(coroutine, name=name)
 
         event.get_next = AsyncMock(side_effect=get_next)
         with (
             patch("custom_components.bticino_myhome.gateway.OWNCommandSession", return_value=command),
             patch("custom_components.bticino_myhome.gateway.OWNEventSession", return_value=event),
         ):
-            await gateway.async_connect()
+            await gateway.async_connect(create_task)
             await asyncio.sleep(0)
             assert gateway.connected is True
             assert gateway.command_connected is True
             assert gateway.event_connected is True
             assert gateway._event_task is not None
+            assert created_tasks == ["bticino_myhome-event-loop"]
             assert event.get_next.await_count == 1
             await asyncio.wait_for(gateway.async_close(), timeout=1.0)
 
@@ -146,6 +152,46 @@ def test_async_send_timeout_closes_session() -> None:
         command.close.assert_awaited_once()
         assert gateway._command_session is None
         assert gateway.command_connected is False
+
+    asyncio.run(scenario())
+
+
+def test_command_failure_recovers_channel_without_retransmitting_frame() -> None:
+    async def scenario() -> None:
+        gateway = _gateway()
+        failed = MagicMock()
+        failed.send = AsyncMock(side_effect=TimeoutError("send_timeout"))
+        failed.close = AsyncMock()
+        gateway._command_session = failed
+        gateway._set_command_connected(True)
+        gateway._set_event_connected(True)
+
+        recovered = asyncio.Event()
+        replacement = MagicMock()
+
+        async def connect() -> dict[str, object]:
+            recovered.set()
+            return {"Success": True}
+
+        replacement.connect = AsyncMock(side_effect=connect)
+        replacement.send = AsyncMock()
+        replacement.close = AsyncMock()
+
+        with patch(
+            "custom_components.bticino_myhome.gateway.OWNCommandSession",
+            return_value=replacement,
+        ):
+            with pytest.raises(BticinoGatewayError, match="send_timeout"):
+                await gateway.async_send("*1*1*21##")
+            await asyncio.wait_for(recovered.wait(), timeout=1.0)
+            await asyncio.sleep(0)
+
+        failed.send.assert_awaited_once()
+        replacement.send.assert_not_awaited()
+        assert gateway.command_connected is True
+        assert gateway.connected is True
+        await gateway.async_close()
+        replacement.close.assert_awaited_once()
 
     asyncio.run(scenario())
 

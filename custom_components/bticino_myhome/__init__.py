@@ -38,7 +38,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data.get(CONF_GATEWAY_PASSWORD, ""),
     )
     try:
-        await gateway.async_connect()
+        await gateway.async_connect(
+            lambda coroutine, name: hass.async_create_task(coroutine, name)
+        )
     except BticinoGatewayError as err:
         await gateway.async_close()
         raise ConfigEntryNotReady(f"Failed to connect to gateway: {err}") from err

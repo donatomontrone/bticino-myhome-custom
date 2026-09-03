@@ -38,6 +38,8 @@ async def async_get_config_entry_diagnostics(
             "host": gateway.host,
             "port": gateway.port,
             "connected": gateway.connected,
+            "command_connected": gateway.command_connected,
+            "event_connected": gateway.event_connected,
         },
         "devices": [device.to_dict() for device in devices],
     }

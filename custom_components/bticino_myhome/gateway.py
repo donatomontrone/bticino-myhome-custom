@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from typing import Any
 
 from OWNd.connection import OWNCommandSession, OWNEventSession, OWNGateway, OWNSession
@@ -18,6 +18,8 @@ _CONNECT_TIMEOUT = 10.0
 _CLOSE_TIMEOUT = 5.0
 _RECONNECT_INITIAL_DELAY = 1.0
 _RECONNECT_MAX_DELAY = 60.0
+
+TaskCreator = Callable[[Coroutine[Any, Any, None], str], asyncio.Task[None]]
 
 
 class BticinoGatewayError(Exception):
@@ -36,6 +38,8 @@ class BticinoGateway:
         self._command_session: OWNCommandSession | None = None
         self._event_session: OWNEventSession | None = None
         self._event_task: asyncio.Task[None] | None = None
+        self._command_reconnect_task: asyncio.Task[None] | None = None
+        self._task_creator: TaskCreator | None = None
         self._closing = False
         self._command_connected = False
         self._event_connected = False
@@ -79,12 +83,10 @@ class BticinoGateway:
         finally:
             await self._safe_close(session)
 
-    async def async_connect(
-        self,
-        task_creator: Callable[[Any, str], asyncio.Task[None]] | None = None,
-    ) -> None:
+    async def async_connect(self, task_creator: TaskCreator | None = None) -> None:
         """Connect command/event sessions and start the persistent event worker."""
         self._closing = False
+        self._task_creator = task_creator
         await self._connect_command_session()
         try:
             await self._connect_event_session()
@@ -93,14 +95,9 @@ class BticinoGateway:
             raise
 
         if self._event_task is None or self._event_task.done():
-            if task_creator is None:
-                self._event_task = asyncio.create_task(
-                    self._event_loop(), name="bticino_myhome-event-loop"
-                )
-            else:
-                self._event_task = task_creator(
-                    self._event_loop(), "bticino_myhome-event-loop"
-                )
+            self._event_task = self._create_task(
+                self._event_loop(), "bticino_myhome-event-loop"
+            )
 
     async def _connect_command_session(self) -> None:
         if self._command_session is not None:
@@ -146,6 +143,8 @@ class BticinoGateway:
             raise BticinoGatewayError((result or {}).get("Message", "event_connection_failed"))
         self._event_session = session
         self._set_event_connected(True)
+        if self._command_session is None:
+            self._start_command_recovery()
         _LOGGER.debug("OpenWebNet event session connected")
 
     async def _event_loop(self) -> None:
@@ -217,7 +216,11 @@ class BticinoGateway:
             if self._closing:
                 raise BticinoGatewayError("gateway_closing")
             if self._command_session is None:
-                await self._connect_command_session()
+                try:
+                    await self._connect_command_session()
+                except BticinoGatewayError:
+                    self._start_command_recovery()
+                    raise
 
             session = self._command_session
             if session is None:
@@ -230,10 +233,57 @@ class BticinoGateway:
                 raise
             except (ConnectionError, TimeoutError) as err:
                 await self._close_command_session()
+                self._start_command_recovery()
                 raise BticinoGatewayError(str(err)) from err
             except Exception as err:
                 await self._close_command_session()
+                self._start_command_recovery()
                 raise BticinoGatewayError(str(err)) from err
+
+    def _start_command_recovery(self) -> None:
+        """Recover the command channel without retransmitting a failed frame."""
+        if self._closing or not self._event_connected:
+            return
+        task = self._command_reconnect_task
+        if task is not None and not task.done():
+            return
+        self._command_reconnect_task = self._create_task(
+            self._command_reconnect_loop(), "bticino_myhome-command-reconnect"
+        )
+
+    async def _command_reconnect_loop(self) -> None:
+        backoff = _RECONNECT_INITIAL_DELAY
+        try:
+            while (
+                not self._closing
+                and self._event_connected
+                and self._command_session is None
+            ):
+                try:
+                    async with self._command_lock:
+                        if self._command_session is None:
+                            await self._connect_command_session()
+                    return
+                except asyncio.CancelledError:
+                    raise
+                except BticinoGatewayError as err:
+                    _LOGGER.info(
+                        "MH201 command connection unavailable (%s). Retrying in %.1fs",
+                        err,
+                        backoff,
+                    )
+                    await asyncio.sleep(backoff)
+                    backoff = min(backoff * 2, _RECONNECT_MAX_DELAY)
+        finally:
+            if self._command_reconnect_task is asyncio.current_task():
+                self._command_reconnect_task = None
+
+    def _create_task(
+        self, coroutine: Coroutine[Any, Any, None], name: str
+    ) -> asyncio.Task[None]:
+        if self._task_creator is not None:
+            return self._task_creator(coroutine, name)
+        return asyncio.create_task(coroutine, name=name)
 
     def add_listener(self, callback: Callable[[str], None]) -> Callable[[], None]:
         self._listeners.add(callback)
@@ -295,8 +345,16 @@ class BticinoGateway:
             await self._safe_close(session)
 
     async def async_close(self) -> None:
-        """Close command/event sessions and cancel the event worker."""
+        """Close command/event sessions and cancel persistent workers."""
         self._closing = True
+
+        command_reconnect_task = self._command_reconnect_task
+        self._command_reconnect_task = None
+        if command_reconnect_task is not None and not command_reconnect_task.done():
+            command_reconnect_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await command_reconnect_task
+
         event_task = self._event_task
         self._event_task = None
         if event_task is not None and not event_task.done():

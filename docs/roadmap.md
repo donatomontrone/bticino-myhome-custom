@@ -38,14 +38,14 @@ The next milestone is therefore **runtime solidity before protocol breadth**. Th
 
 - [x] Serialize access to the persistent command session so concurrent entity/discovery commands cannot overlap
 - [x] Re-open a missing command session on the next command after a prior close/failure
-- [ ] Define and test retry semantics after disconnect/reset/timeout without duplicating OWNd internal retries
+- [x] Recover a failed command channel in the background while the event channel is alive, without automatically retransmitting the failed frame
 - [ ] Introduce an explicit command-result abstraction above OWNd so ACK/NACK/transport failure are not represented only by logging
 - [ ] Audit the overlap between OWNd internal reconnect/retry behavior and the integration gateway lifecycle; keep one clear owner for each recovery path
 - [x] Track command-channel and event-channel health separately; aggregate entity availability requires both channels healthy
-- [ ] Use Home Assistant-owned task creation/lifecycle for the persistent event worker
+- [x] Use Home Assistant-owned task creation/lifecycle for persistent gateway workers
 - [ ] Replace generic `BticinoGatewayError` cases with structured connection/authentication/command/protocol exceptions
 - [ ] Log availability transitions once when unavailable and once when recovered instead of logging every retry cycle
-- [x] Add command concurrency, missing-session recovery, cancellation and close lifecycle tests
+- [x] Add command concurrency, missing-session recovery, background recovery, cancellation and close lifecycle tests
 
 ### Gateway identity and discovery
 
