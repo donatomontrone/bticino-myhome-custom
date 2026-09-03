@@ -9,11 +9,17 @@ Two validation labels are used throughout this roadmap:
 - **spec/reference validated**: the software behavior is derived from public BTicino/Legrand OpenWebNet documentation and cross-checked against established MyHOME implementations, with deterministic unit/mocked tests;
 - **hardware validated**: the same behavior has also been confirmed against captures and runtime behavior from a real MH201/MyHOME installation.
 
+## Development completion rule
+
+Every implementation sprint must keep this roadmap synchronized with the code delivered in the same development cycle. A software change is not considered complete until the relevant roadmap items reflect its actual validation state and the same final `master` HEAD is green for the Home Assistant test matrix, Ruff, mypy, Hassfest and HACS validation. Hardware-dependent items remain explicitly pending until verified against a real MH201/MyHOME installation.
+
 ## Current checkpoint — post-0.2.0 master
 
 Release 0.2.0 established the repository/architecture baseline. Subsequent `master` work has completed the software-side runtime/transport hardening phase and the software-side Home Assistant surface-quality phase: explicit command results, integration-owned post-negotiation channel semantics, initial-state hydration plumbing, conservative device lifecycle, safer active discovery, reconfigure/reauthentication, explicit inventory removal, typed runtime ConfigEntries, HA-native entity naming, deterministic multi-gateway raw-frame targeting, selector/data-description cleanup, translated entity action errors, hardened diagnostics redaction and expanded mocked regression coverage.
 
-CI is green against Home Assistant 2025.1 / Python 3.12 and Home Assistant 2026.9 / Python 3.14, with Ruff, mypy, pytest, Hassfest and HACS validation. The current HA 2026.9 quality target also enforces a coverage gate of 55%; the current suite contains 81 tests and reports 66.35% integration-package coverage.
+WHO=4 thermoregulation is now spec/reference aligned for the currently modeled surfaces, including explicit heating-only KW4691 zones. WHO=2 advanced-shutter software work is in progress: documented DIM=10 status/position decoding, DIM=11 go-to-level writes, explicit position capability, manual advanced-shutter configuration and Home Assistant `SET_POSITION` gating are implemented, while dedicated protocol/entity regression tests and physical MH201 validation remain pending.
+
+CI is green against Home Assistant 2025.1 / Python 3.12 and Home Assistant 2026.9 / Python 3.14, with Ruff, mypy, pytest, Hassfest and HACS validation. The current HA 2026.9 quality target enforces a coverage gate of 55%; after the initial WHO=2 advanced-shutter implementation the current suite contains 81 tests and reports 65.12% integration-package coverage.
 
 There is intentionally no requirement for a local/running Home Assistant instance during the remaining code-completion work. Integration-level Home Assistant lifecycle tests, clean-install/upgrade validation and physical MH201 validation are deferred to the final validation phase. Until then, development relies on code review, unit/mocked tests, public OpenWebNet specifications, established MyHOME implementations and CI compatibility checks.
 
@@ -110,7 +116,7 @@ This phase is complete without requiring a running Home Assistant instance. Home
 - [x] Translate entity command transport failures and climate validation errors using Home Assistant error translation surfaces
 - [x] Add diagnostics/redaction regression tests and remove potentially sensitive ConfigEntry titles from diagnostics
 - [x] Expand unit/mocked tests for Config Flow helpers, Options inventory persistence, thermal-profile persistence, explicit removal and changed-IP stable identity
-- [x] Add coverage reporting with a 55% CI gate; current HA 2026.9 run is 66.35% across 81 tests
+- [x] Add coverage reporting with a 55% CI gate; current HA 2026.9 run is 65.12% across 81 tests after the initial WHO=2 advanced-shutter implementation
 
 ## Phase D — protocol evidence and deterministic replay
 
@@ -139,14 +145,21 @@ This phase starts only when real captures are available. No protocol-specific be
 - [ ] Complete observed WHAT catalogue from real captures
 - [ ] Initial-state and dimmer query validation on a real MH201/BUS
 
-### WHO=2 — automation / shutters — NEXT SOFTWARE SPRINT
+### WHO=2 — automation / shutters — IN PROGRESS, SPEC/REFERENCE IMPLEMENTATION
 - [x] Open / close / stop command and motion state
 - [x] Initial-state hydration request/response plumbing
-- [ ] Introduce a dedicated `protocol/automation.py` boundary for documented advanced-shutter semantics
-- [ ] Model DIM=10 shutter status/position and DIM=11 go-to-level from official OpenWebNet documentation and established MyHOME implementations
-- [ ] Add explicit advanced-position capability and expose Home Assistant `SET_POSITION` only when that capability is configured or observed
-- [ ] Preserve unknown position as unknown; never invent a percentage for basic shutters
-- [ ] Add deterministic protocol/entity tests using documented frames
+- [x] Introduce a dedicated `protocol/automation.py` boundary for documented advanced-shutter semantics
+- [x] Model documented DIM=10 shutter status/position states, including `0..100` position and `255` unknown position
+- [x] Add DIM=11 go-to-level command builder using the documented priority parameter and the established `#001` command form
+- [x] Add explicit `position_control` capability and expose Home Assistant `SET_POSITION` only when the capability is configured or observed
+- [x] Preserve unknown position as unknown and never estimate a percentage for basic shutters
+- [x] Infer advanced-shutter capability only from a valid DIM=10 status frame; do not infer it from ordinary open/close/stop events
+- [x] Add manual Options Flow support for explicitly marking a WHO=2 cover as an advanced shutter
+- [x] Request DIM=10 initial state only for covers known to support advanced position reporting
+- [x] Keep Home Assistant position/motion updates evidence-driven from received OpenWebNet events rather than optimistic local writes
+- [x] Conservatively exclude parameterized/group `#WHERE` WHO=2 frames from endpoint discovery
+- [ ] Add dedicated deterministic `protocol/automation.py` tests for valid/invalid DIM=10 frames, unknown position and DIM=11 command construction
+- [ ] Add dedicated cover entity tests for feature gating, initial DIM=10 hydration, position updates and translated validation errors
 - [ ] Complete observed automation WHAT catalogue from real captures
 - [ ] Initial-state and advanced-position validation on a real MH201/BUS
 
@@ -229,4 +242,4 @@ This is the first phase that requires an actual Home Assistant environment and, 
 
 ## 0.2.0 release boundary
 
-0.2.0 is an architecture/runtime milestone, not a declaration that every protocol surface is hardware-validated. It is appropriate as a tagged development release because repository structure, compatibility CI, gateway recovery, native discovery and migration semantics form a coherent baseline. Post-0.2.0 `master` now has the software-side architecture/runtime and Home Assistant surface-quality phases complete; the next development focus is protocol/platform coverage using public OpenWebNet specifications and established implementations, with final Home Assistant and MH201 validation intentionally deferred until the end of the project.
+0.2.0 is an architecture/runtime milestone, not a declaration that every protocol surface is hardware-validated. It is appropriate as a tagged development release because repository structure, compatibility CI, gateway recovery, native discovery and migration semantics form a coherent baseline. Post-0.2.0 `master` now has the software-side architecture/runtime and Home Assistant surface-quality phases complete; the current development focus is WHO=2 advanced automation/shutter coverage using public OpenWebNet specifications and established implementations, with final Home Assistant and MH201 validation intentionally deferred until the end of the project.
