@@ -77,12 +77,6 @@ _COOLING_STATES = {
     STATE_MANUAL_CONDITIONING,
     STATE_PROGRAMMING_CONDITIONING,
 }
-_GENERIC_STATES = {
-    STATE_GENERIC_PROTECTION,
-    STATE_OFF_GENERIC,
-    STATE_MANUAL_GENERIC,
-    STATE_PROGRAMMING_GENERIC,
-}
 
 # WHO=4 DIM=19 documents 1/2 and 6/7/8 as active states. Values 0, 3,
 # 4 and 5 are explicitly inactive. Community clarification from the MyOPEN
@@ -108,8 +102,6 @@ def capabilities_for_thermoregulation_state(state: str | None) -> tuple[str, ...
         return (CAPABILITY_HEATING,)
     if state in _COOLING_STATES:
         return (CAPABILITY_COOLING,)
-    if state in _GENERIC_STATES:
-        return (CAPABILITY_HEATING, CAPABILITY_COOLING)
     return ()
 
 
