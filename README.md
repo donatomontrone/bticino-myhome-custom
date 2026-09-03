@@ -6,7 +6,7 @@ Current release: **0.2.0**.
 
 The integration communicates directly with the MH201 over the local network. It does not use the BTicino, Netatmo or Legrand cloud for the control path.
 
-> Scope: this project is intentionally focused on MH201/OpenWebNet. WHO=22, media player, audio, music and sound diffusion are deliberately out of scope.
+> Scope: this project is intentionally focused on MH201/OpenWebNet. WHO=22, media player, audio, music, sound diffusion and WHO=1 dimmer/brightness/transition control are deliberately out of scope. WHO=1 lighting is intentionally limited to ON/OFF.
 
 ## Project status
 
@@ -23,10 +23,10 @@ CI green does **not** replace validation against a physical MH201. Protocol-sens
 | WHO | Area | Current status |
 | --- | --- | --- |
 | 0 | Scenarios | Basic activation entity and Home Assistant device triggers implemented; real MH201 event fixtures still required |
-| 1 | Lighting | Basic on/off command and event state implemented |
-| 2 | Automation / shutters | Open/close/stop and motion-state handling implemented |
+| 1 | Lighting | Basic ON/OFF command and event state implemented; dimmer/brightness permanently excluded from project scope |
+| 2 | Automation / shutters | Open/close/stop plus spec/reference-backed advanced position handling implemented; real MH201 validation still required |
 | 3 | Load management | Basic on/off state/control implemented |
-| 4 | Thermoregulation | Experimental climate surface; read/write semantics still require real MH201 validation |
+| 4 | Thermoregulation | Spec/reference-aligned climate surface; real MH201/KW4691 validation still required |
 | 5 | Alarm | Experimental minimal alarm-control-panel surface; mappings remain provisional |
 | 7 | Video door entry | Experimental call-event / door-release surfaces; real traffic validation still required |
 | 18 | Energy | Family recognized by protocol/discovery only; production energy entities are not yet implemented |
@@ -57,7 +57,9 @@ Wire-format knowledge is isolated in `custom_components/bticino_myhome/protocol/
 - `frame.py` — immutable parsed frame model;
 - `parser.py` — OpenWebNet wire frame -> structured frame;
 - `commands.py` — semantic command/status request -> wire frame;
-- `normalizer.py` — parsed frame -> normalized semantic event.
+- `normalizer.py` — parsed frame -> normalized semantic event;
+- `automation.py` — WHO=2 advanced shutter status/position helpers;
+- `thermoregulation.py` — WHO=4 thermoregulation semantics and command builders.
 
 The Home Assistant platforms consume normalized events rather than parsing raw OpenWebNet strings themselves.
 
@@ -135,7 +137,7 @@ Endpoints that cannot be safely discovered can be registered manually with WHO, 
 
 For the stable/basic surfaces, a transmitted command is not treated as proof that the physical device changed state. State is expected to come back through OpenWebNet events/status responses.
 
-WHO=4 climate is still experimental and is being audited to remove any optimistic behavior that is not justified by real protocol evidence.
+WHO=2 advanced position and WHO=4 climate likewise keep their modeled state evidence-driven rather than relying on optimistic local writes.
 
 ## Configuration
 
@@ -199,10 +201,9 @@ The capture workflow is the preferred source of evidence for extending WHO=4, WH
 
 - Real MH201 clean-install, upgrade, restart/reload and long-running disconnect/recovery testing is still required.
 - Active discovery cannot infer the complete configuration stored in Home+Project and intentionally avoids manufacturing unconfirmed endpoints.
-- WHO=4/5/7 semantics are not declared stable until backed by real captures.
+- WHO=4/5/7 semantics are not declared hardware-stable until backed by real captures.
 - WHO=18 energy entities are not yet implemented.
-- Stale-device removal and dynamic entity removal still need a complete Home Assistant lifecycle implementation.
-- Config/Options Flow coverage is not yet at the project's targeted Silver-like Home Assistant integration-quality level.
+- Final Home Assistant lifecycle validation is still pending.
 
 ## Development
 
@@ -217,15 +218,6 @@ python -m mypy custom_components/bticino_myhome
 
 ## Roadmap
 
-Development priority after 0.2.0 is **runtime solidity before protocol breadth**:
+The detailed development checklist is maintained in `docs/roadmap.md`. Every implementation cycle must update that roadmap and end with the same final `master` HEAD green for the Home Assistant test matrix, Ruff, mypy, Hassfest and HACS validation.
 
-1. finish transport result/error semantics and availability logging;
-2. initial-state hydration and removal of synthetic/diagnostic WHO=7 entities;
-3. stale-device and dynamic add/remove lifecycle;
-4. full Home Assistant Config Flow, Options Flow, setup/unload/reload and registry tests;
-5. sanitized real-capture fixture corpus and deterministic replay;
-6. only then expand capture-backed WHO=4/5/7/18 functionality.
-
-See `docs/roadmap.md` for the detailed checklist.
-
-**WHO=22 / media player / audio / music / sound diffusion remain permanently excluded.**
+**WHO=22 / media player / audio / music / sound diffusion and WHO=1 dimmer / brightness / transition control remain permanently excluded.**
