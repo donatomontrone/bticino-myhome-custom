@@ -36,10 +36,21 @@ def test_attach_trigger_uses_standard_ha_event_trigger() -> None:
         hass = MagicMock()
         action = MagicMock()
         trigger_info = MagicMock()
-        with patch(
-            "custom_components.bticino_myhome.device_trigger.event_trigger.async_attach_trigger",
-            new=AsyncMock(return_value=MagicMock()),
-        ) as attach:
+        validated_event_config = {
+            "platform": "event",
+            "event_type": [SimpleNamespace(template=EVENT_OPENWEBNET)],
+            "event_data": {"who": "0", "where": "12"},
+        }
+        with (
+            patch(
+                "custom_components.bticino_myhome.device_trigger.event_trigger.TRIGGER_SCHEMA",
+                return_value=validated_event_config,
+            ) as schema,
+            patch(
+                "custom_components.bticino_myhome.device_trigger.event_trigger.async_attach_trigger",
+                new=AsyncMock(return_value=MagicMock()),
+            ) as attach,
+        ):
             await async_attach_trigger(
                 hass,
                 {
@@ -52,10 +63,12 @@ def test_attach_trigger_uses_standard_ha_event_trigger() -> None:
                 action,
                 trigger_info,
             )
-        event_config = attach.await_args.args[1]
-        assert len(event_config["event_type"]) == 1
-        assert event_config["event_type"][0].template == EVENT_OPENWEBNET
-        assert event_config["event_data"] == {"who": "0", "where": "12"}
+
+        raw_event_config = schema.call_args.args[0]
+        assert raw_event_config["platform"] == "event"
+        assert raw_event_config["event_type"] == EVENT_OPENWEBNET
+        assert raw_event_config["event_data"] == {"who": "0", "where": "12"}
+        assert attach.await_args.args[1] is validated_event_config
         assert attach.await_args.kwargs["platform_type"] == "device"
 
     asyncio.run(scenario())
