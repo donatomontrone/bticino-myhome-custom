@@ -30,9 +30,9 @@ Release 0.2.0 established the repository/architecture baseline. Subsequent `mast
 
 WHO=4 thermoregulation is spec/reference aligned for the currently modeled surfaces, including explicit heating-only KW4691 zones. WHO=2 advanced-shutter position is spec/reference validated software-side: DIM=10 status/position decoding, DIM=11 go-to-level writes, explicit position capability, manual advanced-shutter configuration, Home Assistant `SET_POSITION`, unknown-position preservation and deterministic protocol/entity regression tests are implemented.
 
-WHO=1 remains ON/OFF only by design. Dimmer/brightness support is permanently excluded from the current project scope.
+WHO=1 is complete software-side for the deliberately restricted ON/OFF-only project scope: documented ON/OFF commands, evidence-driven event state, initial status-request plumbing and deterministic light-entity regression tests are implemented. Dimmer/brightness/transition support is permanently excluded. Real MH201 status-query behavior remains hardware validation because the gateway may acknowledge a documented status request without returning a state frame on some installations; asynchronous ON/OFF events remain the primary state-evidence path until tested on the target hardware.
 
-CI is green against Home Assistant 2025.1 / Python 3.12 and Home Assistant 2026.9 / Python 3.14, with Ruff, mypy, pytest, Hassfest and HACS validation. The current HA 2026.9 quality target enforces a coverage gate of 55%; after the WHO=2 advanced-shutter test sprint the suite contains 126 tests and reports 68.90% integration-package coverage.
+CI is green against Home Assistant 2025.1 / Python 3.12 and Home Assistant 2026.9 / Python 3.14, with Ruff, mypy, pytest, Hassfest and HACS validation. The current HA 2026.9 quality target enforces a coverage gate of 55%; after the WHO=1 ON/OFF closure the suite contains 133 tests and reports 69.40% integration-package coverage.
 
 A local/running Home Assistant instance is not required for the remaining software-side work. Integration-level lifecycle testing, clean-install/upgrade validation and physical MH201 validation are deferred to Phase F.
 
@@ -115,7 +115,7 @@ A local/running Home Assistant instance is not required for the remaining softwa
 - [x] Translated entity command and climate validation errors
 - [x] Diagnostics/redaction regression tests
 - [x] Mocked Config/Options/inventory/changed-IP tests
-- [x] Coverage reporting with 55% CI gate; current validated baseline 126 tests / 68.90%
+- [x] Coverage reporting with 55% CI gate; current validated baseline 133 tests / 69.40%
 
 ## Phase D — protocol evidence and deterministic replay
 
@@ -138,12 +138,13 @@ This phase starts when real captures are available. No protocol-specific behavio
 - [x] No synthetic scenario inventory during active scan
 - [ ] Real MH201 scenario fixtures and end-to-end trigger validation
 
-### WHO=1 — lighting — ON/OFF ONLY BY PROJECT SCOPE
+### WHO=1 — lighting — COMPLETE SOFTWARE-SIDE, HARDWARE VALIDATION PENDING
 
 - [x] Basic ON/OFF command and event state
 - [x] Initial-state hydration request/response plumbing
+- [x] Deterministic light-entity tests for ON/OFF commands, no optimistic state, event updates, endpoint filtering and the documented status request
 - [ ] Complete observed ON/OFF WHAT catalogue from real captures
-- [ ] Initial-state query validation on a real MH201/BUS
+- [ ] Validate on the target MH201 whether `*#1*WHERE##` returns a state frame or ACK only; either behavior must leave asynchronous event state authoritative
 
 Dimmer, brightness and transition semantics are permanently excluded from this integration scope.
 
@@ -171,6 +172,7 @@ Dimmer, brightness and transition semantics are permanently excluded from this i
 
 - [x] Basic ON/OFF command and event state
 - [x] Initial-state hydration request/response plumbing
+- [ ] Add deterministic load-switch tests before declaring the current WHO=3 surface software-complete
 - [ ] Initial-state query validation on a real MH201/BUS
 - [ ] Complete observed load-management catalogue
 - [ ] Validate whether additional measurements/states belong here or in WHO=18
@@ -249,4 +251,4 @@ Dimmer, brightness and transition semantics are permanently excluded from this i
 
 ## Release boundary
 
-0.2.0 remains an architecture/runtime milestone, not a declaration that every protocol surface is hardware-validated. Post-0.2.0 `master` has the software-side architecture/runtime and Home Assistant surface-quality phases complete. WHO=2 advanced position and WHO=4 thermoregulation are spec/reference validated for their currently modeled software surfaces, while hardware/capture validation remains pending. WHO=1 remains deliberately ON/OFF-only; dimmer/brightness support is not part of this project.
+0.2.0 remains an architecture/runtime milestone, not a declaration that every protocol surface is hardware-validated. Post-0.2.0 `master` has the software-side architecture/runtime and Home Assistant surface-quality phases complete. WHO=1 ON/OFF is complete software-side for the deliberately restricted project scope; WHO=2 advanced position and WHO=4 thermoregulation are spec/reference validated for their currently modeled software surfaces. Hardware/capture validation remains pending, and the next software completion focus is the current WHO=3 load-management surface before opening the broader WHO=18 energy work.
