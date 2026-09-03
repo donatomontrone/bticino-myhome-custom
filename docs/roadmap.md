@@ -28,13 +28,15 @@ Every implementation sprint must keep this roadmap synchronized with the code de
 
 Release 0.2.0 established the repository/architecture baseline. Subsequent `master` work completed the software-side runtime/transport hardening phase and Home Assistant surface-quality phase.
 
-WHO=4 thermoregulation is spec/reference aligned for the currently modeled surfaces, including explicit heating-only KW4691 zones. WHO=2 advanced-shutter position is spec/reference validated software-side: DIM=10 status/position decoding, DIM=11 go-to-level writes, explicit position capability, manual advanced-shutter configuration, Home Assistant `SET_POSITION`, unknown-position preservation and deterministic protocol/entity regression tests are implemented.
+WHO=1 is complete software-side for the deliberately restricted ON/OFF-only project scope. WHO=2 advanced-shutter position and WHO=4 thermoregulation are spec/reference validated for their currently modeled software surfaces. Real MH201/BUS validation remains pending for all three.
 
-WHO=1 is complete software-side for the deliberately restricted ON/OFF-only project scope: documented ON/OFF commands, evidence-driven event state, initial status-request plumbing and deterministic light-entity regression tests are implemented. Dimmer/brightness/transition support is permanently excluded. Real MH201 status-query behavior remains hardware validation because the gateway may acknowledge a documented status request without returning a state frame on some installations; asynchronous ON/OFF events remain the primary state-evidence path until tested on the target hardware.
+WHO=18 now has a deliberately narrow production surface that is also spec/reference validated software-side: documented `5N` energy-meter endpoints expose read-only DIM=113 active power in watts using a Home Assistant `POWER`/`MEASUREMENT` sensor, with initial hydration and evidence-driven updates. Totalizers and other WHO=18 dimensions are deliberately deferred until their units, reset semantics and real MH201 behavior can be validated.
 
-CI is green against Home Assistant 2025.1 / Python 3.12 and Home Assistant 2026.9 / Python 3.14, with Ruff, mypy, pytest, Hassfest and HACS validation. The current HA 2026.9 quality target enforces a coverage gate of 55%; after the WHO=1 ON/OFF closure the suite contains 133 tests and reports 69.40% integration-package coverage.
+WHO=3 remains conservative/provisional. Basic ON/OFF code already exists, but no additional semantics or software-complete claim will be added until a sufficiently detailed official/reference source or real captures support the current mapping.
 
-A local/running Home Assistant instance is not required for the remaining software-side work. Integration-level lifecycle testing, clean-install/upgrade validation and physical MH201 validation are deferred to Phase F.
+CI is green against Home Assistant 2025.1 / Python 3.12 and Home Assistant 2026.9 / Python 3.14, with Ruff, mypy, pytest, Hassfest and HACS validation. The HA 2026.9 quality target enforces a coverage gate of 55%; after the WHO=18 active-power slice the suite contains 141 tests and reports 70.12% integration-package coverage.
+
+A local/running Home Assistant instance is not required for the remaining software-side work. Integration-level lifecycle testing can continue with deterministic/mocked Home Assistant test machinery; clean-install/upgrade validation and physical MH201 validation remain deferred to the final validation campaign.
 
 ## Phase A — repository and architecture foundation — COMPLETE
 
@@ -115,7 +117,7 @@ A local/running Home Assistant instance is not required for the remaining softwa
 - [x] Translated entity command and climate validation errors
 - [x] Diagnostics/redaction regression tests
 - [x] Mocked Config/Options/inventory/changed-IP tests
-- [x] Coverage reporting with 55% CI gate; current validated baseline 133 tests / 69.40%
+- [x] Coverage reporting with 55% CI gate; current validated baseline 141 tests / 70.12%
 
 ## Phase D — protocol evidence and deterministic replay
 
@@ -126,7 +128,7 @@ This phase starts when real captures are available. No protocol-specific behavio
 - [ ] Record gateway model/firmware and safe installation context with captures
 - [x] Reject parameterized standard `#WHERE` endpoint evidence outside explicit WHO=4 central-zone handling
 - [ ] Investigate diagnostic/broadcast/group frames per WHO using real captures
-- [ ] Revisit flat `NormalizedEvent.state` before complex WHO=5/18 payloads
+- [ ] Revisit flat `NormalizedEvent.state` before complex WHO=5/18 payloads require structured semantics
 - [ ] Move additional WHO-specific semantics into dedicated protocol modules only when evidence supports them
 
 ## Phase E — protocol/platform coverage
@@ -142,7 +144,7 @@ This phase starts when real captures are available. No protocol-specific behavio
 
 - [x] Basic ON/OFF command and event state
 - [x] Initial-state hydration request/response plumbing
-- [x] Deterministic light-entity tests for ON/OFF commands, no optimistic state, event updates, endpoint filtering and the documented status request
+- [x] Deterministic light-entity tests for ON/OFF commands, no optimistic state, event updates, endpoint filtering and documented status request
 - [ ] Complete observed ON/OFF WHAT catalogue from real captures
 - [ ] Validate on the target MH201 whether `*#1*WHERE##` returns a state frame or ACK only; either behavior must leave asynchronous event state authoritative
 
@@ -168,11 +170,12 @@ Dimmer, brightness and transition semantics are permanently excluded from this i
 - [ ] Complete observed automation WHAT catalogue from real captures
 - [ ] Initial-state and advanced-position validation on a real MH201/BUS
 
-### WHO=3 — load management
+### WHO=3 — load management — PROVISIONAL / EVIDENCE PENDING
 
-- [x] Basic ON/OFF command and event state
-- [x] Initial-state hydration request/response plumbing
-- [ ] Add deterministic load-switch tests before declaring the current WHO=3 surface software-complete
+- [x] Basic ON/OFF command and event state currently present
+- [x] Initial-state hydration plumbing currently present
+- [ ] Confirm current WHO=3 command/state semantics from a sufficiently detailed official/reference source or real captures before declaring the surface software-complete
+- [ ] Add/adjust deterministic load-switch tests once that semantic evidence is established
 - [ ] Initial-state query validation on a real MH201/BUS
 - [ ] Complete observed load-management catalogue
 - [ ] Validate whether additional measurements/states belong here or in WHO=18
@@ -213,30 +216,38 @@ Dimmer, brightness and transition semantics are permanently excluded from this i
 - [ ] Validate call start/end semantics and WHERE routing
 - [ ] Validate door-release command against real MH201 traffic
 
-### WHO=18 — energy
+### WHO=18 — energy — ACTIVE POWER SPEC/REFERENCE VALIDATED, HARDWARE VALIDATION PENDING
 
 - [x] Device family classified by protocol/discovery
-- [ ] Define spec/reference-backed typed measurements and HA device/state classes
-- [ ] Implement production energy entities only where dimension/unit semantics are unambiguous
+- [x] Dedicated `protocol/energy.py` boundary for the current unambiguous measurement surface
+- [x] Restrict production active-power entities to documented `5N` energy-meter addresses (`N=1..255`)
+- [x] Decode documented DIM=113 active power in watts
+- [x] Request initial active power with `*#18*WHERE*113##`
+- [x] Expose a read-only Home Assistant `SensorDeviceClass.POWER` sensor in watts with `SensorStateClass.MEASUREMENT`
+- [x] Use measurement-specific unique IDs so future WHO=18 sensors cannot collide on the same endpoint
+- [x] Keep state evidence-driven from DIM=113 responses/events with no optimistic value and no periodic polling
+- [x] Add deterministic WHO=18 protocol and sensor regression tests
+- [ ] Define totalizer DIM=51/52/53/54 units, reset semantics and Home Assistant state classes only after sufficient specification/capture evidence
+- [ ] Add additional WHO=18 dimensions only where their unit and lifecycle semantics are unambiguous
 - [ ] Build real energy-frame fixture catalogue
-- [ ] Validate units, counters and update cadence on a real MH201/BUS
+- [ ] Validate active-power units, sign, update cadence and initial query behavior on a real MH201/BUS
 
 ## Phase F — final Home Assistant and hardware validation
 
 ### Home Assistant integration-level validation
 
-- [ ] Full Config Flow tests with HA flow machinery
-- [ ] Full Options Flow tests with HA flow machinery
-- [ ] Setup / unload / reload / restart tests in a real HA test instance
+- [ ] Full Config Flow tests with Home Assistant flow machinery
+- [ ] Full Options Flow tests with Home Assistant flow machinery
+- [ ] Setup / unload / reload / restart tests with Home Assistant test machinery
 - [ ] Entity lifecycle tests for every exposed platform
 - [ ] Entity and Device Registry stability/removal tests
-- [ ] Availability loss/recovery through HA state machinery
-- [ ] Dynamic device add/remove through HA entity platforms
-- [ ] Confirm diagnostics/redaction in Home Assistant
+- [ ] Availability loss/recovery through Home Assistant state machinery
+- [ ] Dynamic device add/remove through Home Assistant entity platforms
+- [ ] Confirm diagnostics/redaction through Home Assistant diagnostics machinery
 
 ### Installation and MH201 validation
 
-- [x] README synchronized with the 0.2.0 implementation baseline
+- [x] README synchronized with current implementation scope
 - [x] Native SSDP, stable identity and migration documented
 - [x] Experimental vs implemented protocol families documented
 - [x] Dual Home Assistant CI window documented
@@ -249,6 +260,8 @@ Dimmer, brightness and transition semantics are permanently excluded from this i
 - [ ] Final troubleshooting pass using real failure cases
 - [ ] Production-ready release candidate after the above validation
 
-## Release boundary
+## Release boundary and next software focus
 
-0.2.0 remains an architecture/runtime milestone, not a declaration that every protocol surface is hardware-validated. Post-0.2.0 `master` has the software-side architecture/runtime and Home Assistant surface-quality phases complete. WHO=1 ON/OFF is complete software-side for the deliberately restricted project scope; WHO=2 advanced position and WHO=4 thermoregulation are spec/reference validated for their currently modeled software surfaces. Hardware/capture validation remains pending, and the next software completion focus is the current WHO=3 load-management surface before opening the broader WHO=18 energy work.
+0.2.0 remains an architecture/runtime milestone, not a declaration that every protocol surface is hardware-validated. Post-0.2.0 `master` has the software-side architecture/runtime and Home Assistant surface-quality phases complete. WHO=1 ON/OFF is complete software-side; WHO=2 advanced position, WHO=4 thermoregulation and WHO=18 active power are spec/reference validated for their currently modeled software surfaces.
+
+Further protocol breadth is intentionally blocked where evidence is insufficient: WHO=1 dimming is permanently excluded, WHO=3 remains provisional, WHO=5/7 require captures, and WHO=18 totalizers/additional dimensions remain deferred until unit/reset semantics are safe. The next software focus should therefore be **Home Assistant integration-level lifecycle coverage in Phase F**, starting with Config Flow / Options Flow and setup-unload-reload tests, while physical MH201 validation remains the final hardware campaign.
