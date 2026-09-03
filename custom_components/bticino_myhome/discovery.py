@@ -8,11 +8,10 @@ from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from typing import Any, ClassVar
 
-from OWNd.connection import OWNGateway
+from OWNd.discovery import find_gateways
 
 from .const import (
-    SCAN_TIMEOUT,
-    SCENARIO_ADDRESS_RANGE,
+    DEFAULT_PORT,
     WHO_ALARM,
     WHO_AUTOMATION,
     WHO_ENERGY_MANAGEMENT,
@@ -33,6 +32,51 @@ class DiscoverySource(StrEnum):
     PASSIVE = "passive"
     ACTIVE = "active"
     MANUAL = "manual"
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveredGateway:
+    """Normalized gateway information obtained from SSDP/OWNd discovery."""
+
+    host: str
+    port: int = DEFAULT_PORT
+    serial: str | None = None
+    udn: str | None = None
+    model: str | None = None
+    firmware: str | None = None
+    manufacturer: str | None = None
+
+    @property
+    def identity(self) -> str:
+        """Return the most stable available gateway identity."""
+        if self.serial:
+            return f"serial:{self.serial.strip().lower()}"
+        if self.udn:
+            return f"udn:{self.udn.strip().lower()}"
+        return f"{self.host.strip().lower()}:{self.port}"
+
+    @classmethod
+    def from_ownd(cls, data: dict[str, Any]) -> DiscoveredGateway | None:
+        """Build normalized gateway information from OWNd discovery data."""
+        host = data.get("address") or data.get("host")
+        if not host:
+            return None
+        return cls(
+            host=str(host),
+            port=int(data.get("port", DEFAULT_PORT)),
+            serial=_optional_text(data.get("serialNumber") or data.get("serial")),
+            udn=_optional_text(data.get("UDN") or data.get("udn")),
+            model=_optional_text(data.get("modelName") or data.get("model")),
+            firmware=_optional_text(data.get("modelNumber") or data.get("firmware")),
+            manufacturer=_optional_text(data.get("manufacturer")),
+        )
+
+
+def _optional_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
 
 
 @dataclass(slots=True)
@@ -58,8 +102,6 @@ class DiscoveredDevice:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DiscoveredDevice:
-        # ``address`` was emitted by an intermediate 0.1.13 implementation;
-        # accepting it here keeps existing ConfigEntries migratable.
         where = data.get("where", data.get("address", ""))
         return cls(
             who=str(data["who"]),
@@ -122,7 +164,9 @@ class BticinoDiscovery:
             extra={"discovery": DiscoverySource.MANUAL.value},
         )
 
-    async def async_passive_listen(self, listen_seconds: int = 15) -> list[DiscoveredDevice]:
+    async def async_passive_listen(
+        self, listen_seconds: int = 15
+    ) -> list[DiscoveredDevice]:
         self._found.clear()
         self._unsubscribe = self._gateway.add_event_listener(self._on_event)
         try:
@@ -141,8 +185,8 @@ class BticinoDiscovery:
     ) -> list[DiscoveredDevice]:
         """Run conservative event-confirmed discovery.
 
-        WHO=4 is intentionally passive-only here: until real MH201 captures are
-        available we do not brute-force thermoregulation addresses.
+        WHO=4 is intentionally passive-only here. Scenario endpoints are returned
+        only if a real WHO=0 event is observed while the scan listener is active.
         """
         self._found.clear()
         self._unsubscribe = self._gateway.add_event_listener(self._on_event)
@@ -151,16 +195,14 @@ class BticinoDiscovery:
                 for who in (WHO_LIGHTING, WHO_AUTOMATION, WHO_LOAD_MANAGEMENT):
                     await self._probe_status(who, str(where))
             await self._probe_status(WHO_ALARM, "0")
-            if include_scenarios:
-                self._register_scenario_candidates()
             if listen_seconds > 0:
                 await asyncio.sleep(max(1, min(int(listen_seconds), 60)))
-            return self._sorted_found()
+            return self._sorted_found(include_scenarios=include_scenarios)
         finally:
             self._stop_listener()
 
     async def async_run_full_scan(
-        self, include_scenarios: bool = True, listen_seconds: int = SCAN_TIMEOUT
+        self, include_scenarios: bool = False, listen_seconds: int = 30
     ) -> list[DiscoveredDevice]:
         return await self.async_active_scan(
             listen_seconds=listen_seconds,
@@ -217,19 +259,6 @@ class BticinoDiscovery:
         }
         return f"{labels.get(device_type, device_type.capitalize())} {where}"
 
-    def _register_scenario_candidates(self) -> None:
-        for addr in SCENARIO_ADDRESS_RANGE:
-            device = DiscoveredDevice(
-                who=WHO_SCENARIO,
-                where=str(addr),
-                device_type="scene",
-                name=f"Scenario {addr}",
-                source=DiscoverySource.ACTIVE.value,
-                capabilities=("activate",),
-                extra={"candidate": True, "discovery": DiscoverySource.ACTIVE.value},
-            )
-            self._found.setdefault(device.key, device)
-
     def _on_event(self, event: NormalizedEvent) -> None:
         device = self._device_from_event(event)
         if device is None:
@@ -240,8 +269,14 @@ class BticinoDiscovery:
                 device.name = existing.name
             self._found[device.key] = device
 
-    def _sorted_found(self) -> list[DiscoveredDevice]:
-        return [self._found[key] for key in sorted(self._found)]
+    def _sorted_found(
+        self, *, include_scenarios: bool = True
+    ) -> list[DiscoveredDevice]:
+        return [
+            self._found[key]
+            for key in sorted(self._found)
+            if include_scenarios or self._found[key].who != WHO_SCENARIO
+        ]
 
     def _stop_listener(self) -> None:
         if self._unsubscribe:
@@ -249,35 +284,31 @@ class BticinoDiscovery:
             self._unsubscribe = None
 
     @classmethod
-    async def discover_gateways(cls, timeout: int = 5) -> list[dict[str, Any]]:
+    async def discover_gateways(cls, timeout: int = 5) -> list[DiscoveredGateway]:
+        """Discover OpenWebNet gateways through the actual OWNd discovery API."""
         try:
-            gateways = await OWNGateway.discover(timeout=timeout)
+            async with asyncio.timeout(max(1, int(timeout))):
+                gateways = await find_gateways()
         except Exception as err:
             _LOGGER.warning("Gateway discovery failed: %s", err)
             return []
 
-        result: list[dict[str, Any]] = []
-        for gateway in gateways:
-            if isinstance(gateway, dict):
-                host = gateway.get("address") or gateway.get("host")
-                port = gateway.get("port", 20000)
-                serial = gateway.get("serial") or gateway.get("serialNumber")
-                model = gateway.get("modelName") or "OpenWebNet Gateway"
-                manufacturer = gateway.get("manufacturer")
-            else:
-                host = getattr(gateway, "address", None) or getattr(gateway, "host", None)
-                port = getattr(gateway, "port", 20000)
-                serial = getattr(gateway, "serial", None)
-                model = getattr(gateway, "modelName", None) or "OpenWebNet Gateway"
-                manufacturer = getattr(gateway, "manufacturer", None)
-            if host:
-                result.append(
-                    {
-                        "host": host,
-                        "port": port,
-                        "serial": serial,
-                        "model": model,
-                        "manufacturer": manufacturer,
-                    }
-                )
+        result: list[DiscoveredGateway] = []
+        for raw in gateways:
+            if not isinstance(raw, dict):
+                continue
+            gateway = DiscoveredGateway.from_ownd(raw)
+            if gateway is not None:
+                result.append(gateway)
         return result
+
+    @classmethod
+    async def discover_gateway(
+        cls, host: str, timeout: int = 5
+    ) -> DiscoveredGateway | None:
+        """Return discovery metadata for one gateway host when available."""
+        normalized_host = host.strip().lower()
+        for gateway in await cls.discover_gateways(timeout=timeout):
+            if gateway.host.strip().lower() == normalized_host:
+                return gateway
+        return None

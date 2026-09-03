@@ -3,19 +3,28 @@
     "step": {
       "user": {
         "title": "BTicino MyHome - MH201",
-        "description": "Configura la connessione locale OpenWebNet al gateway MH201.",
+        "description": "Configura la connessione OpenWebNet locale al gateway MH201.",
         "data": {
-          "host": "Indirizzo IP o hostname",
+          "host": "Indirizzo IP o nome host",
+          "port": "Porta OpenWebNet",
+          "password": "Password OpenWebNet (opzionale)"
+        }
+      },
+      "confirm": {
+        "title": "{model} rilevato",
+        "description": "Home Assistant ha rilevato un gateway BTicino {model} all'indirizzo {host}. Conferma i parametri della connessione OpenWebNet.",
+        "data": {
           "port": "Porta OpenWebNet",
           "password": "Password OpenWebNet (opzionale)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Connessione al gateway non riuscita. Verifica indirizzo, porta e password."
+      "cannot_connect": "Impossibile connettersi al gateway. Controlla indirizzo, porta e password."
     },
     "abort": {
-      "already_configured": "Questo gateway è già configurato."
+      "already_configured": "Questo gateway è già configurato.",
+      "cannot_connect": "Il gateway rilevato non espone un indirizzo di rete utilizzabile."
     }
   },
   "options": {
@@ -24,14 +33,14 @@
         "title": "Opzioni BTicino MyHome",
         "data": {
           "action": "Azione",
-          "include_scenarios": "Includi scenari Home+Project",
-          "discovery_listen_seconds": "Secondi di ascolto durante la scansione"
+          "include_scenarios": "Includi gli eventi scenario osservati durante la scansione",
+          "discovery_listen_seconds": "Tempo di ascolto durante la scansione"
         }
       },
       "passive_learning": {
-        "title": "Impara dispositivi BTicino",
-        "description": "Ascolta il BUS senza inviare comandi. Durante l'ascolto usa i dispositivi fisici che vuoi identificare.",
-        "data": {"listen_seconds": "Durata ascolto (secondi)"}
+        "title": "Apprendi dispositivi BTicino",
+        "description": "Ascolta il BUS senza inviare comandi. Durante l'ascolto usa i comandi fisici dei dispositivi che vuoi identificare.",
+        "data": {"listen_seconds": "Tempo di ascolto (secondi)"}
       },
       "select_learned": {
         "title": "Dispositivi rilevati",
@@ -40,7 +49,7 @@
       },
       "manual_device": {
         "title": "Aggiungi dispositivo manualmente",
-        "description": "Registra un endpoint OpenWebNet tramite WHO e WHERE.",
+        "description": "Registra un endpoint OpenWebNet specificando WHO e WHERE.",
         "data": {
           "who": "WHO",
           "where": "WHERE",
@@ -50,7 +59,7 @@
       }
     },
     "abort": {
-      "no_devices_found": "Nessun dispositivo supportato rilevato durante l'ascolto.",
+      "no_devices_found": "Nessun dispositivo supportato è stato rilevato durante l'ascolto.",
       "cannot_connect": "L'integrazione non è attualmente caricata."
     }
   }

@@ -9,13 +9,22 @@
           "port": "OpenWebNet port",
           "password": "OpenWebNet password (optional)"
         }
+      },
+      "confirm": {
+        "title": "Discovered {model}",
+        "description": "Home Assistant discovered a BTicino {model} gateway at {host}. Confirm the OpenWebNet connection settings.",
+        "data": {
+          "port": "OpenWebNet port",
+          "password": "OpenWebNet password (optional)"
+        }
       }
     },
     "error": {
       "cannot_connect": "Unable to connect to the gateway. Check address, port and password."
     },
     "abort": {
-      "already_configured": "This gateway is already configured."
+      "already_configured": "This gateway is already configured.",
+      "cannot_connect": "The discovered gateway does not provide a usable network address."
     }
   },
   "options": {
@@ -24,7 +33,7 @@
         "title": "BTicino MyHome options",
         "data": {
           "action": "Action",
-          "include_scenarios": "Include Home+Project scenarios",
+          "include_scenarios": "Include scenario events observed during the scan",
           "discovery_listen_seconds": "Listening time during scan"
         }
       },

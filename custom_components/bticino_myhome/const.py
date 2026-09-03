@@ -6,7 +6,12 @@ DOMAIN = "bticino_myhome"
 CONF_GATEWAY_HOST = "host"
 CONF_GATEWAY_PORT = "port"
 CONF_GATEWAY_PASSWORD = "password"
+CONF_GATEWAY_ID = "gateway_id"
 CONF_GATEWAY_SERIAL = "serial"
+CONF_GATEWAY_UDN = "udn"
+CONF_GATEWAY_MODEL = "model"
+CONF_GATEWAY_FIRMWARE = "firmware"
+CONF_GATEWAY_MANUFACTURER = "manufacturer"
 CONF_DEVICES = "devices"
 
 DEFAULT_PORT = 20000
@@ -41,7 +46,6 @@ PLATFORMS = [
     "button",
 ]
 
-SCENARIO_ADDRESS_RANGE = range(1, 31)
 SCAN_TIMEOUT = 30
 STORAGE_VERSION = 1
 STORAGE_KEY = f"{DOMAIN}_devices"

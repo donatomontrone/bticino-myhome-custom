@@ -6,15 +6,7 @@ from custom_components.bticino_myhome.gateway import BticinoGateway
 
 
 def test_entity_unique_id_uses_persisted_gateway_identity() -> None:
-    gateway = BticinoGateway(
-        "192.168.1.99",
-        20000,
-        "",
-        identity="192.168.1.20:20000",
-    )
+    gateway = BticinoGateway("192.168.1.99", 20000, "", identity="192.168.1.20:20000")
     entity = BticinoEntity(gateway, "1", "21", "Kitchen")
     assert entity.unique_id == "192.168.1.20:20000:1:21"
-    assert (
-        "bticino_myhome",
-        "192.168.1.20:20000:1:21",
-    ) in entity.device_info["identifiers"]
+    assert ("bticino_myhome", "192.168.1.20:20000:1:21") in entity.device_info["identifiers"]
