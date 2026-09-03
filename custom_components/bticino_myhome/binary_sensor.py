@@ -68,7 +68,7 @@ class BticinoAlarmPartitionSensor(BticinoEntity, BinarySensorEntity):
     """Active/partialized state for one documented WHO=5 central zone."""
 
     _request_initial_state_on_add = True
-    _attr_name: str | None = None
+    _attr_translation_key = "alarm_partition"
 
     def __init__(
         self,
@@ -79,7 +79,7 @@ class BticinoAlarmPartitionSensor(BticinoEntity, BinarySensorEntity):
     ) -> None:
         super().__init__(gateway, WHO_ALARM, alarm_where, alarm_name)
         self._partition = partition
-        self._attr_name = f"Partition {partition}"
+        self._attr_translation_placeholders = {"partition": str(partition)}
         self._attr_unique_id = (
             f"{gateway.identity}:{WHO_ALARM}:{alarm_where}:partition:{partition}"
         )
