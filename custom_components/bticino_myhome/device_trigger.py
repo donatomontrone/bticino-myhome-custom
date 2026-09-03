@@ -7,12 +7,10 @@ import voluptuous as vol
 from homeassistant.components.device_automation.trigger_entity import TriggerEntity
 from homeassistant.const import CONF_DEVICE_ID, CONF_DOMAIN, CONF_PLATFORM, CONF_TYPE
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant
-from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.entity_platform import async_get_platforms
-from homeassistant.helpers.trigger_template_entity import CONF_FOR
 from homeassistant.helpers.typing import ConfigType
 
-from .const import DOMAIN, WHO_SCENARIO
+from .const import DOMAIN
 from .scene import BticinoScene
 
 
