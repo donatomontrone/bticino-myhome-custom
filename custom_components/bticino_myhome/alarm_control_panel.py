@@ -55,7 +55,7 @@ class BticinoAlarmControlPanel(BticinoEntity, AlarmControlPanelEntity):
         await self.gateway.async_send(alarm_arm_away(self.where))
 
     def _handle_event(self, event: NormalizedEvent) -> None:
-        if event.who != self.who or event.where != self.where:
+        if event.who != self.who or event.where != self.where or event.state is None:
             return
         states = {
             "disarmed": AlarmControlPanelState.DISARMED,

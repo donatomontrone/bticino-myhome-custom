@@ -1,7 +1,7 @@
 """Home Assistant lights backed by OpenWebNet WHO=1."""
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import Any
 
 from homeassistant.components.light import ColorMode, LightEntity
 from homeassistant.config_entries import ConfigEntry
@@ -38,7 +38,7 @@ async def async_setup_entry(
 
 class BticinoLight(BticinoEntity, LightEntity):
     _attr_color_mode = ColorMode.ONOFF
-    _attr_supported_color_modes: ClassVar[set[ColorMode]] = {ColorMode.ONOFF}
+    _attr_supported_color_modes = {ColorMode.ONOFF}
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self.gateway.async_send(light_on(self.where))

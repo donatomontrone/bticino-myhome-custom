@@ -1,7 +1,7 @@
 """Diagnostics support for the BTicino MyHome integration."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -41,4 +41,4 @@ async def async_get_config_entry_diagnostics(
         },
         "devices": [device.to_dict() for device in devices],
     }
-    return async_redact_data(data, TO_REDACT)
+    return cast(dict[str, Any], async_redact_data(data, TO_REDACT))

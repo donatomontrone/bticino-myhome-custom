@@ -1,7 +1,7 @@
 """Climate platform for BTicino MyHome WHO=4."""
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import Any
 
 from homeassistant.components.climate import (
     ClimateEntity,
@@ -79,13 +79,13 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
     """Thermoregulation endpoint exposed as a Home Assistant climate entity."""
 
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
-    _attr_hvac_modes: ClassVar[list[HVACMode]] = [
+    _attr_hvac_modes = [
         HVACMode.OFF,
         HVACMode.HEAT,
         HVACMode.COOL,
         HVACMode.AUTO,
     ]
-    _attr_preset_modes: ClassVar[list[str]] = [PRESET_ECO]
+    _attr_preset_modes = [PRESET_ECO]
     _attr_supported_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
     )

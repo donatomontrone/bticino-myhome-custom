@@ -6,9 +6,10 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.core import callback
-from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.selector import (
+    SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -26,7 +27,9 @@ class BticinoMyHomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 2
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
             host = str(user_input[CONF_GATEWAY_HOST]).strip()
@@ -85,7 +88,9 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
     def __init__(self) -> None:
         self._passive_found: list[DiscoveredDevice] = []
 
-    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         if user_input is not None:
             action = user_input.get("action", "none")
             if action == "scan":
@@ -118,7 +123,7 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_passive_learning(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         if user_input is None:
             return self.async_show_form(
                 step_id="passive_learning",
@@ -149,7 +154,7 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_select_learned(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         if user_input is not None:
             selected = set(user_input.get("devices", []))
             runtime = self.config_entry.runtime_data
@@ -165,16 +170,16 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
             device.key: f"{device.name} — WHO={device.who}, WHERE={device.where}"
             for device in self._passive_found
         }
+        selector_options: list[SelectOptionDict] = [
+            {"value": key, "label": label} for key, label in options.items()
+        ]
         return self.async_show_form(
             step_id="select_learned",
             data_schema=vol.Schema(
                 {
                     vol.Required("devices", default=list(options)): SelectSelector(
                         SelectSelectorConfig(
-                            options=[
-                                {"value": key, "label": label}
-                                for key, label in options.items()
-                            ],
+                            options=selector_options,
                             multiple=True,
                             mode=SelectSelectorMode.LIST,
                         )
@@ -185,7 +190,7 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_run_discovery(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         user_input = user_input or {}
         runtime = self.config_entry.runtime_data
         if runtime is None:
@@ -208,7 +213,7 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_manual_device(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         if user_input is None:
             return self.async_show_form(
                 step_id="manual_device",
