@@ -45,7 +45,7 @@ def test_async_test_connection_failure_is_typed() -> None:
     session.close.assert_awaited_once()
 
 
-def test_async_connect_opens_command_and_event_sessions() -> None:
+def test_async_connect_starts_worker_and_async_close_cancels_it() -> None:
     async def scenario() -> None:
         gateway = _gateway()
         command = MagicMock()
@@ -54,7 +54,13 @@ def test_async_connect_opens_command_and_event_sessions() -> None:
         event = MagicMock()
         event.connect = AsyncMock(return_value={"Success": True})
         event.close = AsyncMock()
-        event.get_next = AsyncMock(side_effect=asyncio.CancelledError())
+        stop_event = asyncio.Event()
+
+        async def wait_for_event() -> str:
+            await stop_event.wait()
+            return "*1*1*21##"
+
+        event.get_next = AsyncMock(side_effect=wait_for_event)
 
         with (
             patch("custom_components.bticino_myhome.gateway.OWNCommandSession", return_value=command),
@@ -62,86 +68,111 @@ def test_async_connect_opens_command_and_event_sessions() -> None:
         ):
             await gateway.async_connect()
             assert gateway._event_task is not None
+
             await asyncio.sleep(0)
-            await gateway.async_close()
+            assert event.get_next.await_count == 1
+            assert gateway.connected is True
+
+            await asyncio.wait_for(gateway.async_close(), timeout=1.0)
 
         command.connect.assert_awaited_once()
         event.connect.assert_awaited_once()
         command.close.assert_awaited_once()
         event.close.assert_awaited_once()
+        assert gateway._event_task is None
         assert gateway.connected is False
 
     asyncio.run(scenario())
 
 
 def test_event_loop_normalizes_frame_and_notifies_listeners() -> None:
-    gateway = _gateway()
-    event_session = MagicMock()
-    event_session.get_next = AsyncMock(side_effect=["*1*1*21##", asyncio.CancelledError()])
-    event_session.close = AsyncMock()
-    gateway._event_session = event_session
+    async def scenario() -> None:
+        gateway = _gateway()
+        event_session = MagicMock()
+        event_session.get_next = AsyncMock(
+            side_effect=["*1*1*21##", asyncio.CancelledError()]
+        )
+        event_session.close = AsyncMock()
+        gateway._event_session = event_session
+        gateway._set_connected(True)
 
-    raw_listener = MagicMock()
-    normalized_listener = MagicMock()
-    connection_listener = MagicMock()
-    gateway.add_listener(raw_listener)
-    gateway.add_event_listener(normalized_listener)
-    gateway.add_connection_listener(connection_listener)
+        raw_listener = MagicMock()
+        normalized_listener = MagicMock()
+        connection_listener = MagicMock()
+        gateway.add_listener(raw_listener)
+        gateway.add_event_listener(normalized_listener)
+        gateway.add_connection_listener(connection_listener)
 
-    with pytest.raises(asyncio.CancelledError):
-        asyncio.run(gateway._event_loop())
+        with pytest.raises(asyncio.CancelledError):
+            await gateway._event_loop()
 
-    raw_listener.assert_called_once_with("*1*1*21##")
-    normalized_listener.assert_called_once()
-    normalized = normalized_listener.call_args.args[0]
-    assert normalized.device_type == "light"
-    assert normalized.state == "on"
-    assert connection_listener.call_args_list[-1].args == (True,)
+        raw_listener.assert_called_once_with("*1*1*21##")
+        normalized_listener.assert_called_once()
+        normalized = normalized_listener.call_args.args[0]
+        assert normalized.device_type == "light"
+        assert normalized.state == "on"
+        assert connection_listener.call_args_list[-1].args == (False,)
+        event_session.close.assert_awaited_once()
+        assert gateway._event_session is None
+
+    asyncio.run(scenario())
 
 
 def test_event_loop_reconnects_after_connection_error() -> None:
     """Verify the event loop reconnects after a ConnectionError."""
-    gateway = _gateway()
-    first = MagicMock()
-    first.connect = AsyncMock(return_value={"Success": True})
-    first.get_next = AsyncMock(side_effect=ConnectionError("lost"))
-    first.close = AsyncMock()
-    second = MagicMock()
-    second.connect = AsyncMock(return_value={"Success": True})
-    second.get_next = AsyncMock(side_effect=["*1*1*21##", asyncio.CancelledError()])
-    second.close = AsyncMock()
+    async def scenario() -> None:
+        gateway = _gateway()
+        first = MagicMock()
+        first.connect = AsyncMock(return_value={"Success": True})
+        first.get_next = AsyncMock(side_effect=ConnectionError("lost"))
+        first.close = AsyncMock()
+        second = MagicMock()
+        second.connect = AsyncMock(return_value={"Success": True})
+        second.get_next = AsyncMock(side_effect=["*1*1*21##", asyncio.CancelledError()])
+        second.close = AsyncMock()
 
-    with (
-        patch(
-            "custom_components.bticino_myhome.gateway.OWNEventSession",
-            side_effect=[first, second],
-        ),
-        patch("custom_components.bticino_myhome.gateway.asyncio.sleep", new=AsyncMock()),
-    ):
-        with pytest.raises(asyncio.CancelledError):
-            asyncio.run(gateway._event_loop())
+        with (
+            patch(
+                "custom_components.bticino_myhome.gateway.OWNEventSession",
+                side_effect=[first, second],
+            ),
+            patch("custom_components.bticino_myhome.gateway.asyncio.sleep", new=AsyncMock()),
+        ):
+            with pytest.raises(asyncio.CancelledError):
+                await gateway._event_loop()
 
-    first.connect.assert_awaited_once()
-    first.close.assert_awaited_once()
-    second.connect.assert_awaited_once()
+        first.connect.assert_awaited_once()
+        first.close.assert_awaited_once()
+        second.connect.assert_awaited_once()
+        second.close.assert_awaited_once()
+        assert gateway.connected is False
+
+    asyncio.run(scenario())
 
 
 def test_listener_exceptions_do_not_stop_event_loop() -> None:
-    gateway = _gateway()
-    event_session = MagicMock()
-    event_session.get_next = AsyncMock(side_effect=["*1*1*21##", asyncio.CancelledError()])
-    gateway._event_session = event_session
+    async def scenario() -> None:
+        gateway = _gateway()
+        event_session = MagicMock()
+        event_session.get_next = AsyncMock(
+            side_effect=["*1*1*21##", asyncio.CancelledError()]
+        )
+        event_session.close = AsyncMock()
+        gateway._event_session = event_session
 
-    failing_listener = MagicMock(side_effect=RuntimeError("listener failed"))
-    healthy_listener = MagicMock()
-    gateway.add_listener(failing_listener)
-    gateway.add_listener(healthy_listener)
+        failing_listener = MagicMock(side_effect=RuntimeError("listener failed"))
+        healthy_listener = MagicMock()
+        gateway.add_listener(failing_listener)
+        gateway.add_listener(healthy_listener)
 
-    with pytest.raises(asyncio.CancelledError):
-        asyncio.run(gateway._event_loop())
+        with pytest.raises(asyncio.CancelledError):
+            await gateway._event_loop()
 
-    failing_listener.assert_called_once()
-    healthy_listener.assert_called_once_with("*1*1*21##")
+        failing_listener.assert_called_once()
+        healthy_listener.assert_called_once_with("*1*1*21##")
+        event_session.close.assert_awaited_once()
+
+    asyncio.run(scenario())
 
 
 def test_async_send_uses_command_session() -> None:
