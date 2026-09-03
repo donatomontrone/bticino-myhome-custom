@@ -3,8 +3,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock
 
-from homeassistant.components.climate import ATTR_TARGET_TEMP_HIGH, ATTR_TARGET_TEMP_LOW, HVACMode
-from homeassistant.const import ATTR_TEMPERATURE
+from homeassistant.components.climate import HVACMode
 from homeassistant.core import HomeAssistant
 
 from custom_components.bticino_myhome.climate import BticinoClimate

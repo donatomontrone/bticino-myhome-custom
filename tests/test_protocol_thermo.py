@@ -1,7 +1,11 @@
 """Tests for BTicino MyHome protocol layer."""
 from __future__ import annotations
 
-from custom_components.bticino_myhome.protocol import parse_frame, WHO_THERMOREGULATION, DIM_THERMO_TEMPERATURE
+from custom_components.bticino_myhome.protocol import (
+    DIM_THERMO_TEMPERATURE,
+    WHO_THERMOREGULATION,
+    parse_frame,
+)
 
 
 def test_parse_thermo_temperature_frame() -> None:

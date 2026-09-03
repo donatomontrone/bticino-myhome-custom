@@ -11,12 +11,8 @@ from homeassistant.components.climate import (
     HVACMode,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
+from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import (
-    EntityPlatform,
-    async_get_platforms,
-)
 
 from .const import DOMAIN
 from .device import BticinoDevice, BticinoDeviceManager

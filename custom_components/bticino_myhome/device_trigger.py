@@ -5,7 +5,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.const import CONF_DEVICE_ID, CONF_DOMAIN, CONF_PLATFORM, CONF_TYPE
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN

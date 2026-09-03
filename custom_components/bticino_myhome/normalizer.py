@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Final
+from typing import Any
 
 from .protocol import (
     DIM_THERMO_LOCAL_OFFSET,
@@ -13,6 +13,20 @@ from .protocol import (
     DIM_THERMO_VALVES,
     OpenWebNetMessage,
     WHO_THERMOREGULATION,
+    WHAT_THERMO_ANTIFREEZE,
+    WHAT_THERMO_COOLING,
+    WHAT_THERMO_HEATING,
+    WHAT_THERMO_MANUAL_COOLING,
+    WHAT_THERMO_MANUAL_GENERIC,
+    WHAT_THERMO_MANUAL_HEATING,
+    WHAT_THERMO_OFF_COOLING,
+    WHAT_THERMO_OFF_GENERIC,
+    WHAT_THERMO_OFF_HEATING,
+    WHAT_THERMO_PROGRAM_COOLING,
+    WHAT_THERMO_PROGRAM_GENERIC,
+    WHAT_THERMO_PROGRAM_HEATING,
+    WHAT_THERMO_PROTECTION,
+    WHAT_THERMO_THERMAL_PROTECTION,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -195,22 +209,3 @@ def _parse_mode(what: int) -> str:
         WHAT_THERMO_PROGRAM_GENERIC: "auto",
     }
     return mode_map.get(what, "auto")
-
-
-# Import for _parse_mode
-from .protocol import (
-    WHAT_THERMO_ANTIFREEZE,
-    WHAT_THERMO_COOLING,
-    WHAT_THERMO_HEATING,
-    WHAT_THERMO_MANUAL_COOLING,
-    WHAT_THERMO_MANUAL_GENERIC,
-    WHAT_THERMO_MANUAL_HEATING,
-    WHAT_THERMO_OFF_COOLING,
-    WHAT_THERMO_OFF_GENERIC,
-    WHAT_THERMO_OFF_HEATING,
-    WHAT_THERMO_PROGRAM_COOLING,
-    WHAT_THERMO_PROGRAM_GENERIC,
-    WHAT_THERMO_PROGRAM_HEATING,
-    WHAT_THERMO_PROTECTION,
-    WHAT_THERMO_THERMAL_PROTECTION,
-)
