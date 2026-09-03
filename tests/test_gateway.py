@@ -6,7 +6,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.bticino_myhome.gateway import BticinoGateway, BticinoGatewayError
+from custom_components.bticino_myhome.gateway import (
+    BticinoCommandResult,
+    BticinoGateway,
+    BticinoGatewayCommandRejected,
+    BticinoGatewayError,
+)
 
 
 def _gateway() -> BticinoGateway:
@@ -39,7 +44,7 @@ def test_async_connect_starts_worker_and_close_cancels_it() -> None:
         blocker = asyncio.Event()
         created_tasks: list[str] = []
 
-        async def get_next() -> str:
+        async def read_raw(_session) -> str:
             await blocker.wait()
             return "*1*1*21##"
 
@@ -47,7 +52,7 @@ def test_async_connect_starts_worker_and_close_cancels_it() -> None:
             created_tasks.append(name)
             return asyncio.create_task(coroutine, name=name)
 
-        event.get_next = AsyncMock(side_effect=get_next)
+        gateway._read_event_raw = AsyncMock(side_effect=read_raw)
         with (
             patch("custom_components.bticino_myhome.gateway.OWNCommandSession", return_value=command),
             patch("custom_components.bticino_myhome.gateway.OWNEventSession", return_value=event),
@@ -59,7 +64,7 @@ def test_async_connect_starts_worker_and_close_cancels_it() -> None:
             assert gateway.event_connected is True
             assert gateway._event_task is not None
             assert created_tasks == ["bticino_myhome-event-loop"]
-            assert event.get_next.await_count == 1
+            assert gateway._read_event_raw.await_count == 1
             await asyncio.wait_for(gateway.async_close(), timeout=1.0)
 
         command.close.assert_awaited_once()
@@ -78,10 +83,12 @@ def test_event_loop_normalizes_and_notifies() -> None:
         gateway._command_session = command
         gateway._set_command_connected(True)
         event = MagicMock()
-        event.get_next = AsyncMock(side_effect=["*1*1*21##", asyncio.CancelledError()])
         event.close = AsyncMock()
         gateway._event_session = event
         gateway._set_event_connected(True)
+        gateway._read_event_raw = AsyncMock(
+            side_effect=["*1*1*21##", asyncio.CancelledError()]
+        )
         raw_listener = MagicMock()
         normalized_listener = MagicMock()
         gateway.add_listener(raw_listener)
@@ -102,17 +109,27 @@ def test_event_loop_normalizes_and_notifies() -> None:
     asyncio.run(scenario())
 
 
-def test_async_send_uses_command_session_and_status_flag() -> None:
+def test_async_send_returns_result_and_dispatches_status_response() -> None:
     async def scenario() -> None:
         gateway = _gateway()
         command = MagicMock()
-        command.send = AsyncMock()
         gateway._command_session = command
         gateway._set_command_connected(True)
-        await gateway.async_send("*#1*21##", is_status_request=True)
-        command.send.assert_awaited_once_with(
-            message="*#1*21##", is_status_request=True
+        gateway._exchange_command = AsyncMock(
+            return_value=BticinoCommandResult(True, ("*1*1*21##",))
         )
+        listener = MagicMock()
+        gateway.add_event_listener(listener)
+
+        result = await gateway.async_send("*#1*21##", is_status_request=True)
+
+        assert result.acknowledged is True
+        assert result.responses == ("*1*1*21##",)
+        gateway._exchange_command.assert_awaited_once_with(command, "*#1*21##")
+        event = listener.call_args.args[0]
+        assert event.who == "1"
+        assert event.where == "21"
+        assert event.state == "on"
 
     asyncio.run(scenario())
 
@@ -122,8 +139,8 @@ def test_async_send_reconnects_missing_command_session() -> None:
         gateway = _gateway()
         command = MagicMock()
         command.connect = AsyncMock(return_value={"Success": True})
-        command.send = AsyncMock()
         command.close = AsyncMock()
+        gateway._exchange_command = AsyncMock(return_value=BticinoCommandResult(True))
         with patch(
             "custom_components.bticino_myhome.gateway.OWNCommandSession",
             return_value=command,
@@ -131,9 +148,7 @@ def test_async_send_reconnects_missing_command_session() -> None:
             await gateway.async_send("*1*1*21##")
 
         command.connect.assert_awaited_once()
-        command.send.assert_awaited_once_with(
-            message="*1*1*21##", is_status_request=False
-        )
+        gateway._exchange_command.assert_awaited_once_with(command, "*1*1*21##")
         assert gateway.command_connected is True
 
     asyncio.run(scenario())
@@ -143,10 +158,10 @@ def test_async_send_timeout_closes_session() -> None:
     async def scenario() -> None:
         gateway = _gateway()
         command = MagicMock()
-        command.send = AsyncMock(side_effect=TimeoutError("send_timeout"))
         command.close = AsyncMock()
         gateway._command_session = command
         gateway._set_command_connected(True)
+        gateway._exchange_command = AsyncMock(side_effect=TimeoutError("send_timeout"))
         with pytest.raises(BticinoGatewayError, match="send_timeout"):
             await gateway.async_send("*1*1*21##")
         command.close.assert_awaited_once()
@@ -156,15 +171,34 @@ def test_async_send_timeout_closes_session() -> None:
     asyncio.run(scenario())
 
 
+def test_nack_rejects_command_without_dropping_healthy_session() -> None:
+    async def scenario() -> None:
+        gateway = _gateway()
+        command = MagicMock()
+        command.close = AsyncMock()
+        gateway._command_session = command
+        gateway._set_command_connected(True)
+        gateway._exchange_command = AsyncMock(return_value=BticinoCommandResult(False))
+
+        with pytest.raises(BticinoGatewayCommandRejected):
+            await gateway.async_send("*1*1*21##")
+
+        command.close.assert_not_awaited()
+        assert gateway._command_session is command
+        assert gateway.command_connected is True
+
+    asyncio.run(scenario())
+
+
 def test_command_failure_recovers_channel_without_retransmitting_frame() -> None:
     async def scenario() -> None:
         gateway = _gateway()
         failed = MagicMock()
-        failed.send = AsyncMock(side_effect=TimeoutError("send_timeout"))
         failed.close = AsyncMock()
         gateway._command_session = failed
         gateway._set_command_connected(True)
         gateway._set_event_connected(True)
+        gateway._exchange_command = AsyncMock(side_effect=TimeoutError("send_timeout"))
 
         recovered = asyncio.Event()
         replacement = MagicMock()
@@ -174,7 +208,6 @@ def test_command_failure_recovers_channel_without_retransmitting_frame() -> None
             return {"Success": True}
 
         replacement.connect = AsyncMock(side_effect=connect)
-        replacement.send = AsyncMock()
         replacement.close = AsyncMock()
 
         with patch(
@@ -186,8 +219,7 @@ def test_command_failure_recovers_channel_without_retransmitting_frame() -> None
             await asyncio.wait_for(recovered.wait(), timeout=1.0)
             await asyncio.sleep(0)
 
-        failed.send.assert_awaited_once()
-        replacement.send.assert_not_awaited()
+        gateway._exchange_command.assert_awaited_once_with(failed, "*1*1*21##")
         assert gateway.command_connected is True
         assert gateway.connected is True
         await gateway.async_close()
@@ -204,22 +236,22 @@ def test_async_send_serializes_concurrent_commands() -> None:
         active = 0
         max_active = 0
         calls: list[str] = []
-
-        async def send(*, message: str, is_status_request: bool = False) -> None:
-            nonlocal active, max_active
-            active += 1
-            max_active = max(max_active, active)
-            calls.append(message)
-            if message == "*1*1*1##":
-                first_entered.set()
-                await release_first.wait()
-            active -= 1
-
         command = MagicMock()
-        command.send = AsyncMock(side_effect=send)
         gateway._command_session = command
         gateway._set_command_connected(True)
 
+        async def exchange(_session, frame: str) -> BticinoCommandResult:
+            nonlocal active, max_active
+            active += 1
+            max_active = max(max_active, active)
+            calls.append(frame)
+            if frame == "*1*1*1##":
+                first_entered.set()
+                await release_first.wait()
+            active -= 1
+            return BticinoCommandResult(True)
+
+        gateway._exchange_command = AsyncMock(side_effect=exchange)
         first = asyncio.create_task(gateway.async_send("*1*1*1##"))
         await first_entered.wait()
         second = asyncio.create_task(gateway.async_send("*1*0*1##"))

@@ -41,6 +41,7 @@ class BticinoCover(BticinoEntity, CoverEntity):
     _attr_supported_features = (
         CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
     )
+    _request_initial_state_on_add = True
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         await self.gateway.async_send(cover_open(self.where))

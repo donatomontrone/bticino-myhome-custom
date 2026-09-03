@@ -37,6 +37,8 @@ async def async_setup_entry(
 
 
 class BticinoLoadSwitch(BticinoEntity, SwitchEntity):
+    _request_initial_state_on_add = True
+
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self.gateway.async_send(load_on(self.where))
 

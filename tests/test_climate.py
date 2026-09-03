@@ -17,20 +17,25 @@ def _climate() -> tuple[BticinoClimate, BticinoGateway]:
     return BticinoClimate(gateway, "4", "1", "Thermostat 1"), gateway
 
 
-def test_set_hvac_mode_and_temperature_frames() -> None:
+def test_set_hvac_mode_and_temperature_frames_are_not_optimistic() -> None:
     async def scenario() -> None:
         climate, gateway = _climate()
+        assert climate.hvac_mode == HVACMode.OFF
+        assert climate.target_temperature is None
+
         await climate.async_set_hvac_mode(HVACMode.HEAT)
         gateway.async_send.assert_awaited_once_with("*4*110*1##")
+        assert climate.hvac_mode == HVACMode.OFF
+
         gateway.async_send.reset_mock()
         await climate.async_set_temperature(temperature=21.5)
         gateway.async_send.assert_awaited_once_with("*#4*1*#14*0215##")
-        assert climate.target_temperature == 21.5
+        assert climate.target_temperature is None
 
     asyncio.run(scenario())
 
 
-def test_eco_is_a_preset_not_an_hvac_mode() -> None:
+def test_eco_is_a_preset_not_an_hvac_mode_and_is_not_optimistic() -> None:
     async def scenario() -> None:
         climate, gateway = _climate()
         assert climate.hvac_modes == [
@@ -39,11 +44,10 @@ def test_eco_is_a_preset_not_an_hvac_mode() -> None:
             HVACMode.COOL,
             HVACMode.AUTO,
         ]
-        await climate.async_set_hvac_mode(HVACMode.HEAT)
-        gateway.async_send.reset_mock()
+        climate._attr_hvac_mode = HVACMode.HEAT
         await climate.async_set_preset_mode(PRESET_ECO)
         gateway.async_send.assert_awaited_once_with("*4*102*1##")
-        assert climate.preset_mode == PRESET_ECO
+        assert climate.preset_mode is None
 
     asyncio.run(scenario())
 

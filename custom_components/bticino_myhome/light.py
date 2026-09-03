@@ -38,6 +38,7 @@ async def async_setup_entry(
 
 class BticinoLight(BticinoEntity, LightEntity):
     _attr_color_mode = ColorMode.ONOFF
+    _request_initial_state_on_add = True
 
     def __init__(self, gateway, who: str, where: str, name: str) -> None:
         super().__init__(gateway, who, where, name)
