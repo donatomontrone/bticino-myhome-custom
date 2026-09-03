@@ -30,7 +30,7 @@ class BticinoGateway:
         self.host = host
         self.port = port
         self.password = password
-        self._gateway = OWNGateway(host=host, port=port, password=password)
+        self._gateway = OWNGateway(host, port, password)
         self._command_session: OWNCommandSession | None = None
         self._event_session: OWNEventSession | None = None
         self._event_task: asyncio.Task[None] | None = None

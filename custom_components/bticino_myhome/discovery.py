@@ -57,13 +57,13 @@ class DiscoveredDevice:
         )
 
     @classmethod
-    def from_manual(cls, who: str, address: str, device_type: str, capabilities: tuple[str, ...]) -> DiscoveredDevice:
+    def from_manual(cls, who: str, where: str, device_type: str, name: str) -> DiscoveredDevice:
         """Create a manually configured device."""
         return cls(
             who=who,
-            address=address,
+            address=where,
             device_type=device_type,
-            capabilities=capabilities,
+            capabilities=(),
             source=DiscoverySource.MANUAL.value,
         )
 
@@ -116,11 +116,20 @@ class BticinoDiscovery:
         return devices
 
     @classmethod
-    def parse_event(cls, event: NormalizedEvent) -> DiscoveredDevice | None:
-        """Parse a normalized event into a discovered device."""
+    def parse_event(cls, raw_frame: str) -> DiscoveredDevice | None:
+        """Parse a raw OpenWebNet frame into a discovered device."""
+        try:
+            event = NormalizedEvent.from_openwebnet(raw_frame)
+        except ValueError:
+            return None
+
+        if event is None:
+            return None
+
         type_info = cls._TYPE_MAP.get(event.device_type)
         if not type_info:
             return None
+
         device_type, capabilities = type_info
         return DiscoveredDevice(
             who=event.device_type,
