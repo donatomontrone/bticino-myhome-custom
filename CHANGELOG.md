@@ -1,187 +1,116 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to this project are documented here. The project follows Semantic Versioning.
 
 ## [Unreleased]
 
-### Features
-- Add `send_frame` service for sending raw OpenWebNet frames (useful for debug and advanced automations)
-- Add device triggers for scenario activation (enable automation based on scenario events)
-- Add Climate platform (WHO=4) with full HVAC support
+No unreleased changes yet.
 
-### Tests
-- Add `test_services.py` with 4 tests for send_frame service
-- Add `test_device_trigger.py` with 3 tests for device triggers
-- Add `test_climate.py` with 7 tests for BticinoClimate
-- Add `test_protocol_thermo.py` with 4 tests for WHO=4 frame parsing
+## [0.2.0] - 2026-09-03
 
-### Documentation
-- Update roadmap v2.3 with complete file-by-file analysis
+### Added
+- Native Home Assistant SSDP discovery for BTicino MH201 gateways.
+- Normalized gateway discovery metadata from the actual `OWNd.discovery.find_gateways()` API.
+- Stable gateway identity using serial number first, UDN second, and host/port only as a fallback.
+- ConfigEntry migration to version 3 with a persisted gateway identity that preserves existing 0.1.x entity identifiers and history.
+- MH201 registration as the Home Assistant hub device, with endpoint devices linked to the hub using the Device Registry mechanism supported by each tested Home Assistant version.
+- Separate command-channel and event-channel health in diagnostics.
+- Gateway identity/discovery and migration tests.
+- CI compatibility matrix for Home Assistant 2025.1 / Python 3.12 and Home Assistant 2026.9 / Python 3.14.
+
+### Changed
+- Hardened the persistent command session with serialized writes, missing-session recovery and background command-channel recovery.
+- A failed command is not blindly retransmitted by the integration after an ambiguous timeout/reset; the channel is recovered for subsequent commands instead.
+- Persistent gateway workers are created through Home Assistant task lifecycle management.
+- `connected` now represents aggregate command + event availability while the two channel states remain independently observable.
+- Active discovery no longer manufactures scenario addresses 1-30. WHO=0 scenarios are accepted only when observed during the listening window or explicitly configured.
+- Manual gateway setup can enrich identity/model metadata through OWNd discovery when available while remaining usable by host/port alone.
+- Scenario device-trigger attachment was aligned with the Home Assistant Core event-trigger pattern and validated on both supported CI targets.
+- Repository quality gates now include Ruff, mypy, pytest, Hassfest and HACS validation on the current Home Assistant target.
+
+### Fixed
+- Corrected the previous gateway discovery path that referenced an unavailable `OWNGateway.discover` API.
+- Preserved legacy entity identity across the ConfigEntry v2 -> v3 migration so existing Home Assistant history is not intentionally renamed by this release.
+- Improved command-session recovery so losing control transport while the event stream is still alive does not require a Home Assistant restart.
+
+### Status / limitations
+- WHO=1 lighting, WHO=2 shutters/covers, WHO=3 load control and WHO=0 scenario activation are the current basic functional surfaces.
+- WHO=4 climate, WHO=5 alarm and WHO=7 video door-entry support remain experimental/capture-led until validated against representative real MH201 traffic.
+- WHO=18 is recognized by discovery/protocol classification, but production energy entities are not yet implemented.
+- WHO=22, media player, audio, music and sound diffusion remain explicitly out of scope.
+- CI validates software/API behavior; real MH201 clean-install, upgrade and long-running runtime validation are still required.
 
 ## [0.1.13] - 2026-09-03
 
 ### Features
-- **Climate platform (WHO=4)** — Full HVAC support for BTicino thermostats
-  - Temperature measurement (DIM=0)
-  - Setpoint control (DIM=14) with 0.5°C precision
-  - Mode control: heat, cool, auto, eco, off
-  - Local offset support (DIM=13)
-  - Probe status (DIM=12)
-  - Valves status (DIM=19)
-- Add `send_frame` service for sending raw OpenWebNet frames (useful for debug and advanced automations)
-- Add device triggers for scenario activation (enable automation based on scenario events)
+- Added the initial WHO=4 climate surface and dimension parsing.
+- Added the `send_frame` advanced/debug service.
+- Added scenario device triggers.
 
 ### Tests
-- Add `test_climate.py` with 7 tests covering:
-  - Set HVAC mode (heat, cool, off)
-  - Set target temperature
-  - Update from temperature/setpoint/mode events
-- Add `test_protocol_thermo.py` with 4 tests for WHO=4 frame parsing
-- Add `test_services.py` with 4 tests for send_frame service
-- Add `test_device_trigger.py` with 3 tests for device triggers
-
-### Internal
-- Create `services.py` module for service implementations
-- Create `services.yaml` for service definitions
-- Create `device_trigger.py` for device automation triggers
-- Update `__init__.py` to register/unregister services
-- Update `protocol.py` with WHO=4 constants
-- Update `normalizer.py` with WHO=4 event parsing
-- Update `discovery.py` with WHO=4 device discovery
-- Update `device.py` to support climate devices
+- Added climate, thermoregulation protocol, raw-frame service and scenario trigger tests.
 
 ## [0.1.12] - 2026-09-03
 
 ### Features
-- Add `send_frame` service for sending raw OpenWebNet frames (useful for debug and advanced automations)
-- Add device triggers for scenario activation (enable automation based on scenario events)
-
-### Tests
-- Add `test_services.py` with 4 tests covering:
-  - Successful frame send
-  - Frame send with status request flag
-  - Error handling for missing frame
-  - Error handling for no gateway configured
-- Add `test_device_trigger.py` with 3 tests covering:
-  - Empty triggers when no scenes
-  - Scenario triggers for scene devices
-  - Trigger capabilities
-
-### Internal
-- Create `services.py` module for service implementations
-- Create `services.yaml` for service definitions
-- Create `device_trigger.py` for device automation triggers
-- Update `__init__.py` to register/unregister services
+- Added the `send_frame` service and scenario device triggers.
 
 ## [0.1.11] - 2026-09-03
 
 ### Fixes
-- Fix ruff errors in protocol.py (unused import, whitespace)
-- Restore missing CONF_* and PLATFORMS constants in const.py
+- Fixed Ruff errors and restored integration constants.
 
 ## [0.1.10] - 2026-09-03
 
 ### Features
-- Extend OpenWebNet parser to handle composite addresses (21#4)
-- Add support for dimension frames (*#WHO*WHERE*DIM*val##)
-- Add status request handling in parser
-
-### Improvements
-- Update `async_added_to_hass()` in light/cover/switch to request initial state from bus
-- Remove duplicate AlarmControlPanelState import in alarm_control_panel.py
-- Align const.py comment with manifest min_ha_version
+- Extended OpenWebNet parsing for composite addresses and dimension/status frames.
 
 ## [0.1.9] - 2026-09-03
 
 ### Fixes
-- Fix test discovery engine expectations (address vs where)
-- Fix from_manual() location (DiscoveredDevice, not BticinoDiscovery)
+- Fixed discovery-engine expectations and manual-device construction.
 
 ## [0.1.8] - 2026-09-03
 
 ### Features
-- Add comprehensive protocol layer with 5 dedicated modules
-- Implement full parser for OpenWebNet frames
-- Add normalizer for event standardization
-
-### Tests
-- Add 28 tests covering all major components
-- Achieve 100% test pass rate
+- Added the dedicated OpenWebNet protocol package, parser and semantic normalizer.
 
 ## [0.1.7] - 2026-09-03
 
 ### CI/CD
-- Add GitHub Actions workflow with pytest + ruff
-- Add hassfest and HACS validators
-- Configure 10s timeout per test, 10min per job
-
-### Infrastructure
-- Add pyproject.toml with Python 3.12+ requirement
-- Add requirements-dev.txt with OWNd==0.7.49
-- Add CODEOWNERS and CONTRIBUTING.md
+- Added pytest/Ruff, Hassfest and HACS workflows.
 
 ## [0.1.6] - 2026-09-03
 
 ### Fixes
-- Fix OWNGateway API (config dict instead of positional args)
-- Fix NormalizedEvent parsing (manual frame parse)
-- Fix from_manual() signature and location
+- Fixed OWNGateway configuration, normalized event parsing and manual discovery signatures.
 
 ## [0.1.5] - 2026-09-03
 
 ### Fixes
-- Fix circular import in gateway.py
-- Fix OWNd import case sensitivity
-- Fix test timeouts with bounded asyncio.wait_for()
+- Fixed circular imports, OWNd case sensitivity and test timeouts.
 
 ## [0.1.4] - 2026-09-03
 
 ### Features
-- Implement complete gateway lifecycle management
-- Add reconnect with exponential backoff (1s → 60s)
-- Add explicit timeouts (10s command, 10s connect)
+- Added gateway lifecycle management, reconnect/backoff and explicit timeouts.
 
 ## [0.1.3] - 2026-09-03
 
 ### Features
-- Add device manager with merge logic
-- Implement passive/active/manual discovery
-- Add precedence for manual devices over passive events
+- Added the device manager and passive/active/manual discovery model.
 
 ## [0.1.2] - 2026-09-03
 
 ### Features
-- Add config flow with options flow
-- Implement scan, passive learning, manual add actions
-
-### Documentation
-- Add comprehensive README with architecture sections
-- Add architecture.md, discovery.md, protocol.md
+- Added Config Flow, Options Flow and initial architecture/discovery documentation.
 
 ## [0.1.1] - 2026-09-02
 
 ### Features
-- Initial release with core platforms:
-  - Light (WHO=1)
-  - Cover (WHO=2)
-  - Switch (WHO=16)
-  - Scene (WHO=0)
-  - Alarm Control Panel (WHO=5)
-  - Button (WHO=7)
-  - Binary Sensor
-  - Sensor (WHO=18)
-
-### Infrastructure
-- HACS-compatible structure
-- manifest.json with OWNd dependency
-- Brand assets and translations (IT/EN)
+- Initial Home Assistant platform surfaces and HACS-compatible repository structure.
 
 ## [0.1.0] - 2026-09-02
 
-### Initial Release
-- First working version
-- Basic OpenWebNet integration
-- Core platforms implemented
+### Initial release
+- First local OpenWebNet integration baseline.

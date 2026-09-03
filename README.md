@@ -1,197 +1,174 @@
 # BTicino MyHome MH201 for Home Assistant
 
-A local-first Home Assistant custom integration for **BTicino MyHome systems using an MH201 gateway and OpenWebNet**.
+A local-first Home Assistant custom integration for **BTicino MyHome installations using an MH201 gateway and OpenWebNet**.
 
-The integration communicates directly with the MH201 over the local network. It does **not** use the BTicino, Netatmo or Legrand cloud for device control.
+Current release: **0.2.0**.
 
-> **Scope:** this project is intentionally focused on MH201/OpenWebNet. Audio, sound diffusion and music features are deliberately out of scope.
+The integration communicates directly with the MH201 over the local network. It does not use the BTicino, Netatmo or Legrand cloud for the control path.
 
-## Why this project?
+> Scope: this project is intentionally focused on MH201/OpenWebNet. WHO=22, media player, audio, music and sound diffusion are deliberately out of scope.
 
-The goal is to make a BTicino MyHome installation feel like a native Home Assistant system while keeping the control path local:
+## Project status
+
+Version 0.2.0 is the first architecture/runtime consolidation milestone. The repository is validated by CI against:
+
+- Home Assistant 2025.1 / Python 3.12 as the compatibility baseline;
+- Home Assistant 2026.9 / Python 3.14 as the current primary target;
+- Ruff, mypy, pytest, Hassfest and HACS validation.
+
+CI green does **not** replace validation against a physical MH201. Protocol-sensitive areas are deliberately marked experimental until representative real OpenWebNet captures confirm their semantics.
+
+## Current functional surface
+
+| WHO | Area | Current status |
+| --- | --- | --- |
+| 0 | Scenarios | Basic activation entity and Home Assistant device triggers implemented; real MH201 event fixtures still required |
+| 1 | Lighting | Basic on/off command and event state implemented |
+| 2 | Automation / shutters | Open/close/stop and motion-state handling implemented |
+| 3 | Load management | Basic on/off state/control implemented |
+| 4 | Thermoregulation | Experimental climate surface; read/write semantics still require real MH201 validation |
+| 5 | Alarm | Experimental minimal alarm-control-panel surface; mappings remain provisional |
+| 7 | Video door entry | Experimental call-event / door-release surfaces; real traffic validation still required |
+| 18 | Energy | Family recognized by protocol/discovery only; production energy entities are not yet implemented |
+| 22 | Audio / sound diffusion | Explicitly unsupported and outside the roadmap |
+
+The integration also provides passive bus learning, explicit active discovery, manual endpoint registration, diagnostics and a read-only OpenWebNet capture tool.
+
+## Architecture
 
 ```text
 Home Assistant
-      │
-      │ TCP / OpenWebNet
-      ▼
-   BTicino MH201
-      │
-      │ SCS / BUS
-      ▼
- BTicino devices
+      |
+   ConfigEntry
+      |
+      +-- MH201 hub device
+      |      |
+      |      +-- command session
+      |      +-- event session
+      |
+      +-- Device Manager
+             |
+             +-- WHO/WHERE endpoint
+             +-- WHO/WHERE endpoint
 ```
 
-There is no dependency on this path on:
+Wire-format knowledge is isolated in `custom_components/bticino_myhome/protocol/`:
+
+- `frame.py` — immutable parsed frame model;
+- `parser.py` — OpenWebNet wire frame -> structured frame;
+- `commands.py` — semantic command/status request -> wire frame;
+- `normalizer.py` — parsed frame -> normalized semantic event.
+
+The Home Assistant platforms consume normalized events rather than parsing raw OpenWebNet strings themselves.
+
+## Gateway lifecycle
+
+The integration maintains separate command and event channels. Command writes are serialized so entity actions and discovery probes cannot overlap on one persistent command session.
+
+The health model distinguishes:
+
+- `command_connected` — command/control channel health;
+- `event_connected` — event stream health;
+- `connected` — aggregate availability requiring both channels.
+
+If the command channel is lost while the event channel remains alive, the integration recovers the command session in the background with backoff. It deliberately does **not** automatically retransmit a failed frame after an ambiguous timeout/reset because the command may already have reached the BUS.
+
+Persistent workers are owned by the Home Assistant task lifecycle.
+
+## Gateway discovery and identity
+
+Version 0.2.0 adds native Home Assistant SSDP discovery for MH201 and fixes the OWNd discovery path to use `OWNd.discovery.find_gateways()`.
+
+When discovery metadata is available, gateway identity is chosen in this order:
+
+1. serial number;
+2. UDN;
+3. host/port fallback.
+
+New installations therefore use a stable serial/UDN identity when possible. Existing 0.1.x ConfigEntries migrate to ConfigEntry version 3 while preserving the previously persisted entity identity so Home Assistant entity history is not intentionally renamed by the upgrade.
+
+If SSDP later sees the same serial/UDN on a different IP address, the existing ConfigEntry can be updated rather than creating a second gateway entry.
+
+Manual host/port configuration remains supported when discovery is unavailable.
+
+## Device Registry model
+
+The MH201 is registered as the integration hub device. OpenWebNet endpoint devices are linked to that hub using the Device Registry parent/via relationship supported by the running Home Assistant version.
+
+This separates physical gateway identity from logical WHO/WHERE endpoints and prepares the integration for safer migrations and future device lifecycle management.
+
+## Discovery model
+
+Device discovery is intentionally conservative and has three sources:
 
 ```text
-Home Assistant → Internet → BTicino/Netatmo/Legrand Cloud → MyHome
+                   MH201
+                     |
+              OpenWebNet / OWNd
+                     |
+          +----------+----------+
+          |          |          |
+       Passive     Active     Manual
+          |          |          |
+          +----------+----------+
+                     |
+             DiscoveredDevice
+                     |
+               Device Manager
 ```
 
-If Internet access or the manufacturer's cloud is unavailable, local Home Assistant control can continue to work as long as Home Assistant, the LAN and the MH201 remain available.
+### Passive learning
 
-## Current capabilities
+Passive learning only listens to actual OpenWebNet traffic. It sends no discovery commands. Use physical BTicino controls during the selected listening window to identify observable WHO/WHERE endpoints.
 
-The current development line (0.1.10) focuses on:
+### Active discovery
 
-- **WHO=1** — lighting
-- **WHO=2** — automation / shutters / covers
-- **WHO=3** — load management
-- **WHO=5** — alarm / 4200C, with protocol support being expanded from real-world captures
-- **WHO=7** — video door entry events and door-lock command
-- **WHO=0** — OpenWebNet scenarios
-- local gateway discovery through OWNd/SSDP
-- persistent discovered-device inventory
-- asynchronous OpenWebNet event monitoring
-- automatic event-session reconnect with exponential backoff
-- Home Assistant diagnostics
-- an OpenWebNet frame monitor for protocol analysis
+Active discovery sends supported status probes and accepts endpoints only when matching bus traffic confirms them. WHO=4 remains excluded from broad active probing while its semantics are capture-led.
 
-Passive learning is now available from the integration options: it listens to real OpenWebNet traffic without sending discovery commands, so pressing a physical BTicino control can identify the corresponding WHO/WHERE device. Climate and energy remain planned development areas. Music/sound diffusion is intentionally **not** planned.
+Version 0.2.0 no longer creates scenario addresses 1-30 merely because they could exist. WHO=0 scenarios are included only when observed during the scan or explicitly configured.
+
+### Manual registration
+
+Endpoints that cannot be safely discovered can be registered manually with WHO, WHERE, device type and an optional name. Manual records have precedence over later generic discovery updates.
+
+## State model
+
+For the stable/basic surfaces, a transmitted command is not treated as proof that the physical device changed state. State is expected to come back through OpenWebNet events/status responses.
+
+WHO=4 climate is still experimental and is being audited to remove any optimistic behavior that is not justified by real protocol evidence.
+
+## Configuration
+
+Home Assistant can discover an MH201 through SSDP and offer a confirmation flow. If discovery is unavailable, enter the gateway host/IP, OpenWebNet port and optional password manually.
+
+Default OpenWebNet port: `20000`.
+
+Initial integration setup does not perform an implicit bus-wide device scan. Device discovery is an explicit action in the integration Options flow so Home Assistant startup remains deterministic.
 
 ## Installation
 
 ### HACS
 
-Once the repository is published and added to HACS as a custom repository:
+1. Add `https://github.com/donatomontrone/bticino-myhome-mh201` as a HACS custom integration repository if it is not already available.
+2. Install **BTicino MyHome MH201**.
+3. Restart Home Assistant.
+4. Open **Settings -> Devices & services -> Add integration** and search for **BTicino MyHome**.
 
-1. Open **HACS → Integrations**.
-2. Add this repository as a custom integration if it is not already available.
-3. Install **BTicino MyHome MH201**.
-4. Restart Home Assistant.
-5. Open **Settings → Devices & services → Add integration**.
-6. Search for **BTicino MyHome**.
-
-Home Assistant installs the Python dependency declared in `manifest.json` automatically:
+Home Assistant installs the declared dependency automatically:
 
 ```json
-"requirements": [
-  "OWNd==0.7.49"
-]
+"requirements": ["OWNd==0.7.49"]
 ```
 
-You do not need to install OWNd manually on the Home Assistant host.
+### Manual
 
-### Manual installation
-
-Copy:
-
-```text
-custom_components/bticino_myhome/
-```
-
-to:
-
-```text
-/config/custom_components/bticino_myhome/
-```
-
-and restart Home Assistant.
-
-## Configuration
-
-The config flow first attempts to discover the MH201 on the local network. If discovery is not available, the gateway can be entered manually by IP address and port. The initial setup does not perform a bus-wide device scan; discovery is an explicit action from the integration Options flow so setup remains fast and deterministic.
-
-Default OpenWebNet port:
-
-```text
-20000
-```
-
-The OpenWebNet password is stored in the Home Assistant ConfigEntry and is never included in diagnostics.
-
-## Device model
-
-The integration separates the local gateway from the discovered device inventory:
-
-```text
-ConfigEntry
-   │
-   ├── MH201 Gateway
-   │      ├── command session
-   │      └── event session
-   │
-   └── Device Manager
-          ├── WHO/WHERE device
-          ├── WHO/WHERE device
-          └── WHO/WHERE device
-```
-
-This separation is intentional. The gateway owns connection/lifecycle and OWNd transport, while the dedicated protocol layer parses OpenWebNet frames, builds commands and produces normalized events. Discovery and Home Assistant platforms consume those normalized events without knowing OpenWebNet wire syntax.
-
-## State handling
-
-Commands are not treated as proof that a physical device changed state.
-
-For example:
-
-```text
-Home Assistant → ON command
-                  ↓
-               MH201 / BUS
-                  ↓
-          OpenWebNet event
-                  ↓
-          Home Assistant state
-```
-
-This avoids optimistic states when the gateway is unavailable or a command fails.
-
-The event connection is maintained asynchronously. If the event session is lost, the integration marks entities unavailable and retries with exponential backoff rather than blocking Home Assistant's event loop.
+Copy `custom_components/bticino_myhome/` into `/config/custom_components/bticino_myhome/` and restart Home Assistant.
 
 ## Diagnostics
 
-The integration provides Home Assistant diagnostics for troubleshooting.
+Home Assistant diagnostics include ConfigEntry metadata, gateway port, aggregate/channel connection health and discovered-device metadata. Passwords, host/IP and known serial/MAC fields are redacted.
 
-Diagnostics include safe information such as:
-
-- ConfigEntry metadata
-- gateway connection status
-- gateway port
-- discovered devices and their types
-
-Sensitive information is redacted before diagnostics are returned, including:
-
-- OpenWebNet password
-- gateway host/IP
-- serial numbers
-- MAC addresses
-
-Use **Settings → Devices & services → BTicino MyHome → Download diagnostics** when reporting an issue.
-
-## OpenWebNet frame monitor
-
-The repository includes a read-only monitor:
-
-```text
-tools/openwebnet_monitor.py
-```
-
-It opens an OpenWebNet EVENT session and does not send control commands.
-
-Example:
-
-```bash
-python tools/openwebnet_monitor.py 192.168.1.50
-```
-
-Save a capture:
-
-```bash
-python tools/openwebnet_monitor.py 192.168.1.50 --output capture.txt
-```
-
-Limit the capture to five minutes:
-
-```bash
-python tools/openwebnet_monitor.py 192.168.1.50 --seconds 300 --output capture.txt
-```
-
-The password is requested interactively.
-
-### Debugging TX/RX from Home Assistant
-
-Temporarily enable debug logging:
+For temporary frame-level logging:
 
 ```yaml
 logger:
@@ -200,193 +177,55 @@ logger:
     custom_components.bticino_myhome.gateway: debug
 ```
 
-The gateway logs frames as:
+Do not publish credentials or unreviewed identifying data with logs/captures.
 
-```text
-OpenWebNet RX: ...
-OpenWebNet TX: ...
+## OpenWebNet capture tool
+
+The repository includes the read-only EVENT-session monitor:
+
+```bash
+python tools/openwebnet_monitor.py 192.168.1.50 --output capture.txt
 ```
 
-Do not share passwords or credentials when sharing logs.
+A bounded capture can be created with:
 
-## Alarm development
-
-Alarm support is deliberately being developed from real OpenWebNet traffic rather than guessed frame semantics.
-
-For alarm analysis, capture normal operations such as:
-
-1. disarmed state;
-2. arm operation;
-3. completed arm state;
-4. disarm operation;
-5. normal zone events, if applicable;
-6. restore/reset events.
-
-Do not deliberately trigger an alarm merely for testing. Use the procedures appropriate to the installed security system.
-
-## Troubleshooting
-
-### The gateway is discovered but setup fails
-
-Check:
-
-- Home Assistant can reach the MH201 IP address.
-- TCP port `20000` is reachable.
-- the OpenWebNet password is correct.
-- the MH201 is powered and connected to the BUS.
-
-### Devices become unavailable
-
-This normally means the local event session has lost connectivity. Check the Home Assistant log for:
-
-```text
-OpenWebNet RX:
+```bash
+python tools/openwebnet_monitor.py 192.168.1.50 --seconds 300 --output capture.txt
 ```
 
-and connection/reconnect messages from the integration and OWNd.
+The capture workflow is the preferred source of evidence for extending WHO=4, WHO=5, WHO=7 and WHO=18 support. Do not intentionally trigger unsafe alarm conditions merely to generate traffic.
 
-### Internet is down
+## Known limitations
 
-The integration itself does not require Internet access for local MH201 control. Functions belonging to other cloud-based integrations may of course stop working independently.
-
-### Discovery does not find every device
-
-OpenWebNet discovery is not equivalent to reading the complete configuration stored in Home+Project. Some devices/events are only observable when they generate traffic on the BUS. Use **Settings → Devices & services → BTicino MyHome → Configure → Impara dispositivi dai pulsanti fisici** to start passive learning. During the selected time window, press the physical BTicino controls you want to identify. No discovery command is transmitted in this mode.
+- Real MH201 clean-install, upgrade, restart/reload and long-running disconnect/recovery testing is still required.
+- Active discovery cannot infer the complete configuration stored in Home+Project and intentionally avoids manufacturing unconfirmed endpoints.
+- WHO=4/5/7 semantics are not declared stable until backed by real captures.
+- WHO=18 energy entities are not yet implemented.
+- Stale-device removal and dynamic entity removal still need a complete Home Assistant lifecycle implementation.
+- Config/Options Flow coverage is not yet at the project's targeted Silver-like Home Assistant integration-quality level.
 
 ## Development
 
-The repository targets Python 3.12 and 3.13. The development dependencies are pinned to the minimum supported Home Assistant release and OWNd version.
+The package declares Python `>=3.12`. CI currently runs runtime tests on Python 3.12 with Home Assistant 2025.1 and Python 3.14.2 with Home Assistant 2026.9. Static quality checks run against the current Home Assistant target.
 
 ```bash
-python -m venv .venv
-. .venv/bin/activate
-python -m pip install --upgrade pip
 python -m pip install -r requirements-dev.txt
 python -m pytest
-ruff check .
-mypy
+python -m ruff check custom_components/bticino_myhome tests
+python -m mypy custom_components/bticino_myhome
 ```
-
-GitHub Actions run the test/lint/type-check suite and validate the integration with Home Assistant hassfest and HACS.
-
-## Technical documentation
-
-Detailed architecture and protocol decisions are maintained in:
-
-- `docs/architecture.md`
-- `docs/protocol.md`
-- `docs/discovery.md`
-- `docs/roadmap.md`
-
-These documents describe the intended boundaries before runtime validation on a real MH201.
-
-## Development architecture
-
-```text
-                    Home Assistant
-                           │
-                     ConfigEntry
-                           │
-                 ┌─────────┴─────────┐
-                 │                   │
-             Gateway            Device Manager
-                 │                   │
-        ┌────────┴────────┐          │
-        │                 │          │
- Command session     Event session   │
-        │                 │          │
-        └────────┬────────┘          │
-                 ▼                   ▼
-               OWNd          DiscoveredDevice
-                 │                   │
-                 └─────────┬─────────┘
-                           ▼
-                    HA entity platforms
-```
-
-The low-level OpenWebNet transport is delegated to **OWNd 0.7.49**. The integration owns the Home Assistant lifecycle, entity model, discovery inventory, availability and diagnostics.
 
 ## Roadmap
 
-The project is intentionally developed in layers:
+Development priority after 0.2.0 is **runtime solidity before protocol breadth**:
 
-1. repository and Home Assistant quality cleanup;
-2. robust gateway lifecycle and reconnect handling;
-3. normalized device manager;
-4. better UI-based device management;
-5. passive bus learning and dynamic entity registration (`press a physical BTicino button → identify and add the device`);
-6. diagnostics and troubleshooting improvements;
-7. scenario events and triggers;
-8. climate support where applicable;
-9. energy support (`WHO=18`) where applicable;
-10. deeper alarm (`WHO=5`) decoding from real installations;
-11. video door-entry (`WHO=7`) improvements.
+1. finish transport result/error semantics and availability logging;
+2. initial-state hydration and removal of synthetic/diagnostic WHO=7 entities;
+3. stale-device and dynamic add/remove lifecycle;
+4. full Home Assistant Config Flow, Options Flow, setup/unload/reload and registry tests;
+5. sanitized real-capture fixture corpus and deterministic replay;
+6. only then expand capture-backed WHO=4/5/7/18 functionality.
 
-**Music/sound diffusion is explicitly excluded from the roadmap.**
+See `docs/roadmap.md` for the detailed checklist.
 
-## Project status
-
-This is an active development project. The most protocol-sensitive areas, especially alarm and discovery, are being implemented conservatively from observed OpenWebNet traffic.
-
-If reporting an issue, include:
-
-- Home Assistant version;
-- integration version;
-- MH201 firmware if known;
-- the relevant log excerpt;
-- diagnostics with sensitive fields redacted automatically by Home Assistant.
-
-## Protocol layer
-The integration keeps OpenWebNet wire-format knowledge in `custom_components/bticino_myhome/protocol/`. The layer contains:
-
-- `frame.py` — immutable parsed frame model;
-- `parser.py` — raw event-frame parsing;
-- `commands.py` — command and status-request builders;
-- `normalizer.py` — semantic event normalization.
-
-The gateway exposes both a raw debug stream and a normalized event stream. Home Assistant entities and the Discovery Engine consume the normalized stream, so they do not need to construct or parse raw OpenWebNet frames themselves.
-
-An empty device inventory no longer triggers an implicit full scan during integration startup. Discovery remains an explicit operation through the integration options, which avoids coupling Home Assistant startup to a potentially long bus scan.
-
-## Discovery Engine
-
-The integration deliberately does not assume that every MyHome device has a physical button. Discovery therefore has three complementary sources:
-
-```text
-                    MH201
-                      │
-               OpenWebNet / OWNd
-                      │
-          ┌───────────┼───────────┐
-          ▼           ▼           ▼
-       Passive       Active      Manual
-        events        probes       UI
-          │           │           │
-          └───────────┼───────────┘
-                      ▼
-              Discovery Engine
-                      │
-                      ▼
-              DiscoveredDevice
-                      │
-                      ▼
-               Device Manager
-```
-
-### Passive discovery
-
-The integration listens to real OpenWebNet traffic. It does not send commands during passive learning. This is useful for physical controls such as lights and shutters, and can also identify sensors/thermostats/alarm events when those devices emit observable events.
-
-### Active discovery
-
-The integration can send status probes for supported WHO/WHERE ranges. A probe is **not** considered proof that an address exists: a device is accepted only when a matching OpenWebNet event is observed. This conservative approach avoids creating dozens of false devices for unused addresses.
-
-### Manual discovery
-
-Some MyHome endpoints may not expose a discoverable event or may require installation-specific knowledge. They can therefore be registered from the integration options by specifying WHO, WHERE, type and an optional name. Manual discovery is a fallback, not a requirement for normal devices.
-
-All three paths produce the same normalized `DiscoveredDevice` object and are then handled by the Device Manager. This means future device platforms such as climate, energy and alarm do not need to know how the endpoint was discovered.
-
-## Discovery source and capabilities
-
-Every discovered endpoint records its source (`passive`, `active` or `manual`) and a normalized capability list. These fields are internal integration metadata and are also used to improve diagnostics and future device setup flows.
+**WHO=22 / media player / audio / music / sound diffusion remain permanently excluded.**

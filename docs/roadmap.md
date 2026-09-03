@@ -1,18 +1,18 @@
 # Technical roadmap
 
-Last reviewed: 2026-09-03 against the current `master` architecture and Home Assistant 2026.9 integration-quality guidance.
+Last reviewed: 2026-09-03 for release 0.2.0 against Home Assistant 2026.9 integration-quality guidance.
 
-The project remains intentionally local-first and capture-led. Protocol-sensitive behavior must be validated from real MH201/OpenWebNet traffic rather than inferred from numeric WHO/WHAT values. WHO=22, media player, audio, music and sound-diffusion support remain explicitly outside the project scope.
+The project remains local-first and capture-led. Protocol-sensitive behavior must be validated from real MH201/OpenWebNet traffic rather than inferred from numeric WHO/WHAT values. WHO=22, media player, audio, music and sound diffusion remain explicitly outside scope.
 
-## Current checkpoint
+## Current checkpoint — 0.2.0
 
-The repository foundation is established and CI is green against both the compatibility baseline (Home Assistant 2025.1 / Python 3.12) and the current target (Home Assistant 2026.9 / Python 3.14), with Ruff, mypy, pytest, Hassfest and HACS validation.
+Release 0.2.0 completes the repository/architecture foundation and a substantial part of runtime/gateway hardening. CI is green against Home Assistant 2025.1 / Python 3.12 and Home Assistant 2026.9 / Python 3.14, with Ruff, mypy, pytest, Hassfest and HACS validation.
 
-The architecture is suitable for continued development, but the integration is **not yet considered production-solid**. The main remaining risk is no longer repository structure: it is runtime behavior under disconnects/concurrency, stable Home Assistant identity/lifecycle, incomplete Home Assistant integration tests, and protocol behavior that still requires real MH201 captures.
+The integration is not yet considered fully production-validated because a physical MH201 clean-install/upgrade/runtime campaign and capture-backed verification of protocol-sensitive WHO families are still pending.
 
-The next milestone is therefore **runtime solidity before protocol breadth**. The internal quality target is to reach a Home Assistant Integration Quality Scale Silver-like level of robustness before expanding WHO=5/7/18 functionality. This is an engineering benchmark for this custom integration, not an official Home Assistant quality-tier claim.
+The working principle remains: **runtime solidity before protocol breadth**. The internal quality target is Silver-like Home Assistant integration robustness before broadening WHO=5/7/18 functionality. This is an engineering benchmark, not an official Home Assistant quality-tier claim.
 
-## Phase A — repository and architecture foundation
+## Phase A — repository and architecture foundation — COMPLETE
 
 - [x] Dedicated `protocol/` package
 - [x] Immutable parsed frame model
@@ -32,163 +32,151 @@ The next milestone is therefore **runtime solidity before protocol breadth**. Th
 - [x] CI matrix for HA 2025.1 / Python 3.12 and HA 2026.9 / Python 3.14
 - [x] Ruff and mypy quality gates on the current HA target
 
-## Phase B — runtime solidity and transport hardening — NEXT
+## Phase B — runtime solidity and transport hardening — IN PROGRESS
 
 ### Command/event lifecycle
 
-- [x] Serialize access to the persistent command session so concurrent entity/discovery commands cannot overlap
-- [x] Re-open a missing command session on the next command after a prior close/failure
-- [x] Recover a failed command channel in the background while the event channel is alive, without automatically retransmitting the failed frame
-- [ ] Introduce an explicit command-result abstraction above OWNd so ACK/NACK/transport failure are not represented only by logging
-- [ ] Audit the overlap between OWNd internal reconnect/retry behavior and the integration gateway lifecycle; keep one clear owner for each recovery path
-- [x] Track command-channel and event-channel health separately; aggregate entity availability requires both channels healthy
-- [x] Use Home Assistant-owned task creation/lifecycle for persistent gateway workers
+- [x] Serialize persistent command-session access
+- [x] Re-open a missing command session on the next command
+- [x] Recover a failed command channel in the background while events remain alive
+- [x] Never blindly retransmit an ambiguous failed frame from the integration recovery layer
+- [x] Track command-channel and event-channel health separately
+- [x] Aggregate entity availability from both channel states
+- [x] Use Home Assistant-owned task creation for persistent gateway workers
+- [x] Add command concurrency, missing-session recovery, background recovery, cancellation and close tests
+- [ ] Introduce an explicit command-result abstraction above OWNd so ACK/NACK/transport failure are observable beyond logging
+- [ ] Complete the ownership audit between OWNd internal reconnect/retry and integration recovery logic
 - [ ] Replace generic `BticinoGatewayError` cases with structured connection/authentication/command/protocol exceptions
-- [ ] Log availability transitions once when unavailable and once when recovered instead of logging every retry cycle
-- [x] Add command concurrency, missing-session recovery, background recovery, cancellation and close lifecycle tests
+- [ ] Log availability transitions once when unavailable and once when recovered instead of on every retry cycle
 
 ### Gateway identity and discovery
 
-- [ ] Fix gateway discovery to use the actual OWNd discovery API (`OWNd.discovery.find_gateways`) instead of the unavailable `OWNGateway.discover` path
-- [ ] Add native Home Assistant SSDP discovery for MH201 while preserving manual host/port setup
-- [ ] Prefer stable gateway serial/UDN identity instead of host:port for ConfigEntry/device/entity identity
-- [ ] Design a migration from current host:port identifiers that preserves existing entity history and registry entries
-- [ ] Register the MH201 as the hub device and link OpenWebNet endpoint devices through `via_device`
+- [x] Use the actual `OWNd.discovery.find_gateways()` discovery API
+- [x] Add native Home Assistant SSDP discovery for MH201
+- [x] Preserve manual host/port configuration as fallback
+- [x] Prefer serial, then UDN, then host/port for new gateway ConfigEntry identity
+- [x] Add ConfigEntry version 3 migration preserving existing 0.1.x entity identity/history
+- [x] Allow discovered stable identity to associate an existing gateway after an address change
+- [x] Register the MH201 as the Home Assistant hub device
+- [x] Link endpoint devices to the MH201 hub with the Device Registry parent/via mechanism compatible with HA 2025.1 and 2026.9
 
 ### Device runtime state
 
-- [ ] Hydrate initial state after entity setup for capture-validated WHO families instead of waiting indefinitely for the next bus event
+- [ ] Hydrate initial state after entity setup for capture-validated WHO families
 - [ ] Remove unconditional/synthetic WHO=7 entities when no intercom endpoint has been observed or manually configured
-- [ ] Move the raw WHO=7 event sensor out of the normal entity surface, or mark it diagnostic and disabled by default
+- [ ] Move the raw WHO=7 event sensor to diagnostics or mark it diagnostic and disabled by default
 - [ ] Propagate DeviceManager removals so stale Home Assistant entities/devices can be removed coherently
 - [ ] Add stale-device and dynamic add/remove lifecycle tests
 
 ### Discovery safety
 
-- [ ] Correlate active probes with the responses that confirm them
+- [x] Stop synthesizing scenario endpoints 1-30 during active discovery
+- [ ] Correlate active probes with responses that confirm them
 - [ ] Add explicit probe rate limiting/batching suitable for the SCS/OpenWebNet bus
-- [ ] Stop or surface active discovery when gateway transport becomes unavailable instead of silently swallowing every probe failure
-- [ ] Do not synthesize scenario endpoints 1-30 during active discovery; scenarios must be observed, manually configured, or explicitly selected by address
+- [ ] Stop or surface active discovery when gateway transport becomes unavailable instead of swallowing every probe failure
 - [ ] Validate manual WHO/device-type combinations so impossible semantic combinations cannot be persisted
 
-A separate low-level transport rewrite is **not** currently a goal. A dedicated adapter may be introduced only where OWNd does not expose the lifecycle/result semantics required by the integration.
+A separate low-level transport rewrite is not a goal. A focused adapter may be introduced only where OWNd does not expose lifecycle/result semantics required by the integration.
 
-## Phase C — Home Assistant integration quality
+## Phase C — Home Assistant integration quality — NEXT MAJOR BLOCK
 
-- [ ] Introduce a typed `ConfigEntry[BticinoMyHomeData]` alias and use it throughout the integration
-- [ ] Full Config Flow tests: success, connection failure/recovery, invalid credentials, duplicate entry and migration behavior
+- [ ] Introduce a typed `ConfigEntry[BticinoMyHomeData]` alias and use it throughout
+- [ ] Full Config Flow tests: success, connection failure/recovery, invalid credentials, SSDP, duplicate entry, migration and changed-IP identity behavior
 - [ ] Full Options Flow tests: active scan, passive learning, manual registration, selection and persistence
-- [ ] Add a reconfigure flow for host/port/password changes without removing the integration
-- [ ] Add a reauthentication flow and raise `ConfigEntryAuthFailed` for genuine credential failures
+- [ ] Add reconfigure flow for host/port/password changes
+- [ ] Add reauthentication flow and raise `ConfigEntryAuthFailed` for genuine credential failures
 - [ ] Setup / unload / reload / restart tests using a real Home Assistant test instance
 - [ ] Entity lifecycle tests for every exposed platform
-- [ ] Entity and Device Registry tests, including stable identifiers and `via_device`
+- [ ] Entity and Device Registry tests for stable identifiers and hub linkage
 - [ ] Availability loss/recovery tests
-- [ ] Diagnostics and redaction tests
+- [ ] Diagnostics/redaction tests
 - [ ] Dynamic device add/remove tests
-- [ ] Add `_attr_has_entity_name` and move default entity names to translation keys where appropriate
+- [ ] Add `_attr_has_entity_name` and translation-key based default entity names where appropriate
 - [ ] Use selectors and `data_description` consistently in Config/Options flows
-- [ ] Review `send_frame` as an advanced/debug action: require explicit gateway targeting for multi-entry setups or move it out of the normal user surface
+- [ ] Review `send_frame` as an advanced/debug action and require explicit gateway targeting for multi-entry setups if retained
 - [ ] Translate user-facing action/connection exceptions
-- [ ] Add test coverage reporting and target >95% integration-module coverage before release candidate
-- [ ] Maintain an internal Home Assistant Integration Quality Scale checklist, targeting Silver-like robustness first
+- [ ] Add coverage reporting and target >95% integration-module coverage before a production-ready release candidate
 
 ## Phase D — protocol evidence and deterministic replay
 
 - [ ] Build a sanitized real-capture fixture corpus grouped by WHO/device/action
-- [ ] Add deterministic fixture replay tests from raw OpenWebNet frame -> parsed frame -> normalized event -> entity state
-- [ ] Record gateway model/firmware and installation context alongside captures when safe and useful
+- [ ] Add deterministic raw frame -> parsed frame -> normalized event -> entity state replay tests
+- [ ] Record gateway model/firmware and safe installation context alongside captures
 - [ ] Investigate diagnostic/broadcast/group frames and explicitly exclude frames that must not create endpoint devices
-- [ ] Revisit the flat `NormalizedEvent.state` model before adding complex WHO=5/18 payloads; introduce typed/structured semantic payloads only when real captures require them
-- [ ] Move WHO-specific numeric semantics out of Home Assistant platform files and into protocol modules as each family becomes capture-validated
+- [ ] Revisit the flat `NormalizedEvent.state` model before complex WHO=5/18 payloads; introduce structured semantic payloads only when captures require them
+- [ ] Move WHO-specific numeric semantics into dedicated protocol modules as each family becomes capture-validated
 
-## Phase E — protocol and platform coverage
+## Phase E — protocol/platform coverage
 
 ### WHO=0 — scenarios
-
 - [x] Scenario activation entity
 - [x] Scenario device-trigger adapter
-- [ ] Real MH201 scenario event fixture set and end-to-end trigger validation
+- [x] No synthetic 1-30 scenario inventory during active scan
+- [ ] Real MH201 scenario event fixtures and end-to-end trigger validation
 
 ### WHO=1 — lighting
-
 - [x] Basic on/off command and event state
 - [ ] Initial-state query validation
 - [ ] Complete observed WHAT catalogue
-- [ ] Dimmer/brightness support only if confirmed by real captures and installed devices
+- [ ] Dimmer/brightness only if confirmed by real captures/devices
 
 ### WHO=2 — automation / shutters
-
 - [x] Open / close / stop command and motion state
 - [ ] Initial-state query validation
-- [ ] Complete observed shutter/automation WHAT catalogue
-- [ ] Position support only where real devices expose a reliable position model
+- [ ] Complete observed automation WHAT catalogue
+- [ ] Position support only where real devices expose a reliable model
 
 ### WHO=3 — load management
-
 - [x] Basic on/off command and event state
 - [ ] Initial-state query validation
 - [ ] Complete observed load-management catalogue
 - [ ] Validate whether additional measurements/states belong here or in WHO=18
 
-### WHO=4 — thermoregulation
-
-- [x] Experimental Home Assistant climate entity exists
-- [x] Parser support for observed dimension-response shapes
-- [x] Basic HVAC mode / setpoint / temperature unit tests
-- [ ] Validate every read and write frame against real MH201 thermoregulation captures before declaring climate support stable
-- [ ] Remove optimistic local state changes after climate writes unless real protocol evidence proves that no asynchronous confirmation is available
-- [ ] Validate setpoint-write value/mode semantics rather than inferring optional dimension values
-- [ ] Move thermoregulation-specific builders/decoders/mappings into a dedicated protocol module after capture validation
+### WHO=4 — thermoregulation — EXPERIMENTAL
+- [x] Home Assistant climate entity exists
+- [x] Parser support for current dimension-response shapes
+- [x] Basic HVAC mode/setpoint/temperature unit tests
+- [ ] Validate every read/write frame against real MH201 thermoregulation captures
+- [ ] Remove optimistic local state changes unless protocol evidence requires them
+- [ ] Validate setpoint-write value/mode semantics
+- [ ] Move thermoregulation-specific builders/decoders into a dedicated protocol module after capture validation
 - [ ] Validate valve/HVAC-action semantics from real traffic
 
-### WHO=5 — alarm
-
+### WHO=5 — alarm — EXPERIMENTAL
 - [x] Minimal alarm-control-panel surface exists
-- [ ] Treat current WHAT/state mappings as provisional until confirmed from real installations
-- [ ] Build alarm fixture catalogue from safe normal operations on real installations
-- [ ] Distinguish arm state, zone/event state, fault/restore and alarm transitions only when observed
+- [ ] Treat current WHAT/state mappings as provisional until real-installation confirmation
+- [ ] Build alarm fixture catalogue from safe normal operations
+- [ ] Distinguish arm, zone/event, fault/restore and alarm transitions only when observed
 - [ ] Do not expand control semantics beyond capture-backed behavior
 
-### WHO=7 — video door entry
-
+### WHO=7 — video door entry — EXPERIMENTAL
 - [x] Initial call-event and door-release surfaces exist
 - [ ] Remove synthetic default entities and require observed/manual endpoint evidence
-- [ ] Build video door-entry event fixture catalogue
+- [ ] Build video door-entry fixture catalogue
 - [ ] Validate call start/end semantics and WHERE routing
-- [ ] Validate door-release command against real MH201 traffic before declaring it stable
+- [ ] Validate door-release command against real MH201 traffic
 
 ### WHO=18 — energy
-
-- [x] Device family is classified by the protocol/discovery model
+- [x] Device family is classified by protocol/discovery
 - [ ] Build real energy-frame fixture catalogue
-- [ ] Define typed energy measurement semantics and Home Assistant device/state classes
-- [ ] Implement energy entities only after units, dimensions and counters are confirmed
+- [ ] Define typed measurements and Home Assistant device/state classes
+- [ ] Implement production energy entities only after units/dimensions/counters are confirmed
 
-## Phase F — documentation and release readiness
+## Phase F — release/readiness
 
-- [ ] Synchronize README capability/version statements with the actual 0.1.13 development line
-- [ ] Correct README gateway-discovery claims to match the implemented Config Flow
-- [ ] Document experimental vs capture-validated protocol families explicitly
-- [ ] Document supported/unsupported gateway/device families and known limitations
-- [ ] Document scenario triggers and the advanced raw-frame action if it remains exposed
-- [ ] Decide and document the supported Home Assistant version window; keep the CI compatibility baseline only while it provides real maintenance value
+- [x] Synchronize README with the 0.2.0 implementation
+- [x] Document native SSDP, stable identity and migration behavior
+- [x] Document experimental vs implemented protocol families
+- [x] Document the dual Home Assistant CI window
+- [x] Publish changelog/version metadata for 0.2.0
 - [ ] Runtime validation on a real MH201
-- [ ] HACS installation validation
+- [ ] HACS installation validation from the tagged release
 - [ ] Clean-install validation
-- [ ] Upgrade/migration validation from the previous released configuration model
-- [ ] Restart/reload validation on a real Home Assistant instance
+- [ ] Upgrade validation from a 0.1.x installation
+- [ ] Restart/reload and changed-IP validation on a real Home Assistant instance
 - [ ] Final troubleshooting pass using real failure cases
-- [ ] Release candidate
+- [ ] Production-ready release candidate after the above validation
 
-## Release gate
+## 0.2.0 release boundary
 
-A release candidate should not be considered ready merely because CI is green. The minimum gate is:
-
-1. command and event channels recover predictably;
-2. ConfigEntry/entity/device identities survive restart and gateway address changes;
-3. core entity state is hydrated and availability is trustworthy;
-4. Home Assistant lifecycle/configuration paths have integration-level tests;
-5. protocol-sensitive features advertised as stable are backed by real MH201 captures;
-6. HACS/Hassfest/CI remain green on the supported Home Assistant range;
-7. clean install, upgrade and real MH201 runtime validation have been completed.
+0.2.0 is an architecture/runtime milestone, not a declaration that every protocol surface is hardware-validated. It is appropriate as a tagged development release because repository structure, compatibility CI, gateway recovery, native discovery and migration semantics now form a coherent baseline. Real MH201 validation remains the gate for declaring protocol-sensitive features production-solid.
