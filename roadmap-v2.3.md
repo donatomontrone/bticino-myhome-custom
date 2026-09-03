@@ -320,7 +320,7 @@ Il layer di protocollo è **straordinariamente completo**:
 - **PRONTISSIMO PER HACS**
 
 ### **Documentazione**
-- **4 documenti roadmap** (roadmap.md + v2.1 + v2.2 + v2.3)
+- **4 documenti roadmap** (roadmap.md + v2.3)
 - **4 documenti docs/** (architecture, discovery, protocol, roadmap)
 - README da 13k righe
 - CHANGELOG da 15k righe
