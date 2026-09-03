@@ -38,13 +38,13 @@ class BticinoAlarmControlPanel(BticinoEntity, AlarmControlPanelEntity):
     )
 
     async def async_alarm_disarm(self, code: str | None = None) -> None:
-        await self.gateway.async_send(alarm_disarm(self.where))
+        await self._async_send_command(alarm_disarm(self.where))
 
     async def async_alarm_arm_home(self, code: str | None = None) -> None:
-        await self.gateway.async_send(alarm_arm_home(self.where))
+        await self._async_send_command(alarm_arm_home(self.where))
 
     async def async_alarm_arm_away(self, code: str | None = None) -> None:
-        await self.gateway.async_send(alarm_arm_away(self.where))
+        await self._async_send_command(alarm_arm_away(self.where))
 
     def _handle_event(self, event: NormalizedEvent) -> None:
         if event.who != self.who or event.where != self.where or event.state is None:
