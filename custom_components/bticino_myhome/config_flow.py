@@ -57,6 +57,7 @@ from .protocol.thermoregulation import (
 _LOGGER = logging.getLogger(__name__)
 _CONF_CLEAR_PASSWORD = "clear_password"
 _CONF_CLIMATE_PROFILE = "climate_profile"
+_CONF_ADVANCED_SHUTTER = "advanced_shutter"
 
 
 class BticinoMyHomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -542,6 +543,9 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
                     climate_profile=(
                         str(climate_profile) if climate_profile is not None else None
                     ),
+                    advanced_shutter=bool(
+                        user_input.get(_CONF_ADVANCED_SHUTTER, False)
+                    ),
                 )
             except ValueError:
                 errors["base"] = "invalid_device"
@@ -572,6 +576,7 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
                             mode=SelectSelectorMode.DROPDOWN,
                         )
                     ),
+                    vol.Optional(_CONF_ADVANCED_SHUTTER, default=False): BooleanSelector(),
                     vol.Optional(_CONF_CLIMATE_PROFILE): SelectSelector(
                         SelectSelectorConfig(
                             options=[
