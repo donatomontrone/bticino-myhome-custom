@@ -11,8 +11,6 @@ from .protocol import (
     DIM_THERMO_SETPOINT,
     DIM_THERMO_TEMPERATURE,
     DIM_THERMO_VALVES,
-    OpenWebNetMessage,
-    WHO_THERMOREGULATION,
     WHAT_THERMO_ANTIFREEZE,
     WHAT_THERMO_COOLING,
     WHAT_THERMO_HEATING,
@@ -27,6 +25,8 @@ from .protocol import (
     WHAT_THERMO_PROGRAM_HEATING,
     WHAT_THERMO_PROTECTION,
     WHAT_THERMO_THERMAL_PROTECTION,
+    WHO_THERMOREGULATION,
+    OpenWebNetMessage,
 )
 
 _LOGGER = logging.getLogger(__name__)
