@@ -7,12 +7,12 @@ from unittest.mock import AsyncMock
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import ATTR_CONFIG_ENTRY_ID
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
 from custom_components.bticino_myhome.const import DOMAIN
 from custom_components.bticino_myhome.gateway import BticinoGatewayError
 from custom_components.bticino_myhome.services import (
+    ATTR_CONFIG_ENTRY_ID,
     SERVICE_SEND_FRAME,
     async_setup_services,
 )

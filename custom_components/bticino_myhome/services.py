@@ -5,7 +5,6 @@ from typing import cast
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import ATTR_CONFIG_ENTRY_ID
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
@@ -15,6 +14,7 @@ from .data import BticinoConfigEntry
 from .gateway import BticinoGatewayError
 
 SERVICE_SEND_FRAME = "send_frame"
+ATTR_CONFIG_ENTRY_ID = "config_entry_id"
 ATTR_FRAME = "frame"
 ATTR_IS_STATUS_REQUEST = "is_status_request"
 
