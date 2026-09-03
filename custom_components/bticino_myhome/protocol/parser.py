@@ -11,6 +11,10 @@ _STANDARD_RE = re.compile(
 _THERMOREGULATION_CENTRAL_RE = re.compile(
     r"^\*4\*(?P<what>[^*#]+)\*(?P<where>#[^*#]+)##$"
 )
+_ALARM_SYSTEM_RE = re.compile(r"^\*5\*(?P<what>\d+)\*\*##$")
+_ALARM_PARAMETERIZED_RE = re.compile(
+    r"^\*5\*(?P<what>\d+)\*(?P<where>#\d+)##$"
+)
 
 
 def parse_frame(raw_message: str) -> OpenWebNetFrame | None:
@@ -18,9 +22,8 @@ def parse_frame(raw_message: str) -> OpenWebNetFrame | None:
 
     Command/status requests such as ``*#1*21##`` and dimension writes with a
     ``#DIM`` marker are intentionally not emitted as device events. Parameterized
-    standard ``#WHERE`` values are accepted only for WHO=4 central-unit zone
-    events; other WHO families remain conservative until their group/address
-    semantics are explicitly implemented.
+    standard ``#WHERE`` values are accepted only for explicitly modeled WHO=4
+    thermoregulation central-zone and WHO=5 burglar-alarm zone events.
     """
     if raw_message is None:
         return None
@@ -43,6 +46,24 @@ def parse_frame(raw_message: str) -> OpenWebNetFrame | None:
             who="4",
             what=thermoregulation_central.group("what"),
             where=thermoregulation_central.group("where"),
+            raw=raw,
+        )
+
+    alarm_system = _ALARM_SYSTEM_RE.fullmatch(raw)
+    if alarm_system is not None:
+        return OpenWebNetFrame(
+            who="5",
+            what=alarm_system.group("what"),
+            where="0",
+            raw=raw,
+        )
+
+    alarm_parameterized = _ALARM_PARAMETERIZED_RE.fullmatch(raw)
+    if alarm_parameterized is not None:
+        return OpenWebNetFrame(
+            who="5",
+            what=alarm_parameterized.group("what"),
+            where=alarm_parameterized.group("where"),
             raw=raw,
         )
 
