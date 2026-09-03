@@ -37,3 +37,23 @@ arm_alarm_partitions:
             - "6"
             - "7"
             - "8"
+
+set_alarm_partition:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: bticino_myhome
+    partition:
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 8
+          step: 1
+          mode: box
+    active:
+      required: true
+      selector:
+        boolean:
