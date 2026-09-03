@@ -45,6 +45,7 @@ The next milestone is therefore **runtime solidity before protocol breadth**. Th
 - [ ] Replace generic `BticinoGatewayError` cases with structured connection/authentication/command/protocol exceptions
 - [ ] Log availability transitions once when unavailable and once when recovered instead of logging every retry cycle
 - [ ] Add command concurrency, command recovery, reconnect, cancellation and close-during-retry tests
+- [ ] Define the OWNd dependency strategy: remain pinned while stable, prefer upstream fixes, and keep a minimal adapter/fork escape hatch only if required lifecycle/result semantics cannot be obtained upstream
 
 ### Gateway identity and discovery
 
@@ -64,6 +65,7 @@ The next milestone is therefore **runtime solidity before protocol breadth**. Th
 
 ### Discovery safety
 
+- [ ] Stop pre-populating WHO=0 scenario addresses 1–30 during a normal active scan; scenario endpoints should be observed, manually registered, or explicitly selected by address
 - [ ] Correlate active probes with the responses that confirm them
 - [ ] Add explicit probe rate limiting/batching suitable for the SCS/OpenWebNet bus
 - [ ] Stop or surface active discovery when gateway transport becomes unavailable instead of silently swallowing every probe failure
@@ -106,6 +108,7 @@ A separate low-level transport rewrite is **not** currently a goal. A dedicated 
 
 - [x] Scenario activation entity
 - [x] Scenario device-trigger adapter
+- [ ] Replace broad 1–30 candidate generation with observed/manual or explicitly selected scenario addresses
 - [ ] Real MH201 scenario event fixture set and end-to-end trigger validation
 
 ### WHO=1 — lighting
@@ -136,6 +139,7 @@ A separate low-level transport rewrite is **not** currently a goal. A dedicated 
 - [x] Basic HVAC mode / setpoint / temperature unit tests
 - [ ] Validate every read and write frame against real MH201 thermoregulation captures before declaring climate support stable
 - [ ] Validate setpoint-write value/mode semantics rather than inferring optional dimension values
+- [ ] Make climate state-confirmation behavior consistent with the project rule that a transmitted command is not proof of physical state change
 - [ ] Move thermoregulation-specific builders/decoders/mappings into a dedicated protocol module after capture validation
 - [ ] Validate valve/HVAC-action semantics from real traffic
 
