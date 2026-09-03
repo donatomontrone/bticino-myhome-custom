@@ -1,16 +1,16 @@
-"""Test manifest metadata."""
-import shutil
+"""Tests for integration metadata."""
+from __future__ import annotations
+
+import json
 from pathlib import Path
 
 
-def test_no_python_cache_files() -> None:
-    """Verify no Python cache files are committed."""
-    # Clean up any cache files before checking
-    for pycache in Path("custom_components").rglob("__pycache__"):
-        shutil.rmtree(pycache, ignore_errors=True)
-    for pyc in Path("custom_components").rglob("*.pyc"):
-        pyc.unlink()
-
-    # Now verify none exist
-    assert not list(Path("custom_components").rglob("*.pyc"))
-    assert not list(Path("custom_components").rglob("__pycache__"))
+def test_manifest_metadata() -> None:
+    manifest = json.loads(
+        Path("custom_components/bticino_myhome/manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["domain"] == "bticino_myhome"
+    assert manifest["version"] == "0.1.13"
+    assert manifest["requirements"] == ["OWNd==0.7.49"]
+    assert manifest["codeowners"] == ["@donatomontrone"]
+    assert "manifest_version" not in manifest

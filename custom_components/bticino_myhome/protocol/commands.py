@@ -1,20 +1,21 @@
-"""OpenWebNet command builders.
-
-The builders deliberately return strings because OWNd 0.7.49 accepts raw
-OpenWebNet messages. Keeping construction here prevents HA entities and
-Discovery from having to know protocol syntax.
-"""
+"""OpenWebNet command builders used by entities and discovery."""
 from __future__ import annotations
 
 
 def build_command(who: str, what: str, where: str) -> str:
-    """Build a standard OpenWebNet command/event frame."""
     return f"*{who}*{what}*{where}##"
 
 
 def build_status_request(who: str, where: str) -> str:
-    """Build the OpenWebNet status request used by conservative discovery."""
     return f"*#{who}*{where}##"
+
+
+def build_dimension_request(who: str, where: str, dimension: str) -> str:
+    return f"*#{who}*{where}*{dimension}##"
+
+
+def build_dimension_write(who: str, where: str, dimension: str, value: str) -> str:
+    return f"*#{who}*{where}*#{dimension}*{value}##"
 
 
 def light_on(where: str) -> str:

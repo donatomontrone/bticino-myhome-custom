@@ -6,18 +6,21 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class OpenWebNetFrame:
-    """A parsed OpenWebNet event/response frame.
-
-    ``who``, ``what`` and ``where`` remain strings because OpenWebNet addresses
-    are not universally numeric and some installations use composite values.
-    """
+    """A parsed OpenWebNet event or dimension response."""
 
     who: str
-    what: str
+    what: str | None
     where: str
     raw: str
+    dimension: str | None = None
+    values: tuple[str, ...] = ()
 
     @property
     def key(self) -> str:
         """Return the canonical WHO/WHERE endpoint key."""
         return f"{self.who}-{self.where}"
+
+    @property
+    def is_dimension(self) -> bool:
+        """Return whether this is a dimension response."""
+        return self.dimension is not None

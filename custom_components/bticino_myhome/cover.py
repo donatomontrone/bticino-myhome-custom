@@ -1,39 +1,69 @@
-"""BTicino MyHome cover entity."""
+"""Home Assistant covers backed by OpenWebNet WHO=2."""
 from __future__ import annotations
 
-from homeassistant.components.cover import CoverEntity
+from typing import Any
+
+from homeassistant.components.cover import CoverDeviceClass, CoverEntity, CoverEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import BticinoEntity
-from .protocol import build_status_request, cover_close, cover_open, cover_stop
-
-
-class BticinoCover(BticinoEntity, CoverEntity):
-    """Cover entity for automation devices."""
-
-    async def async_added_to_hass(self) -> None:
-        """Request initial state from the bus when entity is added."""
-        await super().async_added_to_hass()
-        # Send status request to populate real state instead of optimistic None
-        await self._gateway.async_send(
-            build_status_request(self._device.who, self._device.address)
-        )
-
-    async def async_open_cover(self) -> None:
-        await cover_open(self._gateway, self._device.who, self._device.address)
-
-    async def async_close_cover(self) -> None:
-        await cover_close(self._gateway, self._device.who, self._device.address)
-
-    async def async_stop_cover(self) -> None:
-        await cover_stop(self._gateway, self._device.who, self._device.address)
+from .protocol import NormalizedEvent, cover_close, cover_open, cover_stop
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up cover from config entry."""
+    runtime = entry.runtime_data
+    gateway = runtime.gateway
+    manager = runtime.device_manager
+    known = {device.key for device in manager.devices if device.device_type == "cover"}
+    async_add_entities(
+        [
+            BticinoCover(gateway, device.who, device.where, device.name)
+            for device in manager.devices
+            if device.device_type == "cover"
+        ]
+    )
+
+    def _device_added(device) -> None:
+        if device.device_type != "cover" or device.key in known:
+            return
+        known.add(device.key)
+        async_add_entities([BticinoCover(gateway, device.who, device.where, device.name)])
+
+    entry.async_on_unload(manager.add_listener(_device_added))
+
+
+class BticinoCover(BticinoEntity, CoverEntity):
+    _attr_device_class = CoverDeviceClass.SHUTTER
+    _attr_supported_features = (
+        CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
+    )
+
+    async def async_open_cover(self, **kwargs: Any) -> None:
+        await self.gateway.async_send(cover_open(self.where))
+
+    async def async_close_cover(self, **kwargs: Any) -> None:
+        await self.gateway.async_send(cover_close(self.where))
+
+    async def async_stop_cover(self, **kwargs: Any) -> None:
+        await self.gateway.async_send(cover_stop(self.where))
+
+    def _handle_event(self, event: NormalizedEvent) -> None:
+        if event.who != self.who or event.where != self.where:
+            return
+        if event.state == "opening":
+            self._attr_is_opening = True
+            self._attr_is_closing = False
+        elif event.state == "closing":
+            self._attr_is_opening = False
+            self._attr_is_closing = True
+        elif event.state == "stopped":
+            self._attr_is_opening = False
+            self._attr_is_closing = False
+        else:
+            return
+        if self.hass is not None:
+            self.async_write_ha_state()

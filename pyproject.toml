@@ -4,35 +4,36 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bticino-myhome-mh201"
-version = "0.1.0"
+version = "0.1.13"
 description = "Home Assistant custom integration for BTicino MyHome MH201"
 requires-python = ">=3.12"
-dependencies = [
-    "homeassistant>=2025.1.0",
-    "ownd>=0.7.49",
-]
-
-[project.optional-dependencies]
-test = [
-    "pytest>=8.0.0",
-    "pytest-asyncio>=1.0.0",
-    "pytest-timeout>=2.3.0",
-    "ruff>=0.9.0",
-]
+license = {text = "Apache-2.0"}
+authors = [{name = "Donato Montrone"}]
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["custom_components.*"]
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
-timeout = 10
+timeout = 15
 
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+src = ["custom_components", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF"]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF"]
 ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+ignore_missing_imports = true

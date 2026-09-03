@@ -9,12 +9,13 @@ from typing import Any
 
 from OWNd.connection import OWNCommandSession, OWNEventSession, OWNGateway, OWNSession
 
-from .protocol import NormalizedEvent
+from .protocol import NormalizedEvent, normalize_frame, parse_frame
 
 _LOGGER = logging.getLogger(__name__)
 
 _COMMAND_TIMEOUT = 10.0
 _CONNECT_TIMEOUT = 10.0
+_CLOSE_TIMEOUT = 5.0
 _RECONNECT_INITIAL_DELAY = 1.0
 _RECONNECT_MAX_DELAY = 60.0
 
@@ -30,8 +31,8 @@ class BticinoGateway:
         self.host = host
         self.port = port
         self.password = password
-        # OWNGateway accepts a configuration dict
-        self._gateway = OWNGateway({"host": host, "port": port, "password": password})
+        # OWNd 0.7.49 uses ``address`` in its gateway configuration mapping.
+        self._gateway = OWNGateway({"address": host, "port": port, "password": password})
         self._command_session: OWNCommandSession | None = None
         self._event_session: OWNEventSession | None = None
         self._event_task: asyncio.Task[None] | None = None
@@ -65,10 +66,7 @@ class BticinoGateway:
         except Exception as err:
             raise BticinoGatewayError(str(err)) from err
         finally:
-            try:
-                await session.close()
-            except Exception:
-                _LOGGER.warning("Failed to close OWNd test session", exc_info=True)
+            await self._safe_close(session)
 
     async def async_connect(
         self,
@@ -94,47 +92,43 @@ class BticinoGateway:
                 )
 
     async def _connect_command_session(self) -> None:
-        """Open command session for sending frames."""
         if self._command_session is not None:
             return
         session = OWNCommandSession(gateway=self._gateway, logger=_LOGGER)
         try:
             async with asyncio.timeout(_CONNECT_TIMEOUT):
                 result = await session.connect()
-            _LOGGER.debug("Command session connected: %s", result)
         except TimeoutError as err:
             await self._safe_close(session)
             raise BticinoGatewayError("command_connection_timeout") from err
         except Exception as err:
             await self._safe_close(session)
             raise BticinoGatewayError(f"command_connection_failed: {err}") from err
-
         if not result or result.get("Success") is not True:
             await self._safe_close(session)
             raise BticinoGatewayError((result or {}).get("Message", "command_connection_failed"))
         self._command_session = session
+        _LOGGER.debug("OpenWebNet command session connected")
 
     async def _connect_event_session(self) -> None:
-        """Open event session for receiving frames."""
         if self._event_session is not None:
             return
         session = OWNEventSession(gateway=self._gateway, logger=_LOGGER)
         try:
             async with asyncio.timeout(_CONNECT_TIMEOUT):
                 result = await session.connect()
-            _LOGGER.debug("Event session connected: %s", result)
         except TimeoutError as err:
             await self._safe_close(session)
             raise BticinoGatewayError("event_connection_timeout") from err
         except Exception as err:
             await self._safe_close(session)
             raise BticinoGatewayError(f"event_connection_failed: {err}") from err
-
         if not result or result.get("Success") is not True:
             await self._safe_close(session)
             raise BticinoGatewayError((result or {}).get("Message", "event_connection_failed"))
         self._event_session = session
         self._set_connected(True)
+        _LOGGER.debug("OpenWebNet event session connected")
 
     async def _event_loop(self) -> None:
         """Read event frames and recover the event session after failures."""
@@ -146,7 +140,7 @@ class BticinoGateway:
                     session = self._event_session
                     if session is None:
                         raise BticinoGatewayError("event_session_missing")
-                    while True:
+                    while not self._closing:
                         message = await session.get_next()
                         if message is None:
                             self._set_connected(False)
@@ -154,31 +148,26 @@ class BticinoGateway:
                             await asyncio.sleep(backoff)
                             backoff = min(backoff * 2, _RECONNECT_MAX_DELAY)
                             break
+
                         backoff = _RECONNECT_INITIAL_DELAY
                         raw = str(message).strip()
                         _LOGGER.debug("OpenWebNet RX: %s", raw)
 
-                        raw_listeners: tuple[Callable[[str], None], ...] = tuple(self._listeners)
-                        for raw_listener in raw_listeners:
+                        for raw_listener in tuple(self._listeners):
                             try:
                                 raw_listener(raw)
                             except Exception:
                                 _LOGGER.exception("OpenWebNet raw listener failed")
 
-                        try:
-                            event = NormalizedEvent.parse(raw)
-                        except (ValueError, AttributeError):
+                        frame = parse_frame(raw)
+                        if frame is None:
                             continue
-
-                        if event is not None:
-                            event_listeners: tuple[Callable[[NormalizedEvent], None], ...] = tuple(
-                                self._event_listeners
-                            )
-                            for event_listener in event_listeners:
-                                try:
-                                    event_listener(event)
-                                except Exception:
-                                    _LOGGER.exception("OpenWebNet normalized event listener failed")
+                        event = normalize_frame(frame)
+                        for event_listener in tuple(self._event_listeners):
+                            try:
+                                event_listener(event)
+                            except Exception:
+                                _LOGGER.exception("OpenWebNet normalized event listener failed")
                 except asyncio.CancelledError:
                     raise
                 except (ConnectionError, TimeoutError, BticinoGatewayError) as err:
@@ -189,10 +178,7 @@ class BticinoGateway:
                         backoff,
                     )
                     await self._close_event_session()
-                    try:
-                        await asyncio.sleep(backoff)
-                    except asyncio.CancelledError:
-                        raise
+                    await asyncio.sleep(backoff)
                     backoff = min(backoff * 2, _RECONNECT_MAX_DELAY)
                 except Exception as err:
                     self._set_connected(False)
@@ -206,27 +192,25 @@ class BticinoGateway:
 
     async def async_send(self, frame: str, is_status_request: bool = False) -> None:
         """Send an OpenWebNet frame via the command session."""
-        while not self._closing:
-            try:
-                session = self._command_session
-                if session is None:
-                    raise BticinoGatewayError("command_session_missing")
-                _LOGGER.debug("OpenWebNet TX: %s", frame)
-                async with asyncio.timeout(_COMMAND_TIMEOUT):
-                    await session.send(message=frame, is_status_request=is_status_request)
-            except asyncio.CancelledError:
-                raise
-            except (ConnectionError, TimeoutError) as err:
-                await self._close_command_session()
-                raise BticinoGatewayError(str(err)) from err
-            except Exception as err:
-                await self._close_command_session()
-                raise BticinoGatewayError(str(err)) from err
-            return
-        raise BticinoGatewayError("gateway_closing")
+        if self._closing:
+            raise BticinoGatewayError("gateway_closing")
+        session = self._command_session
+        if session is None:
+            raise BticinoGatewayError("command_session_missing")
+        try:
+            _LOGGER.debug("OpenWebNet TX: %s", frame)
+            async with asyncio.timeout(_COMMAND_TIMEOUT):
+                await session.send(message=frame, is_status_request=is_status_request)
+        except asyncio.CancelledError:
+            raise
+        except (ConnectionError, TimeoutError) as err:
+            await self._close_command_session()
+            raise BticinoGatewayError(str(err)) from err
+        except Exception as err:
+            await self._close_command_session()
+            raise BticinoGatewayError(str(err)) from err
 
     def add_listener(self, callback: Callable[[str], None]) -> Callable[[], None]:
-        """Subscribe to raw OpenWebNet event frames."""
         self._listeners.add(callback)
 
         def _remove() -> None:
@@ -235,7 +219,6 @@ class BticinoGateway:
         return _remove
 
     def add_event_listener(self, callback: Callable[[NormalizedEvent], None]) -> Callable[[], None]:
-        """Subscribe to parsed and normalized OpenWebNet events."""
         self._event_listeners.add(callback)
 
         def _remove() -> None:
@@ -244,7 +227,6 @@ class BticinoGateway:
         return _remove
 
     def add_connection_listener(self, callback: Callable[[bool], None]) -> Callable[[], None]:
-        """Subscribe to gateway connection-state changes."""
         self._connection_listeners.add(callback)
         callback(self._connected)
 
@@ -257,8 +239,7 @@ class BticinoGateway:
         if self._connected == connected:
             return
         self._connected = connected
-        listeners: tuple[Callable[[bool], None], ...] = tuple(self._connection_listeners)
-        for listener in listeners:
+        for listener in tuple(self._connection_listeners):
             try:
                 listener(connected)
             except Exception:
@@ -266,17 +247,15 @@ class BticinoGateway:
 
     async def _close_command_session(self) -> None:
         session = self._command_session
-        if session is None:
-            return
         self._command_session = None
-        await self._safe_close(session)
+        if session is not None:
+            await self._safe_close(session)
 
     async def _close_event_session(self) -> None:
         session = self._event_session
-        if session is None:
-            return
         self._event_session = None
-        await self._safe_close(session)
+        if session is not None:
+            await self._safe_close(session)
         self._set_connected(False)
 
     async def async_close(self) -> None:
@@ -294,28 +273,16 @@ class BticinoGateway:
 
     async def _safe_close(self, session: OWNSession) -> None:
         try:
-            await session.close()
+            async with asyncio.timeout(_CLOSE_TIMEOUT):
+                await session.close()
+        except TimeoutError:
+            _LOGGER.warning("Timed out closing OWNd session")
         except Exception:
             _LOGGER.warning("Failed to close OWNd session", exc_info=True)
 
 
 async def async_discover_gateways(timeout: int = 5) -> list[dict[str, Any]]:
-    """Discover MH201 gateways via OWNd's SSDP/OWS discovery."""
+    """Discover MH201 gateways via OWNd discovery."""
     from .discovery import BticinoDiscovery
 
-    try:
-        gateways = await BticinoDiscovery.discover_gateways(timeout=timeout)
-    except Exception as err:
-        _LOGGER.warning("OWS/SSDP gateway discovery failed: %s", err)
-        return []
-
-    result = []
-    for gw in gateways:
-        result.append({
-            "host": gw.get("host"),
-            "port": gw.get("port", 20000),
-            "serial": gw.get("serial"),
-            "model": gw.get("modelName") or "OpenWebNet Gateway",
-            "manufacturer": gw.get("manufacturer"),
-        })
-    return [item for item in result if item["host"]]
+    return await BticinoDiscovery.discover_gateways(timeout=timeout)

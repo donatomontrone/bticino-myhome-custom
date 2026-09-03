@@ -1,173 +1,69 @@
-"""Tests for BTicino MyHome climate platform."""
+"""Tests for the WHO=4 climate entity."""
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock
 
 from homeassistant.components.climate import HVACMode
-from homeassistant.core import HomeAssistant
 
-from custom_components.bticino_myhome.climate import BticinoClimate
-from custom_components.bticino_myhome.device import BticinoDevice
+from custom_components.bticino_myhome.climate import BticinoClimate, PRESET_ECO
 from custom_components.bticino_myhome.gateway import BticinoGateway
+from custom_components.bticino_myhome.protocol import normalize_frame, parse_frame
 
 
-async def test_climate_set_hvac_mode_heat(hass: HomeAssistant) -> None:
-    """Test setting HVAC mode to heat."""
-    device = BticinoDevice(
-        device_type="climate",
-        device_id="thermo_1",
-        unique_id="bticino_thermo_1",
-        name="Thermostat 1",
-        where="1",
-        who=4,
-    )
-
-    gateway = BticinoGateway(host="127.0.0.1", port=20000, password="pwd")
+def _climate() -> tuple[BticinoClimate, BticinoGateway]:
+    gateway = BticinoGateway("127.0.0.1", 20000, "pwd")
     gateway.async_send = AsyncMock()
-
-    climate = BticinoClimate(device, gateway)
-    climate.hass = hass
-
-    await climate.async_set_hvac_mode(HVACMode.HEAT)
-
-    # Verify frame sent
-    gateway.async_send.assert_called_once_with("*4*110*1##")
-    assert climate.hvac_mode == HVACMode.HEAT
+    return BticinoClimate(gateway, "4", "1", "Thermostat 1"), gateway
 
 
-async def test_climate_set_hvac_mode_cool(hass: HomeAssistant) -> None:
-    """Test setting HVAC mode to cool."""
-    device = BticinoDevice(
-        device_type="climate",
-        device_id="thermo_1",
-        unique_id="bticino_thermo_1",
-        name="Thermostat 1",
-        where="1",
-        who=4,
-    )
+def test_set_hvac_mode_and_temperature_frames() -> None:
+    async def scenario() -> None:
+        climate, gateway = _climate()
+        await climate.async_set_hvac_mode(HVACMode.HEAT)
+        gateway.async_send.assert_awaited_once_with("*4*110*1##")
+        gateway.async_send.reset_mock()
+        await climate.async_set_temperature(temperature=21.5)
+        gateway.async_send.assert_awaited_once_with("*#4*1*#14*0215##")
+        assert climate.target_temperature == 21.5
 
-    gateway = BticinoGateway(host="127.0.0.1", port=20000, password="pwd")
-    gateway.async_send = AsyncMock()
-
-    climate = BticinoClimate(device, gateway)
-    climate.hass = hass
-
-    await climate.async_set_hvac_mode(HVACMode.COOL)
-
-    # Verify frame sent
-    gateway.async_send.assert_called_once_with("*4*210*1##")
-    assert climate.hvac_mode == HVACMode.COOL
+    asyncio.run(scenario())
 
 
-async def test_climate_set_hvac_mode_off(hass: HomeAssistant) -> None:
-    """Test setting HVAC mode to off."""
-    device = BticinoDevice(
-        device_type="climate",
-        device_id="thermo_1",
-        unique_id="bticino_thermo_1",
-        name="Thermostat 1",
-        where="1",
-        who=4,
-    )
+def test_eco_is_a_preset_not_an_hvac_mode() -> None:
+    async def scenario() -> None:
+        climate, gateway = _climate()
+        assert climate.hvac_modes == [
+            HVACMode.OFF,
+            HVACMode.HEAT,
+            HVACMode.COOL,
+            HVACMode.AUTO,
+        ]
+        await climate.async_set_hvac_mode(HVACMode.HEAT)
+        gateway.async_send.reset_mock()
+        await climate.async_set_preset_mode(PRESET_ECO)
+        gateway.async_send.assert_awaited_once_with("*4*102*1##")
+        assert climate.preset_mode == PRESET_ECO
 
-    gateway = BticinoGateway(host="127.0.0.1", port=20000, password="pwd")
-    gateway.async_send = AsyncMock()
-
-    climate = BticinoClimate(device, gateway)
-    climate.hass = hass
-
-    await climate.async_set_hvac_mode(HVACMode.OFF)
-
-    # Verify frame sent
-    gateway.async_send.assert_called_once_with("*4*303*1##")
-    assert climate.hvac_mode == HVACMode.OFF
+    asyncio.run(scenario())
 
 
-async def test_climate_set_temperature(hass: HomeAssistant) -> None:
-    """Test setting target temperature."""
-    device = BticinoDevice(
-        device_type="climate",
-        device_id="thermo_1",
-        unique_id="bticino_thermo_1",
-        name="Thermostat 1",
-        where="1",
-        who=4,
-    )
-
-    gateway = BticinoGateway(host="127.0.0.1", port=20000, password="pwd")
-    gateway.async_send = AsyncMock()
-
-    climate = BticinoClimate(device, gateway)
-    climate.hass = hass
-
-    await climate.async_set_temperature(temperature=21.5)
-
-    # Verify frame sent (21.5 -> "0215")
-    gateway.async_send.assert_called_once_with("*#4*1*#14*0215##")
-    assert climate.target_temperature == 21.5
-
-
-async def test_climate_update_from_temperature_event(hass: HomeAssistant) -> None:
-    """Test updating from temperature event."""
-    device = BticinoDevice(
-        device_type="climate",
-        device_id="thermo_1",
-        unique_id="bticino_thermo_1",
-        name="Thermostat 1",
-        where="1",
-        who=4,
-    )
-
-    gateway = BticinoGateway(host="127.0.0.1", port=20000, password="pwd")
-
-    climate = BticinoClimate(device, gateway)
-    climate.hass = hass
-
-    # Simulate temperature event
-    climate.update_from_event("temperature", {"temperature": 22.5})
-
+def test_climate_updates_from_dimension_events() -> None:
+    climate, _ = _climate()
+    frame = parse_frame("*#4*1*0*0225##")
+    assert frame is not None
+    climate._handle_event(normalize_frame(frame))
     assert climate.current_temperature == 22.5
 
-
-async def test_climate_update_from_setpoint_event(hass: HomeAssistant) -> None:
-    """Test updating from setpoint event."""
-    device = BticinoDevice(
-        device_type="climate",
-        device_id="thermo_1",
-        unique_id="bticino_thermo_1",
-        name="Thermostat 1",
-        where="1",
-        who=4,
-    )
-
-    gateway = BticinoGateway(host="127.0.0.1", port=20000, password="pwd")
-
-    climate = BticinoClimate(device, gateway)
-    climate.hass = hass
-
-    # Simulate setpoint event
-    climate.update_from_event("setpoint", {"setpoint": 20.0})
-
+    frame = parse_frame("*#4*1*14*0200##")
+    assert frame is not None
+    climate._handle_event(normalize_frame(frame))
     assert climate.target_temperature == 20.0
 
 
-async def test_climate_update_from_mode_event(hass: HomeAssistant) -> None:
-    """Test updating from mode event."""
-    device = BticinoDevice(
-        device_type="climate",
-        device_id="thermo_1",
-        unique_id="bticino_thermo_1",
-        name="Thermostat 1",
-        where="1",
-        who=4,
-    )
-
-    gateway = BticinoGateway(host="127.0.0.1", port=20000, password="pwd")
-
-    climate = BticinoClimate(device, gateway)
-    climate.hass = hass
-
-    # Simulate mode event
-    climate.update_from_event("mode", {"mode": "heat"})
-
-    assert climate.hvac_mode == HVACMode.HEAT
+def test_climate_updates_from_mode_event() -> None:
+    climate, _ = _climate()
+    frame = parse_frame("*4*210*1##")
+    assert frame is not None
+    climate._handle_event(normalize_frame(frame))
+    assert climate.hvac_mode == HVACMode.COOL

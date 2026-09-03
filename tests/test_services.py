@@ -1,93 +1,65 @@
-"""Tests for BTicino MyHome services."""
+"""Tests for the raw OpenWebNet send_frame service."""
 from __future__ import annotations
 
+import asyncio
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
 import pytest
-from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.bticino_myhome.const import DOMAIN
-from custom_components.bticino_myhome.gateway import BticinoGateway
+from custom_components.bticino_myhome.services import SERVICE_SEND_FRAME, async_setup_services
 
 
-@pytest.fixture
-async def mock_gateway(hass: HomeAssistant) -> BticinoGateway:
-    """Create a mock gateway."""
-    gateway = BticinoGateway(host="127.0.0.1", port=20000, password="pwd")
-    return gateway
+class _Services:
+    def __init__(self) -> None:
+        self.handlers = {}
+
+    def has_service(self, domain: str, service: str) -> bool:
+        return (domain, service) in self.handlers
+
+    def async_register(self, domain: str, service: str, handler) -> None:
+        self.handlers[(domain, service)] = handler
+
+    def async_remove(self, domain: str, service: str) -> None:
+        self.handlers.pop((domain, service), None)
 
 
-async def test_send_frame_service_success(hass: HomeAssistant, mock_gateway: BticinoGateway) -> None:
-    """Test send_frame service with valid frame."""
-    # Setup
-    hass.data.setdefault(DOMAIN, {})
-    entry_id = "test_entry"
-    hass.data[DOMAIN][entry_id] = {"gateway": mock_gateway}
-
-    # Mock async_send
-    mock_gateway.async_send = pytest.helpers.async_mock()
-
-    # Call service
-    await hass.services.async_call(
-        DOMAIN,
-        "send_frame",
-        {"frame": "*1*1*21##"},
-        blocking=True,
-    )
-
-    # Verify
-    mock_gateway.async_send.assert_called_once_with("*1*1*21##", is_status_request=False)
+class _Hass:
+    def __init__(self) -> None:
+        self.data = {DOMAIN: {}}
+        self.services = _Services()
 
 
-async def test_send_frame_service_with_status_request(hass: HomeAssistant, mock_gateway: BticinoGateway) -> None:
-    """Test send_frame service with status request."""
-    # Setup
-    hass.data.setdefault(DOMAIN, {})
-    entry_id = "test_entry"
-    hass.data[DOMAIN][entry_id] = {"gateway": mock_gateway}
-
-    # Mock async_send
-    mock_gateway.async_send = pytest.helpers.async_mock()
-
-    # Call service
-    await hass.services.async_call(
-        DOMAIN,
-        "send_frame",
-        {"frame": "*1*1*21##", "is_status_request": True},
-        blocking=True,
-    )
-
-    # Verify
-    mock_gateway.async_send.assert_called_once_with("*1*1*21##", is_status_request=True)
+class _Call:
+    def __init__(self, data) -> None:
+        self.data = data
 
 
-async def test_send_frame_service_missing_frame(hass: HomeAssistant) -> None:
-    """Test send_frame service with missing frame."""
-    # Setup
-    hass.data.setdefault(DOMAIN, {})
-    entry_id = "test_entry"
-    gateway = BticinoGateway(host="127.0.0.1", port=20000, password="pwd")
-    hass.data[DOMAIN][entry_id] = {"gateway": gateway}
-
-    # Call service and expect error
-    with pytest.raises(HomeAssistantError, match="Frame is required"):
-        await hass.services.async_call(
-            DOMAIN,
-            "send_frame",
-            {},
-            blocking=True,
+def test_send_frame_service_uses_loaded_runtime_gateway() -> None:
+    async def scenario() -> None:
+        hass = _Hass()
+        gateway = SimpleNamespace(async_send=AsyncMock())
+        hass.data[DOMAIN]["entry"] = SimpleNamespace(gateway=gateway)
+        await async_setup_services(hass)
+        handler = hass.services.handlers[(DOMAIN, SERVICE_SEND_FRAME)]
+        await handler(_Call({"frame": "*1*1*21##"}))
+        gateway.async_send.assert_awaited_once_with(
+            "*1*1*21##", is_status_request=False
         )
 
+    asyncio.run(scenario())
 
-async def test_send_frame_service_no_gateway(hass: HomeAssistant) -> None:
-    """Test send_frame service with no gateway."""
-    # Setup
-    hass.data.setdefault(DOMAIN, {})
 
-    # Call service and expect error
-    with pytest.raises(HomeAssistantError, match="No gateway configured"):
-        await hass.services.async_call(
-            DOMAIN,
-            "send_frame",
-            {"frame": "*1*1*21##"},
-            blocking=True,
-        )
+def test_send_frame_requires_frame_and_loaded_gateway() -> None:
+    async def scenario() -> None:
+        hass = _Hass()
+        await async_setup_services(hass)
+        handler = hass.services.handlers[(DOMAIN, SERVICE_SEND_FRAME)]
+        with pytest.raises(HomeAssistantError, match="Frame is required"):
+            await handler(_Call({}))
+        with pytest.raises(HomeAssistantError, match="No gateway configured"):
+            await handler(_Call({"frame": "*1*1*21##"}))
+
+    asyncio.run(scenario())

@@ -1,56 +1,33 @@
-"""Tests for BTicino MyHome protocol layer."""
+"""Tests for WHO=4 dimension and mode frames."""
 from __future__ import annotations
 
-from custom_components.bticino_myhome.protocol import (
-    DIM_THERMO_TEMPERATURE,
-    WHO_THERMOREGULATION,
-    parse_frame,
-)
+from custom_components.bticino_myhome.protocol import normalize_frame, parse_frame
 
 
-def test_parse_thermo_temperature_frame() -> None:
-    """Test parsing WHO=4 temperature frame."""
-    frame = "*#4*1*0*0215##"
-    msg = parse_frame(frame)
-
-    assert msg is not None
-    assert msg.who == WHO_THERMOREGULATION
-    assert msg.where == "1"
-    assert msg.dimension == DIM_THERMO_TEMPERATURE
-    assert msg.values == ["0215"]
-
-
-def test_parse_thermo_setpoint_frame() -> None:
-    """Test parsing WHO=4 setpoint frame."""
-    frame = "*#4*1*14*0200*3##"
-    msg = parse_frame(frame)
-
-    assert msg is not None
-    assert msg.who == WHO_THERMOREGULATION
-    assert msg.where == "1"
-    assert msg.dimension == 14
-    assert msg.values == ["0200", "3"]
+def test_parse_thermo_temperature_dimension() -> None:
+    frame = parse_frame("*#4*1*0*0215##")
+    assert frame is not None
+    assert frame.who == "4"
+    assert frame.where == "1"
+    assert frame.dimension == "0"
+    assert frame.values == ("0215",)
+    event = normalize_frame(frame)
+    assert event.device_type == "climate"
 
 
-def test_parse_thermo_mode_frame() -> None:
-    """Test parsing WHO=4 mode frame."""
-    frame = "*4*110*1##"
-    msg = parse_frame(frame)
-
-    assert msg is not None
-    assert msg.who == WHO_THERMOREGULATION
-    assert msg.what == 110
-    assert msg.where == "1"
+def test_parse_thermo_setpoint_dimension_with_extra_value() -> None:
+    frame = parse_frame("*#4*1*14*0200*3##")
+    assert frame is not None
+    assert frame.dimension == "14"
+    assert frame.values == ("0200", "3")
 
 
-def test_parse_thermo_setpoint_command() -> None:
-    """Test parsing WHO=4 setpoint command."""
-    frame = "*#4*1*#14*0215##"
-    msg = parse_frame(frame)
+def test_parse_thermo_mode_event() -> None:
+    frame = parse_frame("*4*110*1##")
+    assert frame is not None
+    event = normalize_frame(frame)
+    assert event.state == "heat"
 
-    assert msg is not None
-    assert msg.who == WHO_THERMOREGULATION
-    assert msg.where == "1"
-    assert msg.dimension == 14
-    assert msg.values == ["0215"]
-    assert msg.is_dimension_write is True
+
+def test_dimension_write_is_not_treated_as_received_state() -> None:
+    assert parse_frame("*#4*1*#14*0215##") is None

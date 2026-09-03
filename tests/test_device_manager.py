@@ -1,53 +1,46 @@
-"""Test device manager."""
+"""Tests for the runtime device manager."""
 from __future__ import annotations
 
 from custom_components.bticino_myhome.device import BticinoDeviceManager
 from custom_components.bticino_myhome.discovery import DiscoveredDevice, DiscoverySource
 
 
-def test_replace_notifies_only_changed_devices() -> None:
+def _device(where: str, source: str = DiscoverySource.PASSIVE.value) -> DiscoveredDevice:
+    return DiscoveredDevice(
+        who="1",
+        where=where,
+        device_type="light",
+        name=f"Light {where}",
+        capabilities=("on_off",),
+        source=source,
+    )
+
+
+def test_replace_reports_only_actual_changes() -> None:
     manager = BticinoDeviceManager()
-    first = DiscoveredDevice(
-        who="1",
-        address="10",
-        device_type="light",
-        capabilities=("on_off",),
-        source=DiscoverySource.PASSIVE.value,
-    )
-    second = DiscoveredDevice(
-        who="1",
-        address="11",
-        device_type="light",
-        capabilities=("on_off",),
-        source=DiscoverySource.PASSIVE.value,
-    )
-
-    changed = manager.replace([first, second])
-    assert len(changed) == 2
-
-    # Second call with same devices should still report them (no deduplication yet)
-    changed2 = manager.replace([first, second])
-    assert len(changed2) == 2
+    first = _device("10")
+    second = _device("11")
+    assert manager.replace([first, second]) == [first, second]
+    assert manager.replace([first, second]) == []
 
 
-def test_manual_device_not_overwritten_by_passive_event() -> None:
+def test_manual_device_is_not_overwritten_or_dropped_by_discovery() -> None:
     manager = BticinoDeviceManager()
-    manual = DiscoveredDevice(
-        who="1",
-        address="10",
-        device_type="light",
-        capabilities=("on_off",),
-        source=DiscoverySource.MANUAL.value,
-    )
-    passive = DiscoveredDevice(
-        who="1",
-        address="10",
-        device_type="light",
-        capabilities=("on_off",),
-        source=DiscoverySource.PASSIVE.value,
-    )
+    manual = _device("10", DiscoverySource.MANUAL.value)
+    passive = _device("10", DiscoverySource.PASSIVE.value)
+    assert manager.add(manual) is True
+    assert manager.add(passive) is False
+    manager.replace([])
+    assert manager.get(manual.key) == manual
 
-    # Manual device should not be overwritten by passive
-    changed = manager.replace([manual, passive])
-    assert len(changed) == 1
-    assert manager.get(manual.key) is not None
+
+def test_old_address_field_is_migrated_on_read() -> None:
+    device = DiscoveredDevice.from_dict(
+        {
+            "who": "1",
+            "address": "12",
+            "device_type": "light",
+            "source": "manual",
+        }
+    )
+    assert device.where == "12"

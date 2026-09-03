@@ -1,30 +1,58 @@
-"""Tests for BTicino MyHome device triggers."""
+"""Tests for WHO=0 device triggers."""
 from __future__ import annotations
 
-from homeassistant.core import HomeAssistant
+import asyncio
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from custom_components.bticino_myhome.device_trigger import async_get_trigger_capabilities, async_get_triggers
-
-
-async def test_get_triggers_empty_when_no_scenes(hass: HomeAssistant) -> None:
-    """Test get_triggers returns empty list when no scenes."""
-    device_id = "test_device"
-    triggers = await async_get_triggers(hass, device_id)
-    assert triggers == []
-
-
-async def test_get_triggers_returns_scenario_triggers(hass: HomeAssistant) -> None:
-    """Test get_triggers returns scenario triggers for scene devices."""
-    device_id = "test_device"
-    triggers = await async_get_triggers(hass, device_id)
-
-    # Should return empty list if no scenes exist
-    # This test documents the expected behavior
-    assert isinstance(triggers, list)
+from custom_components.bticino_myhome.const import DOMAIN, EVENT_OPENWEBNET
+from custom_components.bticino_myhome.device_trigger import (
+    CONF_SUBTYPE,
+    TRIGGER_SCENARIO_ACTIVATED,
+    async_attach_trigger,
+    async_get_triggers,
+)
 
 
-async def test_get_trigger_capabilities(hass: HomeAssistant) -> None:
-    """Test get_trigger_capabilities returns empty dict."""
-    config = {"device_id": "test_device", "type": "scenario_activated"}
-    capabilities = await async_get_trigger_capabilities(hass, config)
-    assert capabilities == {}
+def test_get_triggers_from_scene_device_identifier() -> None:
+    async def scenario() -> None:
+        registry = MagicMock()
+        registry.async_get.return_value = SimpleNamespace(
+            identifiers={(DOMAIN, "192.0.2.2:20000:0:12")}
+        )
+        with patch(
+            "custom_components.bticino_myhome.device_trigger.dr.async_get",
+            return_value=registry,
+        ):
+            triggers = await async_get_triggers(MagicMock(), "device-id")
+        assert triggers[0]["type"] == TRIGGER_SCENARIO_ACTIVATED
+        assert triggers[0][CONF_SUBTYPE] == "12"
+
+    asyncio.run(scenario())
+
+
+def test_attach_trigger_uses_standard_ha_event_trigger() -> None:
+    async def scenario() -> None:
+        action = MagicMock()
+        trigger_info = MagicMock()
+        with patch(
+            "custom_components.bticino_myhome.device_trigger.event_trigger.async_attach_trigger",
+            new=AsyncMock(return_value=MagicMock()),
+        ) as attach:
+            await async_attach_trigger(
+                MagicMock(),
+                {
+                    "platform": "device",
+                    "domain": DOMAIN,
+                    "device_id": "device-id",
+                    "type": TRIGGER_SCENARIO_ACTIVATED,
+                    CONF_SUBTYPE: "12",
+                },
+                action,
+                trigger_info,
+            )
+        event_config = attach.await_args.args[1]
+        assert event_config["event_type"] == EVENT_OPENWEBNET
+        assert event_config["event_data"] == {"who": "0", "where": "12"}
+
+    asyncio.run(scenario())

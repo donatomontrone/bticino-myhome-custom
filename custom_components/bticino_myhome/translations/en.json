@@ -3,31 +3,19 @@
     "step": {
       "user": {
         "title": "BTicino MyHome - MH201",
-        "description": "Ricerca automatica del gateway sulla rete locale in corso..."
-      },
-      "select_gateway": {
-        "title": "Seleziona il gateway",
+        "description": "Configure the local OpenWebNet connection to the MH201 gateway.",
         "data": {
-          "gateway": "Gateway trovato"
-        }
-      },
-      "manual_gateway": {
-        "title": "Inserisci IP del gateway MH201",
-        "data": {
-          "host": "Indirizzo IP",
-          "port": "Porta (default 20000)"
-        }
-      },
-      "credentials": {
-        "title": "Password OpenWebNet",
-        "description": "Se non conosci la password lascia vuoto e prova. In caso di errore riprova con 12345 (default di fabbrica).",
-        "data": {
-          "password": "Password OpenWebNet (opzionale)"
+          "host": "IP address or hostname",
+          "port": "OpenWebNet port",
+          "password": "OpenWebNet password (optional)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Connessione al gateway non riuscita. Verifica IP, porta e password."
+      "cannot_connect": "Unable to connect to the gateway. Check address, port and password."
+    },
+    "abort": {
+      "already_configured": "This gateway is already configured."
     }
   },
   "options": {
@@ -36,41 +24,34 @@
         "title": "BTicino MyHome options",
         "data": {
           "action": "Action",
-          "include_scenarios": "Include Home+Project scenario candidates",
-          "discovery_listen_seconds": "Listening time during scan (0-60 seconds)"
-        }
-      },
-      "run_discovery": {
-        "title": "Scan completed",
-        "description": "Confirmed devices have been added to the inventory."
-      },
-      "manual_device": {
-        "title": "Add device manually",
-        "description": "Use this mode for devices that cannot be discovered automatically.",
-        "data": {
-          "who": "WHO",
-          "where": "WHERE",
-          "device_type": "Tipo dispositivo",
-          "name": "Nome (opzionale)"
+          "include_scenarios": "Include Home+Project scenarios",
+          "discovery_listen_seconds": "Listening time during scan"
         }
       },
       "passive_learning": {
         "title": "Learn BTicino devices",
         "description": "Listen to the BUS without sending commands. Use the physical controls you want to identify while listening.",
-        "data": {
-          "listen_seconds": "Listening time (seconds)"
-        }
+        "data": {"listen_seconds": "Listening time (seconds)"}
       },
       "select_learned": {
         "title": "Discovered devices",
         "description": "Select the devices to add to the inventory.",
+        "data": {"devices": "Devices"}
+      },
+      "manual_device": {
+        "title": "Add device manually",
+        "description": "Register an OpenWebNet endpoint by WHO and WHERE.",
         "data": {
-          "devices": "Devices"
+          "who": "WHO",
+          "where": "WHERE",
+          "device_type": "Device type",
+          "name": "Name (optional)"
         }
       }
     },
     "abort": {
-      "no_devices_found": "No supported device was detected during listening."
+      "no_devices_found": "No supported device was detected during listening.",
+      "cannot_connect": "The integration is not currently loaded."
     }
   }
 }

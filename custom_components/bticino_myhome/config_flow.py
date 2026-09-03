@@ -15,7 +15,7 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import CONF_GATEWAY_HOST, CONF_GATEWAY_PASSWORD, CONF_GATEWAY_PORT, DOMAIN
-from .discovery import BticinoDiscovery
+from .discovery import BticinoDiscovery, DiscoveredDevice
 from .gateway import BticinoGateway, BticinoGatewayError
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,7 +27,6 @@ class BticinoMyHomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 2
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Collect gateway connection details and validate them."""
         errors: dict[str, str] = {}
         if user_input is not None:
             host = str(user_input[CONF_GATEWAY_HOST]).strip()
@@ -40,7 +39,12 @@ class BticinoMyHomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 await gateway.async_test_connection()
             except BticinoGatewayError as err:
-                _LOGGER.warning("Unable to connect to BTicino gateway %s:%s: %s", host, port, err)
+                _LOGGER.warning(
+                    "Unable to connect to BTicino gateway %s:%s: %s",
+                    host,
+                    port,
+                    err,
+                )
                 errors["base"] = "cannot_connect"
             else:
                 return self.async_create_entry(
@@ -72,15 +76,14 @@ class BticinoMyHomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
-        """Return the options flow for an existing entry."""
         return BticinoMyHomeOptionsFlow()
 
 
 class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
-    """Options flow for scans and safe passive learning."""
+    """Options flow for discovery and explicit endpoint registration."""
 
     def __init__(self) -> None:
-        self._passive_found = []
+        self._passive_found: list[DiscoveredDevice] = []
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
@@ -89,7 +92,10 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
                 return await self.async_step_run_discovery(user_input)
             if action == "learn":
                 return await self.async_step_passive_learning()
+            if action == "manual":
+                return await self.async_step_manual_device()
             return self.async_create_entry(title="", data={})
+
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
@@ -99,6 +105,7 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
                             "none": "Nessuna azione",
                             "scan": "Scansione automatica",
                             "learn": "Impara dispositivi dai pulsanti fisici",
+                            "manual": "Aggiungi dispositivo manualmente",
                         }
                     ),
                     vol.Optional("include_scenarios", default=True): bool,
@@ -124,20 +131,16 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
                 ),
             )
 
-        entry = self.config_entry
-        gateway = BticinoGateway(
-            entry.data[CONF_GATEWAY_HOST],
-            entry.data[CONF_GATEWAY_PORT],
-            entry.data.get(CONF_GATEWAY_PASSWORD, ""),
-        )
+        runtime = self.config_entry.runtime_data
+        if runtime is None:
+            return self.async_abort(reason="cannot_connect")
         try:
-            await gateway.async_connect()
-            found = await BticinoDiscovery(gateway).async_passive_listen(user_input["listen_seconds"])
+            found = await BticinoDiscovery(runtime.gateway).async_passive_listen(
+                user_input["listen_seconds"]
+            )
         except Exception as err:
-            _LOGGER.exception("Passive learning BTicino failed: %s", err)
+            _LOGGER.exception("Passive BTicino learning failed: %s", err)
             found = []
-        finally:
-            await gateway.async_close()
 
         if not found:
             return self.async_abort(reason="no_devices_found")
@@ -149,16 +152,13 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
     ) -> FlowResult:
         if user_input is not None:
             selected = set(user_input.get("devices", []))
-            entry = self.config_entry
-            manager = entry.runtime_data.device_manager
+            runtime = self.config_entry.runtime_data
+            if runtime is None:
+                return self.async_abort(reason="cannot_connect")
             for device in self._passive_found:
                 if device.key in selected:
-                    manager.add(device)
-
-            self.hass.config_entries.async_update_entry(
-                entry,
-                data={**entry.data, "devices": manager.as_dicts()},
-            )
+                    runtime.device_manager.add(device)
+            self._persist_devices(runtime.device_manager.as_dicts())
             return self.async_create_entry(title="", data={})
 
         options = {
@@ -187,33 +187,69 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         user_input = user_input or {}
-        entry = self.config_entry
-        gateway = BticinoGateway(
-            entry.data[CONF_GATEWAY_HOST],
-            entry.data[CONF_GATEWAY_PORT],
-            entry.data.get(CONF_GATEWAY_PASSWORD, ""),
-        )
+        runtime = self.config_entry.runtime_data
+        if runtime is None:
+            return self.async_abort(reason="cannot_connect")
         try:
-            await gateway.async_connect()
-            found = await BticinoDiscovery(gateway).async_run_full_scan(
+            found = await BticinoDiscovery(runtime.gateway).async_run_full_scan(
                 include_scenarios=user_input.get("include_scenarios", True),
                 listen_seconds=user_input.get("discovery_listen_seconds", 3),
             )
         except Exception as err:
             _LOGGER.exception("BTicino discovery failed: %s", err)
             found = []
-        finally:
-            await gateway.async_close()
 
         if not found:
             return self.async_abort(reason="no_devices_found")
-
-        manager = entry.runtime_data.device_manager
         for device in found:
-            manager.add(device)
+            runtime.device_manager.add(device)
+        self._persist_devices(runtime.device_manager.as_dicts())
+        return self.async_create_entry(title="", data={})
 
+    async def async_step_manual_device(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        if user_input is None:
+            return self.async_show_form(
+                step_id="manual_device",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required("who"): str,
+                        vol.Required("where"): str,
+                        vol.Required("device_type"): vol.In(
+                            [
+                                "scene",
+                                "light",
+                                "cover",
+                                "load",
+                                "climate",
+                                "alarm",
+                                "intercom",
+                                "door_lock",
+                                "energy",
+                            ]
+                        ),
+                        vol.Optional("name", default=""): str,
+                    }
+                ),
+            )
+
+        runtime = self.config_entry.runtime_data
+        if runtime is None:
+            return self.async_abort(reason="cannot_connect")
+        device = BticinoDiscovery.from_manual(
+            who=str(user_input["who"]),
+            where=str(user_input["where"]),
+            device_type=str(user_input["device_type"]),
+            name=str(user_input.get("name", "")) or None,
+        )
+        runtime.device_manager.add(device)
+        self._persist_devices(runtime.device_manager.as_dicts())
+        return self.async_create_entry(title="", data={})
+
+    def _persist_devices(self, devices: list[dict[str, Any]]) -> None:
+        entry = self.config_entry
         self.hass.config_entries.async_update_entry(
             entry,
-            data={**entry.data, "devices": manager.as_dicts()},
+            data={**entry.data, "devices": devices},
         )
-        return self.async_create_entry(title="", data={})

@@ -1,96 +1,71 @@
-"""Device layer for BTicino MyHome integration."""
+"""Runtime device registry for BTicino MyHome entities."""
 from __future__ import annotations
 
-import logging
-from collections.abc import Callable
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable
+from typing import Any
 
-from homeassistant.helpers.device_registry import DeviceInfo
-
-from .const import DOMAIN
-from .discovery import DiscoveredDevice
-
-_LOGGER = logging.getLogger(__name__)
-
-
-@dataclass
-class BticinoDevice:
-    """Device representation for BTicino MyHome."""
-
-    device_type: str
-    device_id: str
-    unique_id: str
-    name: str
-    where: str
-    who: int
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device info."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self.device_id)},
-            name=self.name,
-            manufacturer="BTicino",
-            model=f"WHO={self.who}",
-        )
-
-    @classmethod
-    def from_discovered(cls, discovered: DiscoveredDevice) -> BticinoDevice:
-        """Create a device from a discovered device."""
-        return cls(
-            device_type=discovered.device_type,
-            device_id=discovered.device_id,
-            unique_id=discovered.unique_id,
-            name=discovered.name,
-            where=discovered.where,
-            who=discovered.who,
-        )
+from .discovery import DiscoverySource, DiscoveredDevice
 
 
 class BticinoDeviceManager:
-    """Device manager for BTicino MyHome."""
+    """In-memory device inventory with listener notifications."""
 
-    def __init__(self) -> None:
-        """Initialize device manager."""
-        self._devices: dict[str, BticinoDevice] = {}
-        self._listeners: list[Callable[[BticinoDevice], None]] = []
-
-    def add_listener(self, listener: Callable[[BticinoDevice], None]) -> None:
-        """Add a listener for device changes."""
-        self._listeners.append(listener)
-
-    def remove_listener(self, listener: Callable[[BticinoDevice], None]) -> None:
-        """Remove a listener."""
-        self._listeners.remove(listener)
-
-    def add(self, device: BticinoDevice) -> None:
-        """Add a device."""
-        previous = self._devices.get(device.device_id)
-        self._devices[device.device_id] = device
-
-        # Only notify if changed
-        if previous != device:
-            for listener in tuple(self._listeners):
-                listener(device)
-
-    def replace(self, devices: list[BticinoDevice]) -> None:
-        """Replace all devices."""
-        devices = list(devices)
-        previous_devices = self._devices.copy()
-        self._devices = {device.device_id: device for device in devices}
-
-        # Notify for all devices
-        for device in devices:
-            previous = previous_devices.get(device.device_id)
-            if previous != device:
-                for listener in tuple(self._listeners):
-                    listener(device)
+    def __init__(self, devices: Iterable[DiscoveredDevice] = ()) -> None:
+        self._devices: dict[str, DiscoveredDevice] = {device.key: device for device in devices}
+        self._listeners: set[Callable[[DiscoveredDevice], None]] = set()
 
     @property
-    def devices(self) -> list[BticinoDevice]:
-        """Return all devices."""
+    def devices(self) -> list[DiscoveredDevice]:
         return list(self._devices.values())
 
-    def get_device(self, device_id: str) -> BticinoDevice | None:
-        """Get a device by ID."""
-        return self._devices.get(device_id)
+    def get(self, key: str) -> DiscoveredDevice | None:
+        return self._devices.get(key)
+
+    def add(self, device: DiscoveredDevice) -> bool:
+        """Add/update a device while preserving explicit manual configuration."""
+        previous = self._devices.get(device.key)
+        if (
+            previous is not None
+            and previous.source == DiscoverySource.MANUAL.value
+            and device.source != DiscoverySource.MANUAL.value
+        ):
+            return False
+        changed = previous != device
+        if not changed:
+            return False
+        self._devices[device.key] = device
+        for listener in tuple(self._listeners):
+            listener(device)
+        return True
+
+    def add_listener(self, callback: Callable[[DiscoveredDevice], None]) -> Callable[[], None]:
+        self._listeners.add(callback)
+
+        def _remove() -> None:
+            self._listeners.discard(callback)
+
+        return _remove
+
+    def remove(self, key: str) -> bool:
+        return self._devices.pop(key, None) is not None
+
+    def replace(self, devices: Iterable[DiscoveredDevice]) -> list[DiscoveredDevice]:
+        """Merge a discovery snapshot and return only actually changed devices.
+
+        Manual devices survive discovery snapshots even when they are absent
+        from the new result.
+        """
+        incoming = list(devices)
+        incoming_keys = {device.key for device in incoming}
+        changed: list[DiscoveredDevice] = []
+        for device in incoming:
+            if self.add(device):
+                changed.append(device)
+
+        for key, current in list(self._devices.items()):
+            if key not in incoming_keys and current.source != DiscoverySource.MANUAL.value:
+                del self._devices[key]
+        return changed
+
+    def as_dicts(self) -> list[dict[str, Any]]:
+        return [device.to_dict() for device in self.devices]
