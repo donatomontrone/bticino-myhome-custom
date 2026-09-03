@@ -68,6 +68,7 @@ class BticinoAlarmPartitionSensor(BticinoEntity, BinarySensorEntity):
     """Active/partialized state for one documented WHO=5 central zone."""
 
     _request_initial_state_on_add = True
+    _attr_name: str | None = None
 
     def __init__(
         self,
