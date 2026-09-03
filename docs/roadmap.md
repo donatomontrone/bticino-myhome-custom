@@ -11,14 +11,18 @@ The following surfaces are intentionally outside this project and must not be in
 - WHO=22;
 - media player;
 - audio, music and sound diffusion;
-- WHO=1 dimmer / brightness / transition control.
+- WHO=1 dimmer / brightness / transition control;
+- WHO=3 load-management semantics; energy management is modeled only through documented WHO=18 surfaces;
+- video/audio streaming and camera entities for the VDE/HomeTouch target.
 
-WHO=1 support for this MH201 integration is intentionally limited to basic lighting ON/OFF control and state.
+WHO=1 support for this MH201 integration is intentionally limited to basic lighting ON/OFF control and state. WHO=3 has been removed from runtime code, discovery, manual configuration and platform exposure and must not be reintroduced as an energy-management family.
 
 ## Validation labels
 
 - **spec/reference validated**: behavior is derived from public BTicino/Legrand OpenWebNet documentation and cross-checked against established MyHOME implementations, with deterministic unit/mocked tests;
 - **hardware validated**: the same behavior has also been confirmed against captures and runtime behavior from a real MH201/MyHOME installation.
+
+For legacy BTicino commands that are documented outside the public WHO application note, the roadmap uses **reference-backed, hardware validation pending** rather than claiming the target 4200C/MH201 path has already been proven.
 
 ## Development completion rule
 
@@ -30,11 +34,13 @@ Release 0.2.0 established the repository/architecture baseline. Subsequent `mast
 
 WHO=1 is complete software-side for the deliberately restricted ON/OFF-only project scope. WHO=2 advanced-shutter position and WHO=4 thermoregulation are spec/reference validated for their currently modeled software surfaces. Real MH201/BUS validation remains pending for all three.
 
-WHO=18 now has a deliberately narrow production surface that is also spec/reference validated software-side: documented `5N` energy-meter endpoints expose read-only DIM=113 active power in watts using a Home Assistant `POWER`/`MEASUREMENT` sensor, with initial hydration and evidence-driven updates. Totalizers and other WHO=18 dimensions are deliberately deferred until their units, reset semantics and real MH201 behavior can be validated.
+WHO=5 has been reworked around the actual BTicino 4200C target. The software now models documented central and partition status, eight partition sensors, evidence-driven alarm-panel state, reference-backed total arm/disarm, selected-active-partition arm and explicit single-partition active/partialized controls. All alarm control commands remain hardware-validation-pending on the target 4200C through MH201.
 
-WHO=3 remains conservative/provisional. Basic ON/OFF code already exists, but no additional semantics or software-complete claim will be added until a sufficiently detailed official/reference source or real captures support the current mapping.
+Door-entry handling is now separated from public WHO=7 multimedia semantics. The HomeTouch target uses a conservative reference-backed WHO=6 door-release surface plus disabled-by-default raw WHO=6/7 diagnostic capture. A ring binary sensor is intentionally pending until a stable HomeTouch/MH201 call-start and call-end frame is established from documentation/reference evidence or real capture. Public WHO=7 camera/multimedia controls are not exposed because audio/video streaming is outside scope.
 
-CI is green against Home Assistant 2025.1 / Python 3.12 and Home Assistant 2026.9 / Python 3.14, with Ruff, mypy, pytest, Hassfest and HACS validation. The HA 2026.9 quality target enforces a coverage gate of 55%; after the WHO=18 active-power slice the suite contains 141 tests and reports 70.12% integration-package coverage.
+WHO=18 has a deliberately narrow production surface that is spec/reference validated software-side: documented `5N` energy-meter endpoints expose read-only DIM=113 active power in watts using a Home Assistant `POWER`/`MEASUREMENT` sensor, with initial hydration and evidence-driven updates. Totalizers and other WHO=18 dimensions are deliberately deferred until their units, reset semantics and real MH201 behavior can be validated.
+
+The latest software baseline contains 162 deterministic tests and reports 73.27% integration-package coverage on Home Assistant 2026.9 / Python 3.14. The coverage gate remains 55%. The final completion state for this roadmap revision still requires the same final `master` HEAD to be green for HA 2025.1 / Python 3.12, HA 2026.9 / Python 3.14, Ruff, mypy, pytest, Hassfest and HACS.
 
 A local/running Home Assistant instance is not required for the remaining software-side work. Integration-level lifecycle testing can continue with deterministic/mocked Home Assistant test machinery; clean-install/upgrade validation and physical MH201 validation remain deferred to the final validation campaign.
 
@@ -88,9 +94,9 @@ A local/running Home Assistant instance is not required for the remaining softwa
 
 ### Device runtime state and discovery safety
 
-- [x] Initial-state hydration plumbing for WHO=1/2/3 without optimistic state
-- [x] Remove synthetic WHO=7 entities
-- [x] Keep raw WHO=7 event surface diagnostic and disabled by default
+- [x] Initial-state hydration plumbing for supported stateful families without optimistic state
+- [x] Remove synthetic/guessed WHO=7 call entities
+- [x] Keep raw WHO=6/7 door-entry/multimedia event capture diagnostic and disabled by default
 - [x] Propagate explicit DeviceManager removals to runtime entities and inventory
 - [x] Keep discovery snapshots merge-only
 - [x] DeviceManager/dynamic add-remove coverage
@@ -99,6 +105,7 @@ A local/running Home Assistant instance is not required for the remaining softwa
 - [x] Conservative SCS/OpenWebNet probe rate limiting
 - [x] Surface gateway failure during active discovery
 - [x] Validate manual WHO/device-type combinations
+- [x] Remove WHO=3 from discovery, manual inventory and platform exposure
 
 ## Phase C — code completion and Home Assistant surface quality — COMPLETE SOFTWARE-SIDE
 
@@ -117,7 +124,7 @@ A local/running Home Assistant instance is not required for the remaining softwa
 - [x] Translated entity command and climate validation errors
 - [x] Diagnostics/redaction regression tests
 - [x] Mocked Config/Options/inventory/changed-IP tests
-- [x] Coverage reporting with 55% CI gate; current validated baseline 141 tests / 70.12%
+- [x] Coverage reporting with 55% CI gate; current validated software baseline 162 tests / 73.27%
 
 ## Phase D — protocol evidence and deterministic replay
 
@@ -126,10 +133,10 @@ This phase starts when real captures are available. No protocol-specific behavio
 - [ ] Build sanitized real-capture fixtures grouped by WHO/device/action
 - [ ] Raw frame -> parsed frame -> normalized event -> entity state replay tests
 - [ ] Record gateway model/firmware and safe installation context with captures
-- [x] Reject parameterized standard `#WHERE` endpoint evidence outside explicit WHO=4 central-zone handling
+- [x] Reject parameterized standard `#WHERE` endpoint evidence except for explicitly parsed WHO=4 central-zone and WHO=5 partition semantics; WHO=5 `#N` remains partition state rather than endpoint-discovery evidence
 - [ ] Investigate diagnostic/broadcast/group frames per WHO using real captures
-- [ ] Revisit flat `NormalizedEvent.state` before complex WHO=5/18 payloads require structured semantics
-- [ ] Move additional WHO-specific semantics into dedicated protocol modules only when evidence supports them
+- [ ] Revisit flat `NormalizedEvent.state` before additional complex WHO=5/18 payloads require structured semantics
+- [x] Move WHO=2, WHO=4, WHO=5, WHO=6 door-entry and WHO=18 semantics into dedicated protocol modules where current evidence supports them
 
 ## Phase E — protocol/platform coverage
 
@@ -170,16 +177,6 @@ Dimmer, brightness and transition semantics are permanently excluded from this i
 - [ ] Complete observed automation WHAT catalogue from real captures
 - [ ] Initial-state and advanced-position validation on a real MH201/BUS
 
-### WHO=3 — load management — PROVISIONAL / EVIDENCE PENDING
-
-- [x] Basic ON/OFF command and event state currently present
-- [x] Initial-state hydration plumbing currently present
-- [ ] Confirm current WHO=3 command/state semantics from a sufficiently detailed official/reference source or real captures before declaring the surface software-complete
-- [ ] Add/adjust deterministic load-switch tests once that semantic evidence is established
-- [ ] Initial-state query validation on a real MH201/BUS
-- [ ] Complete observed load-management catalogue
-- [ ] Validate whether additional measurements/states belong here or in WHO=18
-
 ### WHO=4 — thermoregulation — SPEC/REFERENCE VALIDATED, HARDWARE VALIDATION PENDING
 
 - [x] Home Assistant climate entity
@@ -199,22 +196,49 @@ Dimmer, brightness and transition semantics are permanently excluded from this i
 - [ ] Validate setpoint-write acknowledgement/effect on real hardware
 - [ ] Validate valve/HVAC-action semantics from real traffic
 
-### WHO=5 — alarm — EXPERIMENTAL
+### WHO=5 — burglar alarm / BTicino 4200C target — STATUS SPEC-ALIGNED, CONTROL REFERENCE-BACKED, HARDWARE VALIDATION PENDING
 
-- [x] Minimal alarm-control-panel surface
-- [ ] Keep current WHAT/state mappings provisional until real-installation confirmation
-- [ ] Build safe alarm fixture catalogue
-- [ ] Distinguish arm, zone/event, fault/restore and alarm transitions only when observed
-- [ ] Do not expand control semantics beyond capture-backed behavior
+- [x] Dedicated `protocol/alarm.py`
+- [x] Parse WHO=5 central frames such as `*5*WHAT**##` as central WHERE=0 evidence
+- [x] Parse WHO=5 partition frames with `#1..#8` without treating them as discovered endpoint devices
+- [x] Documented central status request `*#5*0##`
+- [x] Documented partition status requests `*#5*#N##`, N=1..8
+- [x] Evidence-driven central ENGAGED/DISENGAGED Home Assistant alarm state
+- [x] Evidence-driven alarm-trigger state for supported intrusion/tamper/panic-style WHAT values
+- [x] Expose eight read-only partition-state sensors from WHO=5 `WHAT=11` active and `WHAT=18` partialized/non-active evidence
+- [x] Reference-backed total arm command `*5*8##`
+- [x] Reference-backed total disarm command `*5*9##`
+- [x] Reference-backed selected-active-partition arm action using `*5*8#...##`
+- [x] Reference-backed single-partition activate action using `*5*11*#N##`
+- [x] Reference-backed single-partition partialize action using `*5*18*#N##`
+- [x] Keep all alarm state evidence-driven; transmitted commands never update Home Assistant state optimistically
+- [x] Deterministic protocol, alarm-panel, partition-sensor and service tests
+- [x] Cross-check status/zone model against the mature openHAB OpenWebNet alarm handler and OWNd event semantics
+- [ ] Validate central status query and all arm/disarm/partition commands against the target 4200C through MH201
+- [ ] Capture normal arm/disarm and partition transitions from the real installation
+- [ ] Capture safe fault/battery/network event lifecycle without intentionally creating unsafe alarm conditions
+- [ ] Decide whether additional 4200C zone/input entities are useful only after real traffic establishes stable mapping
 
-### WHO=7 — video door entry — EXPERIMENTAL
+### WHO=6 — door entry / HomeTouch target — REFERENCE-BACKED DOOR RELEASE, HARDWARE VALIDATION PENDING
 
-- [x] Initial call-event and door-release surfaces
-- [x] Require observed/manual endpoint evidence
-- [x] Raw event surface diagnostic and disabled by default
-- [ ] Build video door-entry fixture catalogue
-- [ ] Validate call start/end semantics and WHERE routing
-- [ ] Validate door-release command against real MH201 traffic
+- [x] Separate door-entry semantics from public WHO=7 multimedia/camera semantics
+- [x] Dedicated `protocol/door_entry.py`
+- [x] Reference-backed WHO=6 door-release command surface
+- [x] Manual WHO=6 `intercom` / `door_lock` inventory support
+- [x] Disabled-by-default raw WHO=6/7 diagnostic event sensor for capture work
+- [x] Remove guessed WHO=7 call start/end mappings rather than presenting unsupported ring state
+- [x] Deterministic door-release and scope-mapping tests
+- [ ] Validate door-release command against the target MH201/HomeTouch installation
+- [ ] Capture HomeTouch call start and call end traffic without requiring audio/video
+- [ ] Add a ring binary sensor only after a repeatable call lifecycle is established from official/reference evidence or real capture
+
+### WHO=7 — multimedia / VDE cameras — DOCUMENTED FAMILY, NOT EXPOSED AS A/V PLATFORM
+
+- [x] Confirm from public Legrand WHO=7 documentation that the family models multimedia/camera controls rather than a generic HomeTouch ring state
+- [x] Do not misclassify WHO=7 camera/multimedia events as door-entry endpoint evidence
+- [x] Allow raw WHO=7 diagnostics to support HomeTouch traffic analysis
+- [x] Keep camera/audio/video entities outside the requested project scope
+- [ ] Use real HomeTouch/MH201 captures to determine whether any WHO=7 event materially contributes to ring lifecycle evidence
 
 ### WHO=18 — energy — ACTIVE POWER SPEC/REFERENCE VALIDATED, HARDWARE VALIDATION PENDING
 
@@ -249,10 +273,12 @@ Dimmer, brightness and transition semantics are permanently excluded from this i
 
 - [x] README synchronized with current implementation scope
 - [x] Native SSDP, stable identity and migration documented
-- [x] Experimental vs implemented protocol families documented
+- [x] Implemented vs hardware-validation-pending protocol families documented
 - [x] Dual Home Assistant CI window documented
 - [x] Changelog/version metadata for 0.2.0
 - [ ] Runtime validation on a real MH201
+- [ ] Validate WHO=5 4200C central/partition status and control path
+- [ ] Validate WHO=6 HomeTouch door release and capture ring lifecycle
 - [ ] HACS installation validation from the tagged release
 - [ ] Clean-install validation
 - [ ] Upgrade validation from 0.1.x
@@ -262,6 +288,6 @@ Dimmer, brightness and transition semantics are permanently excluded from this i
 
 ## Release boundary and next software focus
 
-0.2.0 remains an architecture/runtime milestone, not a declaration that every protocol surface is hardware-validated. Post-0.2.0 `master` has the software-side architecture/runtime and Home Assistant surface-quality phases complete. WHO=1 ON/OFF is complete software-side; WHO=2 advanced position, WHO=4 thermoregulation and WHO=18 active power are spec/reference validated for their currently modeled software surfaces.
+0.2.0 remains an architecture/runtime milestone, not a declaration that every protocol surface is hardware-validated. Post-0.2.0 `master` has the software-side architecture/runtime and Home Assistant surface-quality phases complete. WHO=1 ON/OFF is complete software-side; WHO=2 advanced position, WHO=4 thermoregulation and WHO=18 active power are spec/reference validated for their currently modeled software surfaces. WHO=5 now has a 4200C-oriented status/partition model plus reference-backed control, and WHO=6 has the deliberately narrow HomeTouch door-release/capture surface.
 
-Further protocol breadth is intentionally blocked where evidence is insufficient: WHO=1 dimming is permanently excluded, WHO=3 remains provisional, WHO=5/7 require captures, and WHO=18 totalizers/additional dimensions remain deferred until unit/reset semantics are safe. The next software focus should therefore be **Home Assistant integration-level lifecycle coverage in Phase F**, starting with Config Flow / Options Flow and setup-unload-reload tests, while physical MH201 validation remains the final hardware campaign.
+Further protocol breadth remains evidence-driven: WHO=1 dimming, WHO=3 load management, WHO=22/audio and VDE audio/video are permanently excluded; HomeTouch ring state waits for a reliable call-start/call-end frame; WHO=18 totalizers/additional dimensions wait for safe unit/reset semantics. After the WHO=5/6 software slice is green on its final documentation-synchronized HEAD, the next general software focus is **Home Assistant integration-level lifecycle coverage in Phase F**, while physical MH201/4200C/HomeTouch validation remains the final hardware campaign.
