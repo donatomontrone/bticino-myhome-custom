@@ -1,0 +1,113 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: [Test]
+    types: [completed]
+
+permissions:
+  contents: write
+  checks: read
+
+jobs:
+  release:
+    name: Publish tagged release
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout validated commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Read release version
+        id: meta
+        shell: bash
+        run: |
+          VERSION="$(python -c 'import json; print(json.load(open("custom_components/bticino_myhome/manifest.json", encoding="utf-8"))["version"])')"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether release already exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wait for HACS and Hassfest validation
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          for attempt in {1..30}; do
+            CHECKS="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/check-runs?per_page=100")"
+            HACS="$(printf '%s' "$CHECKS" | jq -r '[.check_runs[] | select(.name == "Validate HACS integration")] | sort_by(.started_at) | last | if . == null then "pending:" else "\(.status):\(.conclusion // "")" end')"
+            HASSFEST="$(printf '%s' "$CHECKS" | jq -r '[.check_runs[] | select(.name == "Validate with hassfest")] | sort_by(.started_at) | last | if . == null then "pending:" else "\(.status):\(.conclusion // "")" end')"
+
+            if [[ "$HACS" == "completed:success" && "$HASSFEST" == "completed:success" ]]; then
+              exit 0
+            fi
+            if [[ "$HACS" == completed:* && "$HACS" != "completed:success" ]]; then
+              echo "HACS validation did not succeed: $HACS" >&2
+              exit 1
+            fi
+            if [[ "$HASSFEST" == completed:* && "$HASSFEST" != "completed:success" ]]; then
+              echo "Hassfest validation did not succeed: $HASSFEST" >&2
+              exit 1
+            fi
+            sleep 10
+          done
+
+          echo "Timed out waiting for HACS/Hassfest validation" >&2
+          exit 1
+
+      - name: Build release notes from changelog
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          version = os.environ["VERSION"]
+          changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          match = re.search(
+              rf"^## \[{re.escape(version)}\].*?\n(.*?)(?=^## \[|\Z)",
+              changelog,
+              flags=re.MULTILINE | re.DOTALL,
+          )
+          if match is None:
+              raise SystemExit(f"No CHANGELOG section found for {version}")
+          Path("release-notes.md").write_text(match.group(1).strip() + "\n", encoding="utf-8")
+          PY
+
+      - name: Create tag and GitHub release
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$SHA" \
+            --title "$TAG" \
+            --notes-file release-notes.md
