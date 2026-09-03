@@ -4,13 +4,18 @@ Last reviewed: 2026-09-03 on post-0.2.0 `master` against Home Assistant 2026.9 i
 
 The project remains local-first and capture-led. Protocol-sensitive behavior must be validated from real MH201/OpenWebNet traffic rather than inferred from numeric WHO/WHAT values. WHO=22, media player, audio, music and sound diffusion remain explicitly outside scope.
 
+Two validation labels are used throughout this roadmap:
+
+- **spec/reference validated**: the software behavior is derived from public BTicino/Legrand OpenWebNet documentation and cross-checked against established MyHOME implementations, with deterministic unit/mocked tests;
+- **hardware validated**: the same behavior has also been confirmed against captures and runtime behavior from a real MH201/MyHOME installation.
+
 ## Current checkpoint — post-0.2.0 master
 
-Release 0.2.0 established the repository/architecture baseline. Subsequent `master` work has completed the software-side runtime/transport hardening phase and started Home Assistant integration-quality work: explicit command results, integration-owned post-negotiation channel semantics, initial-state hydration plumbing, conservative device lifecycle, safer active discovery, reconfigure/reauthentication, explicit inventory removal, typed runtime ConfigEntries, HA-native entity naming and deterministic multi-gateway raw-frame targeting.
+Release 0.2.0 established the repository/architecture baseline. Subsequent `master` work has completed the software-side runtime/transport hardening phase and the software-side Home Assistant surface-quality phase: explicit command results, integration-owned post-negotiation channel semantics, initial-state hydration plumbing, conservative device lifecycle, safer active discovery, reconfigure/reauthentication, explicit inventory removal, typed runtime ConfigEntries, HA-native entity naming, deterministic multi-gateway raw-frame targeting, selector/data-description cleanup, translated entity action errors, hardened diagnostics redaction and expanded mocked regression coverage.
 
-CI remains green against Home Assistant 2025.1 / Python 3.12 and Home Assistant 2026.9 / Python 3.14, with Ruff, mypy, pytest, Hassfest and HACS validation.
+CI is green against Home Assistant 2025.1 / Python 3.12 and Home Assistant 2026.9 / Python 3.14, with Ruff, mypy, pytest, Hassfest and HACS validation. The current HA 2026.9 quality target also enforces a coverage gate of 55%; the current suite contains 81 tests and reports 66.35% integration-package coverage.
 
-There is intentionally no requirement for a local/running Home Assistant instance during the remaining code-completion work. Integration-level Home Assistant lifecycle tests, clean-install/upgrade validation and physical MH201 validation are deferred to the final validation phase. Until then, development relies on code review, unit/mocked tests and CI compatibility checks.
+There is intentionally no requirement for a local/running Home Assistant instance during the remaining code-completion work. Integration-level Home Assistant lifecycle tests, clean-install/upgrade validation and physical MH201 validation are deferred to the final validation phase. Until then, development relies on code review, unit/mocked tests, public OpenWebNet specifications, established MyHOME implementations and CI compatibility checks.
 
 The integration is not yet considered fully production-validated because a final Home Assistant lifecycle campaign, a physical MH201 clean-install/upgrade/runtime campaign and capture-backed verification of protocol-sensitive WHO families are still pending.
 
@@ -85,25 +90,27 @@ The remaining validation of BUS-specific semantics is intentionally tracked in P
 
 A separate low-level transport rewrite is not a goal. The focused adapter now owns only the semantics OWNd does not expose reliably after session negotiation.
 
-## Phase C — code completion and Home Assistant surface quality — IN PROGRESS
+## Phase C — code completion and Home Assistant surface quality — COMPLETE SOFTWARE-SIDE
 
-This phase is intentionally executable without a running Home Assistant instance. Home Assistant lifecycle/registry/flow validation using a real test instance is deferred to Phase F.
+This phase is complete without requiring a running Home Assistant instance. Home Assistant lifecycle/registry/flow validation using a real test instance remains deferred to Phase F.
 
 - [x] Introduce a typed `ConfigEntry[BticinoMyHomeData]` alias in a cycle-safe runtime data module
 - [x] Propagate the typed ConfigEntry alias through integration, platforms, dynamic lifecycle helpers, diagnostics and gateway-action code
 - [x] Add reconfigure flow for host/port/password changes with stable serial/UDN conflict protection
+- [x] Add an explicit reconfigure control for removing a previously stored OpenWebNet password
 - [x] Add reauthentication flow and raise `ConfigEntryAuthFailed` for genuine credential failures
 - [x] Add explicit endpoint removal from Options Flow and the Home Assistant `async_remove_config_entry_device` hook
 - [x] Translate Config/Options action selectors and connection/authentication errors in English and Italian
 - [x] Add `_attr_has_entity_name` and translation-key based names for secondary entities while keeping primary endpoint entities unnamed relative to their device
-- [ ] Use selectors and `data_description` consistently across all remaining Config/Options fields
+- [x] Use Home Assistant selectors and `data_description` consistently across Config/Options fields
+- [x] Expose explicit manual WHO=4 heating/cooling profiles, including the KW4691 floor-heating-only use case
 - [x] Keep `send_frame` as an advanced/debug action but require an explicit BTicino ConfigEntry target, making multi-gateway behavior deterministic
 - [x] Register integration-wide actions from `async_setup` instead of one config-entry lifecycle
 - [x] Translate `send_frame` validation/transport failures and action metadata in English and Italian
-- [ ] Translate remaining user-facing entity action exceptions where Home Assistant surfaces them
-- [ ] Add/expand diagnostics and redaction unit tests
-- [ ] Expand unit/mocked tests for Config Flow logic, Options logic, inventory persistence and changed-IP identity without requiring a running HA instance
-- [ ] Add coverage reporting and raise code coverage substantially before final integration validation
+- [x] Translate entity command transport failures and climate validation errors using Home Assistant error translation surfaces
+- [x] Add diagnostics/redaction regression tests and remove potentially sensitive ConfigEntry titles from diagnostics
+- [x] Expand unit/mocked tests for Config Flow helpers, Options inventory persistence, thermal-profile persistence, explicit removal and changed-IP stable identity
+- [x] Add coverage reporting with a 55% CI gate; current HA 2026.9 run is 66.35% across 81 tests
 
 ## Phase D — protocol evidence and deterministic replay
 
@@ -112,9 +119,10 @@ This phase starts only when real captures are available. No protocol-specific be
 - [ ] Build a sanitized real-capture fixture corpus grouped by WHO/device/action
 - [ ] Add deterministic raw frame -> parsed frame -> normalized event -> entity state replay tests
 - [ ] Record gateway model/firmware and safe installation context alongside captures
-- [ ] Investigate diagnostic/broadcast/group frames and explicitly exclude frames that must not create endpoint devices
+- [x] Conservatively reject parameterized standard `#WHERE` frames as endpoint evidence outside the explicit documented WHO=4 central-zone form
+- [ ] Investigate diagnostic/broadcast/group frames per WHO and explicitly model or exclude them from endpoint discovery using real captures
 - [ ] Revisit the flat `NormalizedEvent.state` model before complex WHO=5/18 payloads; introduce structured semantic payloads only when captures require them
-- [ ] Move WHO-specific numeric semantics into dedicated protocol modules as each family becomes capture-validated
+- [ ] Move WHO-specific numeric semantics into dedicated protocol modules as each family becomes spec/reference validated and later capture-validated
 
 ## Phase E — protocol/platform coverage
 
@@ -127,16 +135,20 @@ This phase starts only when real captures are available. No protocol-specific be
 ### WHO=1 — lighting
 - [x] Basic on/off command and event state
 - [x] Initial-state hydration request/response plumbing
-- [ ] Initial-state query validation on a real MH201/BUS
-- [ ] Complete observed WHAT catalogue
-- [ ] Dimmer/brightness only if confirmed by real captures/devices
+- [ ] Add spec/reference-backed dimmer/brightness semantics only for devices that expose the required capability
+- [ ] Complete observed WHAT catalogue from real captures
+- [ ] Initial-state and dimmer query validation on a real MH201/BUS
 
-### WHO=2 — automation / shutters
+### WHO=2 — automation / shutters — NEXT SOFTWARE SPRINT
 - [x] Open / close / stop command and motion state
 - [x] Initial-state hydration request/response plumbing
-- [ ] Initial-state query validation on a real MH201/BUS
-- [ ] Complete observed automation WHAT catalogue
-- [ ] Position support only where real devices expose a reliable model
+- [ ] Introduce a dedicated `protocol/automation.py` boundary for documented advanced-shutter semantics
+- [ ] Model DIM=10 shutter status/position and DIM=11 go-to-level from official OpenWebNet documentation and established MyHOME implementations
+- [ ] Add explicit advanced-position capability and expose Home Assistant `SET_POSITION` only when that capability is configured or observed
+- [ ] Preserve unknown position as unknown; never invent a percentage for basic shutters
+- [ ] Add deterministic protocol/entity tests using documented frames
+- [ ] Complete observed automation WHAT catalogue from real captures
+- [ ] Initial-state and advanced-position validation on a real MH201/BUS
 
 ### WHO=3 — load management
 - [x] Basic on/off command and event state
@@ -145,14 +157,22 @@ This phase starts only when real captures are available. No protocol-specific be
 - [ ] Complete observed load-management catalogue
 - [ ] Validate whether additional measurements/states belong here or in WHO=18
 
-### WHO=4 — thermoregulation — EXPERIMENTAL
+### WHO=4 — thermoregulation — SPEC/REFERENCE VALIDATED, HARDWARE VALIDATION PENDING
 - [x] Home Assistant climate entity exists
-- [x] Parser support for current dimension-response shapes
-- [x] Basic HVAC mode/setpoint/temperature unit tests
-- [x] Remove optimistic local mode/preset/setpoint updates; state now requires received protocol evidence
-- [ ] Validate every read/write frame against real MH201 thermoregulation captures
-- [ ] Validate setpoint-write value/mode semantics
-- [ ] Move thermoregulation-specific builders/decoders into a dedicated protocol module after capture validation
+- [x] Dedicated `protocol/thermoregulation.py` for WHO=4 states, constants and command builders
+- [x] Parser support for documented current dimension-response shapes and central-zone `#WHERE` standard events
+- [x] Documented heating/conditioning/generic WHAT families and protection/manual/programming semantics
+- [x] Explicit heating-only, cooling-only and heating+cooling zone capabilities
+- [x] KW4691 floor-heating-only Home Assistant surface: OFF / HEAT / AUTO with anti-freeze protection and no exposed COOL
+- [x] Manual Options Flow support for persisting an explicit thermal profile
+- [x] Preserve standalone versus central-unit WHERE routing instead of forcing every zone through `#WHERE`
+- [x] DIM=14 setpoint writes encode temperature plus operation-mode value with documented 0.5 °C steps
+- [x] Conservative DIM=19 active-output decoding
+- [x] Remove optimistic local mode/preset/setpoint updates; state requires received protocol evidence
+- [x] WHO=4 protocol/climate/discovery regression tests
+- [ ] Validate every read/write frame against real MH201/KW4691 thermoregulation captures
+- [ ] Confirm whether each real installation zone is standalone or central-unit routed
+- [ ] Validate setpoint-write acknowledgement/effect against real hardware
 - [ ] Validate valve/HVAC-action semantics from real traffic
 
 ### WHO=5 — alarm — EXPERIMENTAL
@@ -172,9 +192,10 @@ This phase starts only when real captures are available. No protocol-specific be
 
 ### WHO=18 — energy
 - [x] Device family is classified by protocol/discovery
+- [ ] Define spec/reference-backed typed measurements and Home Assistant device/state classes
+- [ ] Implement production energy entities only where public dimension/unit semantics are unambiguous
 - [ ] Build real energy-frame fixture catalogue
-- [ ] Define typed measurements and Home Assistant device/state classes
-- [ ] Implement production energy entities only after units/dimensions/counters are confirmed
+- [ ] Validate units, counters and update cadence on a real MH201/BUS
 
 ## Phase F — final Home Assistant and hardware validation
 
@@ -208,4 +229,4 @@ This is the first phase that requires an actual Home Assistant environment and, 
 
 ## 0.2.0 release boundary
 
-0.2.0 is an architecture/runtime milestone, not a declaration that every protocol surface is hardware-validated. It is appropriate as a tagged development release because repository structure, compatibility CI, gateway recovery, native discovery and migration semantics form a coherent baseline. Post-0.2.0 `master` now prioritizes finishing the software surface without requiring a local Home Assistant instance; final Home Assistant and MH201 validation is intentionally deferred until the end of the project.
+0.2.0 is an architecture/runtime milestone, not a declaration that every protocol surface is hardware-validated. It is appropriate as a tagged development release because repository structure, compatibility CI, gateway recovery, native discovery and migration semantics form a coherent baseline. Post-0.2.0 `master` now has the software-side architecture/runtime and Home Assistant surface-quality phases complete; the next development focus is protocol/platform coverage using public OpenWebNet specifications and established implementations, with final Home Assistant and MH201 validation intentionally deferred until the end of the project.
