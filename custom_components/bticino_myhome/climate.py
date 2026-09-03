@@ -11,8 +11,10 @@ from homeassistant.components.climate import (
 )
 from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .const import DOMAIN
 from .data import BticinoConfigEntry
 from .entity import BticinoEntity
 from .gateway import BticinoGateway, BticinoGatewayError
@@ -154,11 +156,11 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         what = self._what_for_hvac_mode(hvac_mode)
-        await self.gateway.async_send(build_zone_mode_command(self.where, what))
+        await self._async_send_command(build_zone_mode_command(self.where, what))
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         what = self._what_for_preset(preset_mode)
-        await self.gateway.async_send(build_zone_mode_command(self.where, what))
+        await self._async_send_command(build_zone_mode_command(self.where, what))
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         temperature = kwargs.get("temperature")
@@ -166,22 +168,30 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
             return
         value = float(temperature)
         if not MIN_TEMP <= value <= MAX_TEMP:
-            raise ValueError(f"Temperature out of range: {value}")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="temperature_out_of_range",
+                translation_placeholders={
+                    "temperature": str(value),
+                    "min_temp": str(MIN_TEMP),
+                    "max_temp": str(MAX_TEMP),
+                },
+            )
 
         requested_mode = kwargs.get("hvac_mode", self.hvac_mode)
         operation_mode = self._operation_mode_for_setpoint(requested_mode)
-        await self.gateway.async_send(
+        await self._async_send_command(
             build_zone_setpoint_command(self.where, value, operation_mode)
         )
 
     def _what_for_hvac_mode(self, hvac_mode: HVACMode) -> str:
         if hvac_mode == HVACMode.HEAT:
             if not self._supports_heating:
-                raise ValueError(f"Unsupported HVAC mode: {hvac_mode}")
+                self._raise_unsupported_hvac_mode(hvac_mode)
             return "110"
         if hvac_mode == HVACMode.COOL:
             if not self._supports_cooling:
-                raise ValueError(f"Unsupported HVAC mode: {hvac_mode}")
+                self._raise_unsupported_hvac_mode(hvac_mode)
             return "210"
         if hvac_mode == HVACMode.OFF:
             if self._supports_heating and self._supports_cooling:
@@ -195,7 +205,7 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
             if self._supports_heating:
                 return "111"
             return "211"
-        raise ValueError(f"Unsupported HVAC mode: {hvac_mode}")
+        self._raise_unsupported_hvac_mode(hvac_mode)
 
     def _what_for_preset(self, preset_mode: str) -> str:
         if preset_mode == PRESET_ANTIFREEZE and self._supports_heating:
@@ -208,22 +218,34 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
             and self._supports_cooling
         ):
             return "302"
-        raise ValueError(f"Unsupported preset mode: {preset_mode}")
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="unsupported_preset_mode",
+            translation_placeholders={"preset_mode": preset_mode},
+        )
 
     def _operation_mode_for_setpoint(self, hvac_mode: HVACMode | None) -> str:
         if hvac_mode == HVACMode.HEAT:
             if not self._supports_heating:
-                raise ValueError(f"Unsupported HVAC mode: {hvac_mode}")
+                self._raise_unsupported_hvac_mode(hvac_mode)
             return OPERATION_MODE_HEATING
         if hvac_mode == HVACMode.COOL:
             if not self._supports_cooling:
-                raise ValueError(f"Unsupported HVAC mode: {hvac_mode}")
+                self._raise_unsupported_hvac_mode(hvac_mode)
             return OPERATION_MODE_CONDITIONING
         if self._supports_heating and not self._supports_cooling:
             return OPERATION_MODE_HEATING
         if self._supports_cooling and not self._supports_heating:
             return OPERATION_MODE_CONDITIONING
         return OPERATION_MODE_GENERIC
+
+    @staticmethod
+    def _raise_unsupported_hvac_mode(hvac_mode: HVACMode) -> None:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="unsupported_hvac_mode",
+            translation_placeholders={"hvac_mode": str(hvac_mode)},
+        )
 
     def _handle_event(self, event: NormalizedEvent) -> None:
         if event.who != "4" or event.where.lstrip("#") != self.where.lstrip("#"):
