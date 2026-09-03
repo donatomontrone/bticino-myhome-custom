@@ -48,7 +48,6 @@ _DEVICE_TYPES = {
     "0": "scene",
     "1": "light",
     "2": "cover",
-    "3": "load",
     "4": "climate",
     "5": "alarm",
     "7": "intercom",
@@ -58,7 +57,6 @@ _DEVICE_TYPES = {
 _STATE_MAP = {
     "1": {"0": "off", "1": "on"},
     "2": {"0": "stopped", "1": "opening", "2": "closing"},
-    "3": {"0": "off", "1": "on"},
     "4": THERMOREGULATION_STATE_MAP,
     "5": {
         "0": "disarmed",
