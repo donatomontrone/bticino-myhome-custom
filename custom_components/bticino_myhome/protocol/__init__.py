@@ -1,9 +1,16 @@
 """OpenWebNet protocol primitives for BTicino MyHome."""
 
+from .alarm import (
+    alarm_arm_all,
+    alarm_arm_partitions,
+    alarm_disarm_all,
+    alarm_partition_activate,
+    alarm_partition_partialize,
+    alarm_partition_status_request,
+    alarm_system_status_request,
+    partition_from_where,
+)
 from .commands import (
-    alarm_arm_away,
-    alarm_arm_home,
-    alarm_disarm,
     build_command,
     build_dimension_request,
     build_dimension_write,
@@ -23,9 +30,13 @@ from .parser import parse_frame
 __all__ = [
     "NormalizedEvent",
     "OpenWebNetFrame",
-    "alarm_arm_away",
-    "alarm_arm_home",
-    "alarm_disarm",
+    "alarm_arm_all",
+    "alarm_arm_partitions",
+    "alarm_disarm_all",
+    "alarm_partition_activate",
+    "alarm_partition_partialize",
+    "alarm_partition_status_request",
+    "alarm_system_status_request",
     "build_command",
     "build_dimension_request",
     "build_dimension_write",
@@ -38,5 +49,6 @@ __all__ = [
     "light_on",
     "normalize_frame",
     "parse_frame",
+    "partition_from_where",
     "scene_activate",
 ]
