@@ -5,6 +5,7 @@ import logging
 from collections.abc import Callable
 from typing import Any, cast
 
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
@@ -92,6 +93,17 @@ class BticinoEntity(Entity):
             self._unsubscribe_connection()
             self._unsubscribe_connection = None
         await super().async_will_remove_from_hass()
+
+    async def _async_send_command(self, frame: str) -> None:
+        """Send an entity action and surface transport failures as translated HA errors."""
+        try:
+            await self._gateway.async_send(frame)
+        except BticinoGatewayError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="entity_command_failed",
+                translation_placeholders={"detail": str(err)},
+            ) from err
 
     async def _async_request_initial_state(self) -> None:
         """Request a state snapshot without inventing a local state."""
