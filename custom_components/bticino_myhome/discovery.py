@@ -193,16 +193,19 @@ class BticinoDiscovery:
         extra: dict[str, Any] = {"discovery": DiscoverySource.MANUAL.value}
         if who == WHO_VIDEO_DOOR_ENTRY and dtype == "door_lock":
             capabilities = ("lock",)
-        if who == WHO_THERMOREGULATION and dtype == "climate":
-            if climate_profile is not None:
-                profile = str(climate_profile).strip()
-                if profile not in CLIMATE_PROFILES:
-                    raise ValueError(f"Unsupported climate profile: {profile}")
-                capabilities = (
-                    *mapped_capabilities,
-                    *capabilities_for_climate_profile(profile),
-                )
-                extra["climate_profile"] = profile
+        if (
+            who == WHO_THERMOREGULATION
+            and dtype == "climate"
+            and climate_profile is not None
+        ):
+            profile = str(climate_profile).strip()
+            if profile not in CLIMATE_PROFILES:
+                raise ValueError(f"Unsupported climate profile: {profile}")
+            capabilities = (
+                *mapped_capabilities,
+                *capabilities_for_climate_profile(profile),
+            )
+            extra["climate_profile"] = profile
         return DiscoveredDevice(
             who=who,
             where=where,
