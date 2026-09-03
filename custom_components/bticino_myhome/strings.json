@@ -157,7 +157,6 @@
         "scene": "Scenario",
         "light": "Light",
         "cover": "Cover / shutter",
-        "load": "Managed load",
         "climate": "Thermoregulation",
         "alarm": "Alarm",
         "intercom": "Video door entry",
@@ -175,8 +174,8 @@
   },
   "entity": {
     "binary_sensor": {
-      "intercom_call": {
-        "name": "Call"
+      "alarm_partition": {
+        "name": "Partition {partition}"
       }
     },
     "button": {
@@ -185,8 +184,8 @@
       }
     },
     "sensor": {
-      "who7_raw_event": {
-        "name": "Last raw video door-entry event"
+      "door_entry_raw_event": {
+        "name": "Last raw door-entry event"
       }
     }
   },
@@ -208,6 +207,38 @@
           "description": "Enable only when the raw frame is a status request whose returned data frames should be normalized as state evidence."
         }
       }
+    },
+    "arm_alarm_partitions": {
+      "name": "Arm alarm partitions",
+      "description": "Arm the WHO=5 alarm using the selected active-partition mask. The legacy BTicino command is reference-backed but still requires validation on the target 4200C through MH201.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Gateway",
+          "description": "BTicino MyHome configuration entry that owns the target MH201 connection."
+        },
+        "partitions": {
+          "name": "Active partitions",
+          "description": "Partitions 1-8 that must remain active; unselected partitions are partialized."
+        }
+      }
+    },
+    "set_alarm_partition": {
+      "name": "Set alarm partition",
+      "description": "Activate or partialize one WHO=5 partition. The command is specification/reference-backed but still requires validation on the target 4200C through MH201.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Gateway",
+          "description": "BTicino MyHome configuration entry that owns the target MH201 connection."
+        },
+        "partition": {
+          "name": "Partition",
+          "description": "Alarm partition number from 1 to 8."
+        },
+        "active": {
+          "name": "Active",
+          "description": "Enable to make the partition active; disable to partialize it."
+        }
+      }
     }
   },
   "exceptions": {
@@ -225,6 +256,9 @@
     },
     "entity_command_failed": {
       "message": "The OpenWebNet command failed: {detail}"
+    },
+    "alarm_partitions_invalid": {
+      "message": "Invalid alarm partition selection: {detail}"
     },
     "cover_position_not_supported": {
       "message": "Position control is not enabled for this MyHOME shutter."
