@@ -1,6 +1,8 @@
 """BTicino MyHome light entity."""
 from __future__ import annotations
 
+from typing import ClassVar
+
 from homeassistant.components.light import ColorMode, LightEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -14,7 +16,7 @@ class BticinoLight(BticinoEntity, LightEntity):
     """Light entity for lighting devices."""
 
     _attr_color_mode = ColorMode.ONOFF
-    _attr_supported_color_modes = {ColorMode.ONOFF}
+    _attr_supported_color_modes: ClassVar[set[ColorMode]] = {ColorMode.ONOFF}
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await light_on(self._gateway, self._device.who, self._device.address)

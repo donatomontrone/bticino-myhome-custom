@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from OWNd.connection import OWNGateway
@@ -19,12 +19,11 @@ from .const import (
     WHO_VIDEO_DOOR_ENTRY,
 )
 from .gateway import BticinoGateway
-from .protocol import NormalizedEvent
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class DiscoverySource(str, Enum):
+class DiscoverySource(StrEnum):
     """Source of device discovery."""
 
     PASSIVE = "passive"

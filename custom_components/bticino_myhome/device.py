@@ -20,9 +20,8 @@ class BticinoDeviceManager:
         changed: list[DiscoveredDevice] = []
         for device in devices:
             previous = self._devices.get(device.key)
-            if previous is not None and previous.source == DiscoverySource.MANUAL.value:
-                if device.source != DiscoverySource.MANUAL.value:
-                    continue
+            if previous is not None and previous.source == DiscoverySource.MANUAL.value and device.source != DiscoverySource.MANUAL.value:
+                continue
             self._devices[device.key] = device
             changed.append(device)
         return changed
