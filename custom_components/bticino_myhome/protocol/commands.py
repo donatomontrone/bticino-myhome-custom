@@ -41,18 +41,6 @@ def cover_stop(where: str) -> str:
     return build_command("2", "0", where)
 
 
-def alarm_arm_away(where: str) -> str:
-    return build_command("5", "1", where)
-
-
-def alarm_arm_home(where: str) -> str:
-    return build_command("5", "3", where)
-
-
-def alarm_disarm(where: str) -> str:
-    return build_command("5", "0", where)
-
-
 def scene_activate(where: str) -> str:
     return build_command("0", "1", where)
 
