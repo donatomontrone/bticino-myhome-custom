@@ -8,7 +8,6 @@ from typing import Any
 
 from OWNd.connection import OWNCommandSession, OWNEventSession, OWNGateway, OWNSession
 
-from .const import CONF_GATEWAY_HOST, CONF_GATEWAY_PASSWORD, CONF_GATEWAY_PORT
 from .protocol import NormalizedEvent
 
 _LOGGER = logging.getLogger(__name__)
@@ -71,7 +70,7 @@ class BticinoGateway:
 
     async def async_connect(
         self,
-        task_creator: Callable[[Callable[[], Any], str], asyncio.Task[Any]] | None = None,
+        task_creator: Callable[[Any, str], asyncio.Task[None]] | None = None,
     ) -> None:
         """Connect command/event sessions and start the persistent event worker."""
         self._closing = False
@@ -133,6 +132,7 @@ class BticinoGateway:
             await self._safe_close(session)
             raise BticinoGatewayError((result or {}).get("Message", "event_connection_failed"))
         self._event_session = session
+        self._set_connected(True)
 
     async def _event_loop(self) -> None:
         """Read event frames and recover the event session after failures."""
@@ -151,7 +151,6 @@ class BticinoGateway:
                         await asyncio.sleep(backoff)
                         backoff = min(backoff * 2, _RECONNECT_MAX_DELAY)
                         break
-                    self._set_connected(True)
                     backoff = _RECONNECT_INITIAL_DELAY
                     raw = str(message).strip()
                     _LOGGER.debug("OpenWebNet RX: %s", raw)
@@ -271,6 +270,7 @@ class BticinoGateway:
             return
         self._event_session = None
         await self._safe_close(session)
+        self._set_connected(False)
 
     async def async_close(self) -> None:
         """Close command/event sessions and cancel the event worker."""
