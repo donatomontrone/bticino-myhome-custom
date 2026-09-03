@@ -41,7 +41,7 @@ The WHO=4 software model currently covers:
 - manual / programming / OFF mode families;
 - explicit heating-only, cooling-only and heating+cooling zone capabilities;
 - passive capability inference only from documented directional heating/cooling WHAT families;
-- zone commands routed through the central-unit `#WHERE` form;
+- preservation of standalone versus central-unit WHERE syntax instead of forcing one routing model;
 - profile-aware OFF/programming commands (`103/111`, `203/211`, `303/311`);
 - DIM=14 setpoint writes with temperature plus the matching operation-mode value;
 - conservative DIM=19 active-output decoding.
@@ -52,6 +52,13 @@ anti-freeze protection, while COOL and cooling protection are not offered. This
 is a zone configuration profile, not a hard-coded assumption about the KW4691
 model; the same device family can be configured differently in other MyHOME
 installations.
+
+WHO=4 routing is kept explicit. A plain observed/configured WHERE such as `1` is
+preserved for a standalone zone. A central-unit form such as `#1` is also
+preserved when that is the configured/observed address. The helper
+`central_zone_where()` exists only for callers that already know central routing
+is required; the climate entity does not silently convert every zone to it.
+More complex central-unit addressing remains capture-dependent and is not inferred.
 
 Manual/inventory construction supports an explicit thermal profile. Passive
 learning can also infer direction when a documented directional mode event proves
