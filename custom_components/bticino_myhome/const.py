@@ -22,7 +22,6 @@ EVENT_OPENWEBNET = f"{DOMAIN}_event"
 WHO_SCENARIO = "0"
 WHO_LIGHTING = "1"
 WHO_AUTOMATION = "2"
-WHO_LOAD_MANAGEMENT = "3"
 WHO_THERMOREGULATION = "4"
 WHO_ALARM = "5"
 WHO_VIDEO_DOOR_ENTRY = "7"
@@ -38,7 +37,6 @@ PLATFORMS = [
     "scene",
     "light",
     "cover",
-    "switch",
     "climate",
     "alarm_control_panel",
     "binary_sensor",
