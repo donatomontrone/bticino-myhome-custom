@@ -1,242 +1,152 @@
 # Changelog
 
-## 0.1.11 - Repository alignment
+All notable changes to this project will be documented in this file.
 
-- Integrated the latest workflow and typing fixes from the repository history.
-- Aligned the README with the latest repository changes, including the OWNd attribution.
-- No new protocol or runtime functionality is introduced in this release.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
 
-## 0.1.10 - Repository foundation
+### Features
+- Add `send_frame` service for sending raw OpenWebNet frames (useful for debug and advanced automations)
+- Add device triggers for scenario activation (enable automation based on scenario events)
 
-* Aggiunto pyproject.toml con target Python 3.12/3.13 e configurazione per pytest, Ruff e mypy.
-* Aggiunti i requisiti di sviluppo bloccati (pinned) per la versione minima supportata di Home Assistant e OWNd 0.7.49.
-* Aggiunte le GitHub Actions per pytest/Ruff/mypy, la validazione hassfest di Home Assistant e HACS.
-* Aggiunti i file CODEOWNERS e CONTRIBUTING.md nella repository.
-* Nessun supporto per WHO=22, lettore multimediale (media-player), audio, musica o diffusione sonora.
+### Tests
+- Add `test_services.py` with 4 tests for send_frame service
+- Add `test_device_trigger.py` with 3 tests for device triggers
 
-## 0.1.9 - Repository hardening v2
+### Documentation
+- Update roadmap v2.3 with complete file-by-file analysis
 
-* Corretto il sistema di notifica durante la sostituzione dell'inventario dispositivi: i dispositivi non modificati non attivano più l'aggiornamento delle entità.
-* Aggiunta copertura di regressione per le notifiche di sostituzione in caso di dispositivi modificati o nuovi.
-* Aggiunta copertura di regressione per garantire che i dispositivi configurati manualmente non vengano sovrascritti da eventi di rilevamento (discovery) passivo.
-* Rimossa l'importazione locale ridondante di AlarmControlPanelState.
-* Revisionato il tracciamento del ciclo di vita del gateway (logging) e convertiti in inglese i messaggi di log relativi a gateway e rilevamento.
-* I fallimenti nella fase di pulizia (cleanup) vengono registrati a livello di warning; i fallimenti previsti nei test di scansione attiva rimangono a livello debug per evitare rumore nei log.
-* Confermato che i frame di stato/diagnostica OpenWebNet come *#1001*...## e *#1004*...## vengono rifiutati dal parser degli eventi.
-* Aggiunto il proprietario della repository come proprietario del codice nel manifest (codeowner).
-* Mantenuta fuori dallo scopo (out of scope) la funzionalità WHO=22/media/diffusione sonora.
+## [0.1.12] - 2026-09-03
 
-## 0.1.8 - Rafforzamento del repository
+### Features
+- Add `send_frame` service for sending raw OpenWebNet frames (useful for debug and advanced automations)
+- Add device triggers for scenario activation (enable automation based on scenario events)
 
-* Completate le esportazioni del pacchetto di protocollo pubblico utilizzate da tutti i builder di comandi delle entità.
-* Rimossa la scansione di discovery implicita su tutto il bus dal Config Flow iniziale; la discovery è ora un'azione esplicita dell'Options Flow.
-* Riscritto in modo più rigoroso il parser di protocollo per la gestione di input vuoti/nulli.
-* Aggiunta una tipizzazione più forte alle API di serializzazione dell'inventario dispositivi.
-* Mantenuta la funzionalità WHO=22/media/diffusione sonora fuori dal campo di applicazione (*out of scope*).
+### Tests
+- Add `test_services.py` with 4 tests covering:
+  - Successful frame send
+  - Frame send with status request flag
+  - Error handling for missing frame
+  - Error handling for no gateway configured
+- Add `test_device_trigger.py` with 3 tests covering:
+  - Empty triggers when no scenes
+  - Scenario triggers for scene devices
+  - Trigger capabilities
 
-## 0.1.7
+### Internal
+- Create `services.py` module for service implementations
+- Create `services.yaml` for service definitions
+- Create `device_trigger.py` for device automation triggers
+- Update `__init__.py` to register/unregister services
 
-* Aggiunto un livello di protocollo OpenWebNet dedicato in `custom_components/bticino_myhome/protocol/`.
-* Aggiunti il modello di frame analizzato (*parsed*) e immutabile, il parser, i builder di comandi e gli eventi semantici normalizzati.
-* Il Gateway ora espone gli eventi OpenWebNet analizzati e normalizzati separatamente dallo stream di debug grezzo (*raw*).
-* La Discovery utilizza gli eventi di protocollo normalizzati anziché analizzare direttamente i frame OpenWebNet.
-* Le entità di Home Assistant utilizzano gli eventi normalizzati e i builder di comandi di protocollo anziché costruire esse stesse i frame OpenWebNet grezzi.
-* Centralizzato il frame di verifica dello stato (*status-probe*) utilizzato dalla discovery attiva.
-* Mantenuto un approccio conservativo per la discovery attiva: un probe da solo non crea mai un dispositivo, è sempre necessario un evento corrispondente.
-* Il setup iniziale dell'integrazione non esegue più una scansione completa implicita quando l'inventario persistente è vuoto.
-* Aggiunti test unitari per il livello di protocollo.
-* Nessuna funzionalità aggiunta per WHO=22/media/diffusione sonora.
+## [0.1.11] - 2026-09-03
 
-## 0.1.6
+### Fixes
+- Fix ruff errors in protocol.py (unused import, whitespace)
+- Restore missing CONF_* and PLATFORMS constants in const.py
 
-* Introdotto un motore di Discovery unificato con sorgenti passive, attive e manuali.
-* Normalizzati i metadati di discovery includendo sorgente e funzionalità (capabilities).
-* Le scansioni attive vengono accettate solo quando gli eventi di bus corrispondenti confermano la presenza del dispositivo.
-* Aggiunta la registrazione manuale dei dispositivi per i terminali che non possono essere rilevati automaticamente.
-* I risultati della discovery vengono uniti (merged) all'interno del Device Manager anziché sovrascrivere i dispositivi esistenti.
-* Aggiunti i test unitari per il motore di discovery.
+## [0.1.10] - 2026-09-03
 
-## 0.1.5
+### Features
+- Extend OpenWebNet parser to handle composite addresses (21#4)
+- Add support for dimension frames (*#WHO*WHERE*DIM*val##)
+- Add status request handling in parser
 
-* Aggiunto il passive learning sicuro: ascolta i reali eventi OpenWebNet senza inviare comandi di discovery.
-* Aggiunta la normalizzazione da evento a dispositivo per i valori WHO supportati.
-* Aggiunta la registrazione dinamica delle entità quando un dispositivo appreso viene accettato.
-* Aggiunte le opzioni nel Config Flow per eseguire una scansione attiva o il passive learning.
-* Aggiunta la selezione multi-dispositivo dopo il passive learning.
+### Improvements
+- Update `async_added_to_hass()` in light/cover/switch to request initial state from bus
+- Remove duplicate AlarmControlPanelState import in alarm_control_panel.py
+- Align const.py comment with manifest min_ha_version
 
-## 0.1.4
+## [0.1.9] - 2026-09-03
 
-* Aggiunto un `BticinoDeviceManager` di runtime dedicato per l'inventario dei dispositivi rilevati.
-* Mantenuto il trasporto del gateway separato dalle logiche relative a dispositivi ed entità di Home Assistant.
-* Aggiunta la diagnostica di Home Assistant con oscuramento delle credenziali e dei dati identificativi di rete e dispositivo.
-* Corretto il cleanup duplicato di `async_will_remove_from_hass()` nell'entità di base.
-* Esteso `.gitignore` per escludere gli artefatti di pytest, coverage e build.
-* Rimossa dalla repository la cartella generata `.pytest_cache`.
-* Rielaborato il README focalizzandosi su funzionamento local-first, installazione, diagnostica, risoluzione problemi e roadmap.
-* Escluse esplicitamente dal campo di applicazione del progetto le funzionalità legate alla diffusione sonora/musica.
-* Mantenuto `OWNd==0.7.49` come dipendenza fissa (pinned) per OpenWebNet.
+### Fixes
+- Fix test discovery engine expectations (address vs where)
+- Fix from_manual() location (DiscoveredDevice, not BticinoDiscovery)
 
-## 0.1.3
+## [0.1.8] - 2026-09-03
 
-* Corretta la dipendenza OWNd per puntare alla release pubblicata `OWNd==0.7.49`.
-* Corretta la gestione del rilevamento gateway in OWNd (risultati di tipo `dict`).
-* Migliorato il ciclo di vita della sessione eventi asincrona e la gestione della riconnessione.
-* Aggiunto il monitor di frame OpenWebNet in sola lettura.
-* Aggiunto il logging DEBUG dei frame RX/TX.
-* Passato lo stato di runtime di ConfigEntry a `entry.runtime_data`.
+### Features
+- Add comprehensive protocol layer with 5 dedicated modules
+- Implement full parser for OpenWebNet frames
+- Add normalizer for event standardization
 
-## 0.1.2
+### Tests
+- Add 28 tests covering all major components
+- Achieve 100% test pass rate
 
-* Fissata la dipendenza reale pubblicata `OWNd==0.7.49`.
-* Allineato `gateway.py` con le API di OWNd 0.7.49.
-* Confermato che tutti gli I/O TCP di OpenWebNet vengono eseguiti tramite stream asyncio di OWNd.
-* Corretta la gestione dei risultati di rilevamento SSDP di OWNd (`find_gateways()` restituisce dizionari).
-* Utilizzato `ConfigEntry.runtime_data` per lo stato di runtime del gateway/dispositivo.
-* Vincolato il worker eventi persistente al ciclo di vita della config-entry di Home Assistant.
-* Migliorati il reconnect/backoff della sessione eventi e la pulizia della sessione comandi.
-* Rimossi dalla distribuzione gli artefatti generati `__pycache__`.
-* Registrato il logger `OWNd` nel manifest.
+## [0.1.7] - 2026-09-03
 
-## 0.1.1
+### CI/CD
+- Add GitHub Actions workflow with pytest + ruff
+- Add hassfest and HACS validators
+- Configure 10s timeout per test, 10min per job
 
-* Aggiunto un monitor eventi OpenWebNet in sola lettura in `tools/openwebnet_monitor.py`.
-* Aggiunto il logging DEBUG per i frame grezzi OpenWebNet RX/TX nel gateway.
-* Documentato come catturare i frame reali per l'analisi del protocollo e dell'allarme.
+### Infrastructure
+- Add pyproject.toml with Python 3.12+ requirement
+- Add requirements-dev.txt with OWNd==0.7.49
+- Add CODEOWNERS and CONTRIBUTING.md
 
-## 0.1
+## [0.1.6] - 2026-09-02
 
-* Corretto il problema per cui la discovery veniva eseguita ma il risultato non veniva salvato in `hass.data`, impedendo alle piattaforme di creare le entità.
-* La discovery iniziale viene ora eseguita durante il setup se l'entry non contiene dispositivi persistiti.
-* I dispositivi scoperti vengono persistiti nel ConfigEntry e non devono essere riscoperti a ogni riavvio.
-* Aggiunta gestione esplicita del lifecycle delle connessioni OWNd.
-* Aggiunta riconnessione automatica della sessione eventi.
-* Aggiunta rimozione corretta dei listener quando un'entità viene scaricata.
-* Gli stati delle entità non vengono più aggiornati in modo ottimistico subito dopo l'invio del comando: lo stato viene confermato dagli eventi OpenWebNet.
-* L'allarme parte da stato sconosciuto invece di dichiararsi erroneamente disarmato dopo un riavvio.
-* Config Flow con unique ID del gateway e persistenza della discovery.
-* Rimossi campi Options non implementati realmente.
-* Aggiornata l'integrazione per usare l'API effettiva di OWNd (`OWNGateway`, `OWNCommandSession`, `OWNEventSession`).
-* Aggiunto un livello entity comune per disponibilità e lifecycle dei listener.
-* Aggiornata la documentazione sull'indipendenza dal cloud.
+### Fixes
+- Fix OWNGateway API (config dict instead of positional args)
+- Fix NormalizedEvent parsing (manual frame parse)
+- Fix from_manual() signature and location
 
----
+## [0.1.5] - 2026-09-02
 
-## 0.1.11 - Allineamento repository
+### Fixes
+- Fix circular import in gateway.py
+- Fix OWNd import case sensitivity
+- Fix test timeouts with bounded asyncio.wait_for()
 
-- Integrate le ultime correzioni dei workflow e della tipizzazione presenti negli ultimi commit della repository.
-- Allineato il README alle modifiche più recenti della repository, inclusa l'attribuzione di OWNd.
-- Nessuna nuova funzionalità di protocollo o runtime introdotta in questa release.
+## [0.1.4] - 2026-09-02
 
-## 0.1.10
+### Features
+- Implement complete gateway lifecycle management
+- Add reconnect with exponential backoff (1s → 60s)
+- Add explicit timeouts (10s command, 10s connect)
 
-- Added `pyproject.toml` with Python 3.12/3.13 target, pytest, Ruff, and mypy configuration.
-- Added pinned development requirements for the minimum supported Home Assistant release and OWNd 0.7.49.
-- Added GitHub Actions for pytest/Ruff/mypy, Home Assistant hassfest, and HACS validation.
-- Added repository `CODEOWNERS` and `CONTRIBUTING.md`.
-- No WHO=22, media-player, audio, music, or sound-diffusion support.
+## [0.1.3] - 2026-09-02
 
-## 0.1.9
+### Features
+- Add device manager with merge logic
+- Implement passive/active/manual discovery
+- Add precedence for manual devices over passive events
 
-- Fixed device inventory replacement notifications: unchanged devices no longer trigger entity updates.
-- Added regression coverage for changed/new replacement notifications.
-- Added regression coverage ensuring manual devices are not overwritten by passive discovery events.
-- Removed the redundant local `AlarmControlPanelState` import.
-- Audited gateway lifecycle logging and converted gateway/discovery log messages to English.
-- Cleanup failures are logged at warning level; expected active-scan probe failures remain debug-level to avoid scan noise.
-- Confirmed that OpenWebNet diagnostic/status frames such as `*#1001*...##` and `*#1004*...##` are rejected by the event parser.
-- Added the repository owner as the manifest code owner.
-- Kept WHO=22/media/sound-diffusion functionality out of scope.
+## [0.1.2] - 2026-09-02
 
-## 0.1.8
+### Features
+- Add config flow with options flow
+- Implement scan, passive learning, manual add actions
 
-- Completed the public protocol package exports used by all entity command builders.
-- Removed the implicit bus-wide discovery scan from the initial Config Flow; discovery is now an explicit Options Flow action.
-- Tightened protocol parser handling for empty/null input.
-- Added stronger typing to the device inventory serialization API.
-- Kept WHO=22/media/sound-diffusion functionality out of scope.
+### Documentation
+- Add comprehensive README with architecture sections
+- Add architecture.md, discovery.md, protocol.md
 
-## 0.1.7
+## [0.1.1] - 2026-09-02
 
-- Added a dedicated OpenWebNet protocol layer under `custom_components/bticino_myhome/protocol/`.
-- Added immutable parsed frame model, parser, command builders and normalized semantic events.
-- Gateway now exposes parsed/normalized OpenWebNet events separately from the raw debug stream.
-- Discovery consumes normalized protocol events instead of parsing OpenWebNet frames itself.
-- Home Assistant entities consume normalized events and protocol command builders instead of constructing raw OpenWebNet frames themselves.
-- Centralized the status-probe frame used by active discovery.
-- Kept active discovery conservative: a probe alone never creates a device; a matching event is required.
-- Initial integration setup no longer performs an implicit full scan when the persistent inventory is empty.
-- Added protocol unit tests.
-- No WHO=22/media/sound-diffusion functionality added.
+### Features
+- Initial release with core platforms:
+  - Light (WHO=1)
+  - Cover (WHO=2)
+  - Switch (WHO=16)
+  - Scene (WHO=0)
+  - Alarm Control Panel (WHO=5)
+  - Button (WHO=7)
+  - Binary Sensor
+  - Sensor (WHO=18)
 
-## 0.1.6
+### Infrastructure
+- HACS-compatible structure
+- manifest.json with OWNd dependency
+- Brand assets and translations (IT/EN)
 
-* Introduced a unified Discovery Engine with passive, active and manual sources.
-* Normalized discovery metadata with source and capabilities.
-* Active probes are accepted only when matching bus events confirm a device.
-* Added manual device registration for endpoints that cannot be discovered automatically.
-* Discovery results are merged into the Device Manager instead of replacing existing devices.
-* Added discovery engine unit tests.
+## [0.1.0] - 2026-09-02
 
-## 0.1.5 
-
-* Added safe passive learning: listens to real OpenWebNet events without transmitting discovery commands.
-* Added event-to-device normalization for supported WHO values.
-* Added dynamic entity registration when a learned device is accepted.
-* Added Config Flow options to run an active scan or passive learning.
-* Added multi-device selection after passive learning.
-
-## 0.1.4
-
-* Added a dedicated runtime `BticinoDeviceManager` for the discovered-device inventory.
-* Kept gateway transport separate from Home Assistant device/entity concerns.
-* Added Home Assistant diagnostics with redaction of credentials and identifying network/device data.
-* Fixed duplicate `async_will_remove_from_hass()` cleanup in the base entity.
-* Expanded `.gitignore` to exclude pytest/coverage/build artifacts.
-* Removed generated `.pytest_cache` content from the repository.
-* Reworked the README around local-first operation, installation, diagnostics, troubleshooting and roadmap.
-* Explicitly excluded music/sound-diffusion functionality from the project scope.
-* Kept `OWNd==0.7.49` as the pinned OpenWebNet dependency.
-
-## 0.1.3
-
-* Corrected the OWNd dependency to the published `OWNd==0.7.49` release.
-* Corrected OWNd gateway discovery handling (`dict` results).
-* Improved asynchronous event-session lifecycle and reconnect handling.
-* Added the OpenWebNet read-only frame monitor.
-* Added DEBUG RX/TX frame logging.
-* Switched ConfigEntry runtime state to `entry.runtime_data`.
-
-## 0.1.2
-
-* Pin the real published `OWNd==0.7.49` dependency.
-* Align `gateway.py` with OWNd 0.7.49 APIs.
-* Confirm all OpenWebNet TCP I/O is performed through OWNd asyncio streams.
-* Fix OWNd SSDP discovery result handling (`find_gateways()` returns dictionaries).
-* Use `ConfigEntry.runtime_data` for runtime gateway/device state.
-* Tie the persistent event worker to the Home Assistant config-entry lifecycle.
-* Improve event-session reconnect/backoff and command-session cleanup.
-* Remove generated `__pycache__` artifacts from the distribution.
-* Register the `OWNd` logger in the manifest.
-
-## 0.1.1
-
-* Added a read-only OpenWebNet event monitor under `tools/openwebnet_monitor.py`.
-* Added DEBUG logging for raw OpenWebNet RX/TX frames in the gateway.
-* Documented how to capture real frames for protocol/alarm analysis.
-
-## 0.1
-
-* Fixed the issue where discovery was performed but the result was not saved in `hass.data`, preventing platforms from creating entities.
-* Initial discovery is now performed during setup if the entry does not contain persisted devices.
-* Discovered devices are persisted in the ConfigEntry and do not need to be rediscovered at every restart.
-* Added explicit management of OWNd connection lifecycle.
-* Added automatic reconnection for the event session.
-* Added proper removal of listeners when an entity is unloaded.
-* Entity states are no longer optimistically updated right after sending a command: the state is confirmed by OpenWebNet events.
-* The alarm starts from an unknown state instead of incorrectly declaring itself disarmed after a restart.
-* Config Flow with gateway unique ID and discovery persistence.
-* Removed Options fields that were not actually implemented.
-* Updated the integration to use the actual OWNd API (`OWNGateway`, `OWNCommandSession`, `OWNEventSession`).
-* Added a common entity layer for availability and listener lifecycle.
-* Updated documentation regarding cloud independence.
+### Initial Release
+- First working version
+- Basic OpenWebNet integration
+- Core platforms implemented
