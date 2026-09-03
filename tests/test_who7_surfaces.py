@@ -1,4 +1,4 @@
-"""Tests for conservative WHO=7 entity exposure."""
+"""Tests for conservative WHO=6/7 door-entry diagnostic exposure."""
 from __future__ import annotations
 
 import asyncio
@@ -20,7 +20,7 @@ def _entry(manager: BticinoDeviceManager):
     return entry
 
 
-def test_no_synthetic_who7_entities_without_inventory_evidence() -> None:
+def test_no_synthetic_vde_entities_without_inventory_evidence() -> None:
     async def scenario() -> None:
         manager = BticinoDeviceManager()
         entry = _entry(manager)
@@ -36,15 +36,15 @@ def test_no_synthetic_who7_entities_without_inventory_evidence() -> None:
     asyncio.run(scenario())
 
 
-def test_raw_who7_sensor_is_gateway_diagnostic_and_disabled_by_default() -> None:
+def test_raw_vde_sensor_is_gateway_diagnostic_and_disabled_by_default() -> None:
     async def scenario() -> None:
         manager = BticinoDeviceManager(
             [
                 DiscoveredDevice.from_manual(
-                    who="7",
-                    where="12",
+                    who="6",
+                    where="4000",
                     device_type="intercom",
-                    name="Entrance intercom",
+                    name="HomeTouch",
                 )
             ]
         )
@@ -56,9 +56,11 @@ def test_raw_who7_sensor_is_gateway_diagnostic_and_disabled_by_default() -> None
         entities = add_sensor.call_args.args[0]
         assert len(entities) == 1
         entity = entities[0]
-        assert isinstance(entity, sensor.BticinoIntercomEventLog)
+        assert isinstance(entity, sensor.BticinoDoorEntryEventLog)
         assert entity.entity_category == EntityCategory.DIAGNOSTIC
         assert entity.entity_registry_enabled_default is False
-        assert entity.unique_id == f"{entry.runtime_data.gateway.identity}:who7_raw_event"
+        assert entity.unique_id == (
+            f"{entry.runtime_data.gateway.identity}:door_entry_raw_event"
+        )
 
     asyncio.run(scenario())
