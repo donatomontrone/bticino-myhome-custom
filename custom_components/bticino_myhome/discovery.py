@@ -14,11 +14,11 @@ from .const import (
     DEFAULT_PORT,
     WHO_ALARM,
     WHO_AUTOMATION,
+    WHO_DOOR_ENTRY,
     WHO_ENERGY_MANAGEMENT,
     WHO_LIGHTING,
     WHO_SCENARIO,
     WHO_THERMOREGULATION,
-    WHO_VIDEO_DOOR_ENTRY,
 )
 from .gateway import (
     BticinoGateway,
@@ -153,8 +153,8 @@ class BticinoDiscovery:
         WHO_LIGHTING: ("light", ("on_off",)),
         WHO_AUTOMATION: ("cover", ("open_close",)),
         WHO_THERMOREGULATION: ("climate", ("temperature", "setpoint", "mode")),
-        WHO_ALARM: ("alarm", ("arm_disarm", "events")),
-        WHO_VIDEO_DOOR_ENTRY: ("intercom", ("events", "lock")),
+        WHO_ALARM: ("alarm", ("arm_disarm", "partitions", "events")),
+        WHO_DOOR_ENTRY: ("intercom", ("events", "lock")),
         WHO_ENERGY_MANAGEMENT: ("energy", ("measurement",)),
     }
     _ALLOWED_MANUAL_TYPES: ClassVar[dict[str, set[str]]] = {
@@ -163,7 +163,7 @@ class BticinoDiscovery:
         WHO_AUTOMATION: {"cover"},
         WHO_THERMOREGULATION: {"climate"},
         WHO_ALARM: {"alarm"},
-        WHO_VIDEO_DOOR_ENTRY: {"intercom", "door_lock"},
+        WHO_DOOR_ENTRY: {"intercom", "door_lock"},
         WHO_ENERGY_MANAGEMENT: {"energy"},
     }
 
@@ -187,6 +187,8 @@ class BticinoDiscovery:
         where = str(where).strip()
         if not who or not where:
             raise ValueError("WHO and WHERE are required")
+        if who == "3":
+            raise ValueError("WHO=3 is outside the MH201 integration scope; use WHO=18 for energy")
         mapped_type, mapped_capabilities = cls._TYPE_MAP.get(
             who, (device_type or "unknown", ())
         )
@@ -196,7 +198,7 @@ class BticinoDiscovery:
             raise ValueError(f"Device type {dtype!r} is not valid for WHO={who}")
         capabilities = mapped_capabilities
         extra: dict[str, Any] = {"discovery": DiscoverySource.MANUAL.value}
-        if who == WHO_VIDEO_DOOR_ENTRY and dtype == "door_lock":
+        if who == WHO_DOOR_ENTRY and dtype == "door_lock":
             capabilities = ("lock",)
         if who == WHO_AUTOMATION and dtype == "cover" and advanced_shutter:
             capabilities = (*mapped_capabilities, CAPABILITY_POSITION_CONTROL)
@@ -301,8 +303,9 @@ class BticinoDiscovery:
         mapped = cls._TYPE_MAP.get(event.who)
         if mapped is None:
             return None
-        # Parameterized group addresses are not endpoint evidence. WHO=4 central
-        # zones are the only explicitly modeled leading-# exception today.
+        # Parameterized group/zone addresses are not endpoint evidence. WHO=4
+        # central thermoregulation zones are the only explicit leading-# device
+        # exception; WHO=5 #N frames are consumed as partition state instead.
         if event.where.startswith("#") and event.who != WHO_THERMOREGULATION:
             return None
 
