@@ -73,17 +73,14 @@ def test_climate_profiles_map_to_explicit_capabilities() -> None:
         capabilities_for_climate_profile("unsupported")
 
 
-def test_documented_mode_families_prove_thermal_direction() -> None:
+def test_only_directional_mode_families_prove_thermal_direction() -> None:
     assert capabilities_for_thermoregulation_state(STATE_MANUAL_HEATING) == (
         CAPABILITY_HEATING,
     )
     assert capabilities_for_thermoregulation_state(STATE_THERMAL_PROTECTION) == (
         CAPABILITY_COOLING,
     )
-    assert capabilities_for_thermoregulation_state(STATE_GENERIC_PROTECTION) == (
-        CAPABILITY_HEATING,
-        CAPABILITY_COOLING,
-    )
+    assert capabilities_for_thermoregulation_state(STATE_GENERIC_PROTECTION) == ()
     assert capabilities_for_thermoregulation_state(None) == ()
 
 
