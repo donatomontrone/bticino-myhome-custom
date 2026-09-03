@@ -55,7 +55,7 @@ _DEVICE_TYPES = {
     "2": "cover",
     "4": "climate",
     "5": "alarm",
-    "7": "intercom",
+    "6": "intercom",
     "18": "energy",
 }
 
