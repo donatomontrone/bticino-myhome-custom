@@ -46,28 +46,32 @@ def test_async_test_connection_failure_is_typed() -> None:
 
 
 def test_async_connect_opens_command_and_event_sessions() -> None:
-    gateway = _gateway()
-    command = MagicMock()
-    command.connect = AsyncMock(return_value={"Success": True})
-    command.close = AsyncMock()
-    event = MagicMock()
-    event.connect = AsyncMock(return_value={"Success": True})
-    event.close = AsyncMock()
-    event.get_next = AsyncMock(side_effect=asyncio.CancelledError())
+    async def scenario() -> None:
+        gateway = _gateway()
+        command = MagicMock()
+        command.connect = AsyncMock(return_value={"Success": True})
+        command.close = AsyncMock()
+        event = MagicMock()
+        event.connect = AsyncMock(return_value={"Success": True})
+        event.close = AsyncMock()
+        event.get_next = AsyncMock(side_effect=asyncio.CancelledError())
 
-    with (
-        patch("custom_components.bticino_myhome.gateway.OWNCommandSession", return_value=command),
-        patch("custom_components.bticino_myhome.gateway.OWNEventSession", return_value=event),
-    ):
-        asyncio.run(gateway.async_connect(task_creator=asyncio.create_task))
-        assert gateway._event_task is not None
-        asyncio.run(gateway.async_close())
+        with (
+            patch("custom_components.bticino_myhome.gateway.OWNCommandSession", return_value=command),
+            patch("custom_components.bticino_myhome.gateway.OWNEventSession", return_value=event),
+        ):
+            await gateway.async_connect()
+            assert gateway._event_task is not None
+            await asyncio.sleep(0)
+            await gateway.async_close()
 
-    command.connect.assert_awaited_once()
-    event.connect.assert_awaited_once()
-    command.close.assert_awaited_once()
-    event.close.assert_awaited_once()
-    assert gateway.connected is False
+        command.connect.assert_awaited_once()
+        event.connect.assert_awaited_once()
+        command.close.assert_awaited_once()
+        event.close.assert_awaited_once()
+        assert gateway.connected is False
+
+    asyncio.run(scenario())
 
 
 def test_event_loop_normalizes_frame_and_notifies_listeners() -> None:
