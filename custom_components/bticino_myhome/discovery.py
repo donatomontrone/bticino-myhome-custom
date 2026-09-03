@@ -119,8 +119,8 @@ class BticinoDiscovery:
     def parse_event(cls, raw_frame: str) -> DiscoveredDevice | None:
         """Parse a raw OpenWebNet frame into a discovered device."""
         try:
-            event = NormalizedEvent.from_openwebnet(raw_frame)
-        except ValueError:
+            event = NormalizedEvent.parse(raw_frame)
+        except (ValueError, AttributeError):
             return None
 
         if event is None:
