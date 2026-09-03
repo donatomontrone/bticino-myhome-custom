@@ -32,4 +32,4 @@ class BticinoDoorLockRelease(BticinoEntity, ButtonEntity):
     _attr_translation_key = "door_release"
 
     async def async_press(self) -> None:
-        await self.gateway.async_send(door_lock_release(self.where))
+        await self._async_send_command(door_lock_release(self.where))
