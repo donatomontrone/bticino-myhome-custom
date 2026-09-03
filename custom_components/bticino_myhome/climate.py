@@ -19,6 +19,8 @@ from .gateway import BticinoGateway, BticinoGatewayError
 from .platform import setup_dynamic_entities
 from .protocol import NormalizedEvent, build_dimension_request
 from .protocol.thermoregulation import (
+    CAPABILITY_COOLING,
+    CAPABILITY_HEATING,
     DIM_COMPLETE_PROBE_STATUS,
     DIM_MEASURED_TEMPERATURE,
     DIM_SETPOINT_TEMPERATURE,
@@ -52,19 +54,6 @@ PRESET_ANTIFREEZE = "antifreeze"
 PRESET_THERMAL_PROTECTION = "thermal_protection"
 PRESET_GENERIC_PROTECTION = "generic_protection"
 
-_MODE_TO_WHAT = {
-    HVACMode.OFF: "303",
-    HVACMode.HEAT: "110",
-    HVACMode.COOL: "210",
-    HVACMode.AUTO: "311",
-}
-
-_PRESET_TO_WHAT = {
-    PRESET_ANTIFREEZE: "102",
-    PRESET_THERMAL_PROTECTION: "202",
-    PRESET_GENERIC_PROTECTION: "302",
-}
-
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -78,7 +67,11 @@ async def async_setup_entry(
         async_add_entities,
         matches=lambda device: device.device_type == "climate",
         factory=lambda device: BticinoClimate(
-            gateway, device.who, device.where, device.name
+            gateway,
+            device.who,
+            device.where,
+            device.name,
+            capabilities=device.capabilities,
         ),
     )
 
@@ -93,20 +86,40 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
     _attr_max_temp = MAX_TEMP
 
     def __init__(
-        self, gateway: BticinoGateway, who: str, where: str, name: str
+        self,
+        gateway: BticinoGateway,
+        who: str,
+        where: str,
+        name: str,
+        *,
+        capabilities: tuple[str, ...] = (),
     ) -> None:
         super().__init__(gateway, who, where, name)
-        self._attr_hvac_modes = [
-            HVACMode.OFF,
-            HVACMode.HEAT,
-            HVACMode.COOL,
-            HVACMode.AUTO,
-        ]
-        self._attr_preset_modes = [
-            PRESET_ANTIFREEZE,
-            PRESET_THERMAL_PROTECTION,
-            PRESET_GENERIC_PROTECTION,
-        ]
+        explicit_thermal_profile = bool(
+            {CAPABILITY_HEATING, CAPABILITY_COOLING}.intersection(capabilities)
+        )
+        self._supports_heating = (
+            CAPABILITY_HEATING in capabilities or not explicit_thermal_profile
+        )
+        self._supports_cooling = (
+            CAPABILITY_COOLING in capabilities or not explicit_thermal_profile
+        )
+
+        self._attr_hvac_modes = [HVACMode.OFF]
+        if self._supports_heating:
+            self._attr_hvac_modes.append(HVACMode.HEAT)
+        if self._supports_cooling:
+            self._attr_hvac_modes.append(HVACMode.COOL)
+        self._attr_hvac_modes.append(HVACMode.AUTO)
+
+        self._attr_preset_modes = []
+        if self._supports_heating:
+            self._attr_preset_modes.append(PRESET_ANTIFREEZE)
+        if self._supports_cooling:
+            self._attr_preset_modes.append(PRESET_THERMAL_PROTECTION)
+        if self._supports_heating and self._supports_cooling:
+            self._attr_preset_modes.append(PRESET_GENERIC_PROTECTION)
+
         # Do not fabricate a climate state before OpenWebNet evidence arrives.
         self._attr_hvac_mode = None
         self._attr_hvac_action = None
@@ -140,15 +153,11 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
                 continue
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
-        what = _MODE_TO_WHAT.get(hvac_mode)
-        if what is None:
-            raise ValueError(f"Unsupported HVAC mode: {hvac_mode}")
+        what = self._what_for_hvac_mode(hvac_mode)
         await self.gateway.async_send(build_zone_mode_command(self.where, what))
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
-        what = _PRESET_TO_WHAT.get(preset_mode)
-        if what is None:
-            raise ValueError(f"Unsupported preset mode: {preset_mode}")
+        what = self._what_for_preset(preset_mode)
         await self.gateway.async_send(build_zone_mode_command(self.where, what))
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
@@ -160,16 +169,61 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
             raise ValueError(f"Temperature out of range: {value}")
 
         requested_mode = kwargs.get("hvac_mode", self.hvac_mode)
-        if requested_mode == HVACMode.HEAT:
-            operation_mode = OPERATION_MODE_HEATING
-        elif requested_mode == HVACMode.COOL:
-            operation_mode = OPERATION_MODE_CONDITIONING
-        else:
-            operation_mode = OPERATION_MODE_GENERIC
-
+        operation_mode = self._operation_mode_for_setpoint(requested_mode)
         await self.gateway.async_send(
             build_zone_setpoint_command(self.where, value, operation_mode)
         )
+
+    def _what_for_hvac_mode(self, hvac_mode: HVACMode) -> str:
+        if hvac_mode == HVACMode.HEAT:
+            if not self._supports_heating:
+                raise ValueError(f"Unsupported HVAC mode: {hvac_mode}")
+            return "110"
+        if hvac_mode == HVACMode.COOL:
+            if not self._supports_cooling:
+                raise ValueError(f"Unsupported HVAC mode: {hvac_mode}")
+            return "210"
+        if hvac_mode == HVACMode.OFF:
+            if self._supports_heating and self._supports_cooling:
+                return "303"
+            if self._supports_heating:
+                return "103"
+            return "203"
+        if hvac_mode == HVACMode.AUTO:
+            if self._supports_heating and self._supports_cooling:
+                return "311"
+            if self._supports_heating:
+                return "111"
+            return "211"
+        raise ValueError(f"Unsupported HVAC mode: {hvac_mode}")
+
+    def _what_for_preset(self, preset_mode: str) -> str:
+        if preset_mode == PRESET_ANTIFREEZE and self._supports_heating:
+            return "102"
+        if preset_mode == PRESET_THERMAL_PROTECTION and self._supports_cooling:
+            return "202"
+        if (
+            preset_mode == PRESET_GENERIC_PROTECTION
+            and self._supports_heating
+            and self._supports_cooling
+        ):
+            return "302"
+        raise ValueError(f"Unsupported preset mode: {preset_mode}")
+
+    def _operation_mode_for_setpoint(self, hvac_mode: HVACMode | None) -> str:
+        if hvac_mode == HVACMode.HEAT:
+            if not self._supports_heating:
+                raise ValueError(f"Unsupported HVAC mode: {hvac_mode}")
+            return OPERATION_MODE_HEATING
+        if hvac_mode == HVACMode.COOL:
+            if not self._supports_cooling:
+                raise ValueError(f"Unsupported HVAC mode: {hvac_mode}")
+            return OPERATION_MODE_CONDITIONING
+        if self._supports_heating and not self._supports_cooling:
+            return OPERATION_MODE_HEATING
+        if self._supports_cooling and not self._supports_heating:
+            return OPERATION_MODE_CONDITIONING
+        return OPERATION_MODE_GENERIC
 
     def _handle_event(self, event: NormalizedEvent) -> None:
         if event.who != "4" or event.where.lstrip("#") != self.where.lstrip("#"):
