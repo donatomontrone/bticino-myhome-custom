@@ -18,11 +18,11 @@ from .commands import (
     cover_close,
     cover_open,
     cover_stop,
-    door_lock_release,
     light_off,
     light_on,
     scene_activate,
 )
+from .door_entry import door_lock_release
 from .frame import OpenWebNetFrame
 from .normalizer import NormalizedEvent, normalize_frame
 from .parser import parse_frame
