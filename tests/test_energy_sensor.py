@@ -30,6 +30,7 @@ def test_active_power_sensor_metadata_is_read_only_power() -> None:
     assert sensor.device_class == SensorDeviceClass.POWER
     assert sensor.native_unit_of_measurement == UnitOfPower.WATT
     assert sensor.state_class == SensorStateClass.MEASUREMENT
+    assert sensor.unique_id == "127.0.0.1:20000:18:51:active_power"
     assert sensor.native_value is None
     assert sensor.should_poll is False
 
