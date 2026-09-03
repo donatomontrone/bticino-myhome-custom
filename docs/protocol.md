@@ -53,6 +53,12 @@ is a zone configuration profile, not a hard-coded assumption about the KW4691
 model; the same device family can be configured differently in other MyHOME
 installations.
 
+Manual/inventory construction supports an explicit thermal profile. Passive
+learning can also infer direction when a documented mode event proves heating,
+cooling or generic operation; multiple observations are merged so evidence is
+not lost during the same learning window. A temperature-only dimension frame is
+not enough to infer heating or cooling.
+
 When no explicit or observed thermal direction exists, legacy/discovered entries
 retain the previous dual heating+cooling surface rather than silently narrowing
 capabilities without evidence.
