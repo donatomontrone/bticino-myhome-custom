@@ -16,29 +16,44 @@ concurrency:
 
 jobs:
   test:
-    name: Python 3.12
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: HA 2025.1 / Python 3.12
+            python_version: "3.12"
+            ha_version: "2025.1.0"
+            run_quality: false
+          - name: HA 2026.9 / Python 3.14
+            python_version: "3.14.2"
+            ha_version: "2026.9.0"
+            run_quality: true
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Set up Python 3.12
+      - name: Set up Python ${{ matrix.python_version }}
         uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
-          cache: "pip"
+          python-version: ${{ matrix.python_version }}
+          cache: pip
+          cache-dependency-path: requirements-test.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements-dev.txt
+          python -m pip install -r requirements-test.txt "homeassistant==${{ matrix.ha_version }}"
 
       - name: Lint with ruff
+        if: matrix.run_quality
         run: python -m ruff check custom_components/bticino_myhome tests
 
       - name: Type check with mypy
+        if: matrix.run_quality
         run: python -m mypy custom_components/bticino_myhome
 
       - name: Run tests with pytest

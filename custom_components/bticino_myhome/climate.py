@@ -79,13 +79,6 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
     """Thermoregulation endpoint exposed as a Home Assistant climate entity."""
 
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
-    _attr_hvac_modes = [
-        HVACMode.OFF,
-        HVACMode.HEAT,
-        HVACMode.COOL,
-        HVACMode.AUTO,
-    ]
-    _attr_preset_modes = [PRESET_ECO]
     _attr_supported_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
     )
@@ -95,6 +88,13 @@ class BticinoClimate(BticinoEntity, ClimateEntity):
 
     def __init__(self, gateway, who: str, where: str, name: str) -> None:
         super().__init__(gateway, who, where, name)
+        self._attr_hvac_modes = [
+            HVACMode.OFF,
+            HVACMode.HEAT,
+            HVACMode.COOL,
+            HVACMode.AUTO,
+        ]
+        self._attr_preset_modes = [PRESET_ECO]
         self._attr_hvac_mode = HVACMode.OFF
         self._attr_hvac_action = HVACAction.OFF
         self._attr_preset_mode = None
