@@ -6,7 +6,7 @@ The project remains local-first and capture-led. Protocol-sensitive behavior mus
 
 ## Current checkpoint — post-0.2.0 master
 
-Release 0.2.0 established the repository/architecture baseline. Subsequent `master` work has completed the software-side runtime/transport hardening phase and started Home Assistant integration-quality work: explicit command results, integration-owned post-negotiation channel semantics, initial-state hydration plumbing, conservative device lifecycle, safer active discovery, reconfigure/reauthentication and explicit inventory removal.
+Release 0.2.0 established the repository/architecture baseline. Subsequent `master` work has completed the software-side runtime/transport hardening phase and started Home Assistant integration-quality work: explicit command results, integration-owned post-negotiation channel semantics, initial-state hydration plumbing, conservative device lifecycle, safer active discovery, reconfigure/reauthentication, explicit inventory removal, typed runtime ConfigEntries, HA-native entity naming and deterministic multi-gateway raw-frame targeting.
 
 CI remains green against Home Assistant 2025.1 / Python 3.12 and Home Assistant 2026.9 / Python 3.14, with Ruff, mypy, pytest, Hassfest and HACS validation.
 
@@ -89,16 +89,18 @@ A separate low-level transport rewrite is not a goal. The focused adapter now ow
 
 This phase is intentionally executable without a running Home Assistant instance. Home Assistant lifecycle/registry/flow validation using a real test instance is deferred to Phase F.
 
-- [x] Introduce a typed `ConfigEntry[BticinoMyHomeData]` alias and use it in the central integration/runtime lifecycle
-- [ ] Propagate the typed ConfigEntry alias through all remaining platform/helper signatures
+- [x] Introduce a typed `ConfigEntry[BticinoMyHomeData]` alias in a cycle-safe runtime data module
+- [x] Propagate the typed ConfigEntry alias through integration, platforms, dynamic lifecycle helpers, diagnostics and gateway-action code
 - [x] Add reconfigure flow for host/port/password changes with stable serial/UDN conflict protection
 - [x] Add reauthentication flow and raise `ConfigEntryAuthFailed` for genuine credential failures
 - [x] Add explicit endpoint removal from Options Flow and the Home Assistant `async_remove_config_entry_device` hook
 - [x] Translate Config/Options action selectors and connection/authentication errors in English and Italian
-- [ ] Add `_attr_has_entity_name` and translation-key based default entity names where appropriate
+- [x] Add `_attr_has_entity_name` and translation-key based names for secondary entities while keeping primary endpoint entities unnamed relative to their device
 - [ ] Use selectors and `data_description` consistently across all remaining Config/Options fields
-- [ ] Review `send_frame` as an advanced/debug action and require explicit gateway targeting for multi-entry setups if retained
-- [ ] Translate remaining user-facing entity action/service exceptions where Home Assistant surfaces them
+- [x] Keep `send_frame` as an advanced/debug action but require an explicit BTicino ConfigEntry target, making multi-gateway behavior deterministic
+- [x] Register integration-wide actions from `async_setup` instead of one config-entry lifecycle
+- [x] Translate `send_frame` validation/transport failures and action metadata in English and Italian
+- [ ] Translate remaining user-facing entity action exceptions where Home Assistant surfaces them
 - [ ] Add/expand diagnostics and redaction unit tests
 - [ ] Expand unit/mocked tests for Config Flow logic, Options logic, inventory persistence and changed-IP identity without requiring a running HA instance
 - [ ] Add coverage reporting and raise code coverage substantially before final integration validation
