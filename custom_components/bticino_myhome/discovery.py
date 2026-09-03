@@ -118,22 +118,24 @@ class BticinoDiscovery:
     @classmethod
     def parse_event(cls, raw_frame: str) -> DiscoveredDevice | None:
         """Parse a raw OpenWebNet frame into a discovered device."""
-        try:
-            event = NormalizedEvent.parse(raw_frame)
-        except (ValueError, AttributeError):
+        # Parse the frame manually since NormalizedEvent API may vary
+        # Frame format: *WHO*WHERE## or *WHO*WHERE*DIM##
+        parts = raw_frame.strip("*").split("*")
+        if len(parts) < 2:
             return None
 
-        if event is None:
+        who = parts[0]
+        where = parts[1]
+
+        # Map WHO to device type
+        device_type_info = cls._TYPE_MAP.get(who)
+        if not device_type_info:
             return None
 
-        type_info = cls._TYPE_MAP.get(event.device_type)
-        if not type_info:
-            return None
-
-        device_type, capabilities = type_info
+        device_type, capabilities = device_type_info
         return DiscoveredDevice(
-            who=event.device_type,
-            address=event.address,
+            who=who,
+            address=where,
             device_type=device_type,
             capabilities=capabilities,
             source=DiscoverySource.PASSIVE.value,

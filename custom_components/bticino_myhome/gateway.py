@@ -166,7 +166,7 @@ class BticinoGateway:
                                 _LOGGER.exception("OpenWebNet raw listener failed")
 
                         try:
-                            event = NormalizedEvent.from_openwebnet(raw)
+                            event = NormalizedEvent.parse(raw)
                         except (ValueError, AttributeError):
                             continue
 
