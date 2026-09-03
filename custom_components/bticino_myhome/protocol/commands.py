@@ -41,14 +41,6 @@ def cover_stop(where: str) -> str:
     return build_command("2", "0", where)
 
 
-def load_on(where: str) -> str:
-    return build_command("3", "1", where)
-
-
-def load_off(where: str) -> str:
-    return build_command("3", "0", where)
-
-
 def alarm_arm_away(where: str) -> str:
     return build_command("5", "1", where)
 
