@@ -6,7 +6,10 @@ import re
 from .frame import OpenWebNetFrame
 
 _STANDARD_RE = re.compile(
-    r"^\*(?P<who>[^*#]+)\*(?P<what>[^*#]+)\*(?P<where>[^*]+)##$"
+    r"^\*(?P<who>[^*#]+)\*(?P<what>[^*#]+)\*(?P<where>[^*#]+)##$"
+)
+_THERMOREGULATION_CENTRAL_RE = re.compile(
+    r"^\*4\*(?P<what>[^*#]+)\*(?P<where>#[^*#]+)##$"
 )
 
 
@@ -14,7 +17,10 @@ def parse_frame(raw_message: str) -> OpenWebNetFrame | None:
     """Parse standard events and dimension responses.
 
     Command/status requests such as ``*#1*21##`` and dimension writes with a
-    ``#DIM`` marker are intentionally not emitted as device events.
+    ``#DIM`` marker are intentionally not emitted as device events. Parameterized
+    standard ``#WHERE`` values are accepted only for WHO=4 central-unit zone
+    events; other WHO families remain conservative until their group/address
+    semantics are explicitly implemented.
     """
     if raw_message is None:
         return None
@@ -28,6 +34,15 @@ def parse_frame(raw_message: str) -> OpenWebNetFrame | None:
             who=standard.group("who"),
             what=standard.group("what"),
             where=standard.group("where"),
+            raw=raw,
+        )
+
+    thermoregulation_central = _THERMOREGULATION_CENTRAL_RE.fullmatch(raw)
+    if thermoregulation_central is not None:
+        return OpenWebNetFrame(
+            who="4",
+            what=thermoregulation_central.group("what"),
+            where=thermoregulation_central.group("where"),
             raw=raw,
         )
 
