@@ -1,94 +1,192 @@
 # OpenWebNet protocol boundary
 
-The integration intentionally keeps OpenWebNet syntax in one package:
+This document records the protocol decisions used by the Home Assistant integration. The primary source is the official BTicino/Legrand OpenWebNet documentation published through https://developer.legrand.com/local-interoperability/ . Mature MyHOME/OWNd/openHAB implementations are used only as secondary cross-checks.
 
-```text
-protocol/
-  frame.py              Parsed frame model
-  parser.py             Wire -> frame
-  commands.py           Generic semantic command -> wire helpers
-  normalizer.py         Frame -> semantic event
-  thermoregulation.py   WHO=4 constants, states and command builders
-```
+## General frame model
 
-Standard event frames have the shape:
+OpenWebNet standard events use:
 
 ```text
 *WHO*WHAT*WHERE##
 ```
 
-Generic standard events are accepted only with endpoint-style WHERE values that
-do not contain the OpenWebNet parameter marker `#`. WHO=4 has one explicit
-exception: central-unit thermoregulation events such as `*4*110*#1##` are parsed
-because that address form is documented and modeled by the dedicated WHO=4
-protocol layer. Dimension responses preserve their received WHERE, including
-parameterized WHO=4 addresses. Group/broadcast/parameterized standard WHERE
-semantics for other WHO families are intentionally not treated as endpoint
-evidence until that family is explicitly modeled and capture-validated.
-
-Requests and dimension writes remain excluded from the device-event path.
-Status requests use the separate form:
+Status requests use:
 
 ```text
 *#WHO*WHERE##
 ```
 
-Status requests are not treated as device events by the parser.
+Dimension requests use:
 
-Generic normalized-state mappings remain intentionally small. WHO=4 numeric
-semantics live in `thermoregulation.py` because they are defined by the public
-BTicino/Legrand OpenWebNet thermoregulation specification and should not be mixed
-with unrelated families.
+```text
+*#WHO*WHERE*DIMENSION##
+```
 
-The WHO=4 software model currently covers:
+Dimension writes use:
 
-- documented heating / conditioning / generic operation families;
-- anti-freeze, thermal-protection and generic-protection states;
-- manual / programming / OFF mode families;
-- explicit heating-only, cooling-only and heating+cooling zone capabilities;
-- passive capability inference only from documented directional heating/cooling WHAT families;
-- preservation of standalone versus central-unit WHERE syntax instead of forcing one routing model;
-- profile-aware OFF/programming commands (`103/111`, `203/211`, `303/311`);
-- DIM=14 setpoint writes with temperature plus the matching operation-mode value;
-- conservative DIM=19 active-output decoding.
+```text
+*#WHO*WHERE*#DIMENSION*VAL1*VAL2*...##
+```
 
-A KW4691 configured for a floor-heating-only zone is therefore represented as a
-heating-only WHO=4 climate endpoint: Home Assistant exposes OFF / HEAT / AUTO and
-anti-freeze protection, while COOL and cooling protection are not offered. This
-is a zone configuration profile, not a hard-coded assumption about the KW4691
-model; the same device family can be configured differently in other MyHOME
-installations.
+The integration keeps raw wire parsing separate from semantic normalization. Requests and dimension writes are not emitted as device events.
 
-WHO=4 routing is kept explicit. A plain observed/configured WHERE such as `1` is
-preserved for a standalone zone. A central-unit form such as `#1` is also
-preserved when that is the configured/observed address. The helper
-`central_zone_where()` exists only for callers that already know central routing
-is required; the climate entity does not silently convert every zone to it.
-More complex central-unit addressing remains capture-dependent and is not inferred.
+## Conservative WHERE parsing
 
-Manual/inventory construction supports an explicit thermal profile. Passive
-learning can also infer direction when a documented directional mode event proves
-heating or cooling; multiple observations are merged so evidence is not lost
-during the same learning window. A temperature-only dimension frame or a generic
-WHAT family is not enough to infer heating or cooling support.
+Generic standard endpoint events reject parameterized `#WHERE` values. Two explicit exceptions are modeled because their address forms are documented and have dedicated semantics:
 
-When no explicit or observed thermal direction exists, legacy/discovered entries
-retain the previous dual heating+cooling surface rather than silently narrowing
-capabilities without evidence.
+- WHO=4 thermoregulation central-unit zones such as `#1`;
+- WHO=5 burglar-alarm central partitions/auxiliary sources such as `#1..#N`.
 
-The current WHO=4 implementation is **spec/reference validated in software**: its
-mode/state tables, address forms and DIM=14 command shape are derived from public
-BTicino/Legrand OpenWebNet documentation and cross-checked against established
-MyHOME/OWNd implementations. It is **not hardware validated** until the same
-behaviour is replayed against captures from a real MH201/KW4691 installation.
+WHO=5 parameterized WHERE frames are state/event evidence and are not automatically treated as independent discoverable endpoint devices.
 
-The generic normalized event model provides state mappings for:
+## WHO=0 — scenarios
 
-- WHO=1 lighting;
-- WHO=2 automation/covers;
-- WHO=3 load management;
-- WHO=4 thermoregulation through its dedicated module;
-- WHO=5 alarm.
+Scenario activation follows documented WHO=0 frames. The integration does not synthesize a full range of possible scenario addresses during discovery; only observed or explicitly configured scenarios become inventory endpoints.
 
-WHO=7 and WHO=18 are recognized at the device classification level, while their
-installation-specific semantics remain intentionally conservative.
+## WHO=1 — lighting
+
+Project scope is intentionally limited to documented basic lighting ON/OFF:
+
+```text
+*1*1*WHERE##   ON
+*1*0*WHERE##   OFF
+*#1*WHERE##    status request
+```
+
+The official WHO=1 specification contains dimmer, RGB and tunable-white semantics, but those surfaces are permanently excluded from this MH201 project. No brightness, dimmer or transition estimation is implemented.
+
+## WHO=2 — automation / shutters
+
+Base shutters use WHAT 0/1/2 for stop/up/down.
+
+Advanced shutter support is capability-gated and uses the official WHO=2 dimensions:
+
+- DIM=10 — advanced shutter status/position;
+- DIM=11 — GoToLevel.
+
+DIM=10 position mapping follows the official specification:
+
+- `0` = fully closed;
+- `1..99` = current percentage;
+- `100` = fully open;
+- `255` = unknown.
+
+Home Assistant `SET_POSITION` is exposed only when advanced capability is configured or proven by a valid DIM=10 event. Basic shutters never receive a synthetic percentage based on travel time. Writes are non-optimistic.
+
+## WHO=4 — thermoregulation
+
+WHO=4 has a dedicated protocol module. The current software model covers the documented heating, conditioning and generic operation families, protection/off/manual/programming states, standalone and central-zone routing, and selected dimensions:
+
+- DIM=0 temperature;
+- DIM=12 complete probe status;
+- DIM=14 setpoint read/write;
+- DIM=19 valves/output state.
+
+Manual inventory supports heating-only, cooling-only and heating+cooling profiles. A heating-only KW4691-style zone therefore does not expose cooling functions merely because the general WHO=4 specification contains them.
+
+State remains evidence-driven; commands do not locally fabricate HVAC mode, preset or setpoint confirmation.
+
+## WHO=5 — burglar alarm / BTicino 4200C target
+
+The official WHO=5 catalogue used by the integration includes:
+
+- WHAT=4 system battery fault;
+- WHAT=5 battery OK;
+- WHAT=6 no network;
+- WHAT=7 network present;
+- WHAT=8 engaged;
+- WHAT=9 disengaged;
+- WHAT=10 battery unloaded/KO;
+- WHAT=11 active zone/partition;
+- WHAT=12 technical alarm;
+- WHAT=13 reset technical alarm;
+- WHAT=14 no reception / peripheral ACK condition;
+- WHAT=15 intrusion alarm;
+- WHAT=16 24h/tampering alarm;
+- WHAT=17 anti-panic alarm;
+- WHAT=18 non-active/partialized zone;
+- WHAT=31 silent alarm.
+
+Central snapshot hydration uses:
+
+```text
+*#5*0##
+```
+
+Partition status requests use:
+
+```text
+*#5*#N##
+```
+
+for the modeled partitions 1–8.
+
+The 4200C Home Assistant surface is evidence-driven and models:
+
+- central engaged/disengaged/triggered state;
+- eight active/partialized partition sensors;
+- battery-problem diagnostic: WHAT 4/10 = problem, WHAT 5 = OK;
+- network connectivity: WHAT 6 = unavailable, WHAT 7 = present;
+- technical-alarm AUX sensors: WHAT 12 = active, WHAT 13 = reset on the same `#N`.
+
+WHAT=14 is deliberately not converted into a persistent binary state because the public/reference material does not provide a sufficiently unambiguous reset lifecycle for the target installation.
+
+Control builders for full arm/disarm and partition operations follow legacy BTicino OpenWebNet alarm-control syntax and established implementation precedent:
+
+```text
+*5*8##          full engage
+*5*9##          full disengage
+*5*8#...##      engage with selected active partitions
+*5*11*#N##      activate one partition
+*5*18*#N##      partialize one partition
+```
+
+These control frames are reference-backed and deterministic-test-covered but remain hardware-validation-pending on the target 4200C through MH201.
+
+## WHO=6 — door entry / HomeTouch target
+
+Door-entry control is kept separate from public WHO=7 multimedia semantics.
+
+The project currently exposes a conservative reference-backed WHO=6 door-release builder. Public Legrand documentation does not provide a sufficiently reliable HomeTouch ring start/end lifecycle for this target, so the integration does not invent one.
+
+Raw WHO=6/7 diagnostic capture remains available, disabled by default, to identify the actual HomeTouch/MH201 call lifecycle when hardware becomes available.
+
+## WHO=7 — multimedia / VDE cameras
+
+The official WHO=7 document describes the multimedia/camera subsystem, including video reception/freeing resources, zoom, image coordinates, luminosity, contrast, color and image quality.
+
+This project does not expose those controls as Home Assistant camera/media entities because audio/video streaming is outside scope. WHO=7 frames may still be observed through the raw diagnostic path when investigating HomeTouch call traffic.
+
+## WHO=18 — Energy Management
+
+Energy Management is modeled only through documented WHO=18 semantics. WHO=3 is not part of this integration.
+
+The current production surface is intentionally narrow:
+
+- documented `5N` energy-meter endpoints;
+- DIM=113 Active Power;
+- unit: watt;
+- Home Assistant `SensorDeviceClass.POWER`;
+- `SensorStateClass.MEASUREMENT`;
+- initial DIM=113 request plus event/response-driven updates;
+- no periodic polling and no optimistic values.
+
+The official WHO=18 document also defines totalizers and additional dimensions, but those remain deferred until unit/reset semantics and real MH201 behavior are validated strongly enough for correct Home Assistant state-class modeling.
+
+## Permanent exclusions
+
+Do not add these surfaces without an explicit project-scope change:
+
+- WHO=22;
+- WHO=1 dimmer/brightness/transition;
+- WHO=3 load-management semantics;
+- media player, audio, music and sound diffusion;
+- VDE/HomeTouch audio/video streaming or camera entities.
+
+## Validation terminology
+
+**Spec/reference validated** means the implemented software behavior is derived from official OpenWebNet documentation, cross-checked with established implementations where useful and covered by deterministic tests.
+
+**Hardware validated** additionally requires representative traffic and behavior from the real target MH201/MyHome installation.
+
+Until physical validation is available, software tests must never be described as proof that a specific 4200C, HomeTouch, KW4691, actuator or energy meter accepts a command in the target installation.

@@ -17,29 +17,25 @@
       },
       "confirm": {
         "title": "{model} rilevato",
-        "description": "Home Assistant ha rilevato un gateway BTicino {model} all'indirizzo {host}. Conferma i parametri della connessione OpenWebNet.",
+        "description": "Home Assistant ha rilevato un gateway BTicino {model} all'indirizzo {host}. Conferma i parametri OpenWebNet.",
         "data": {
           "port": "Porta OpenWebNet",
           "password": "Password OpenWebNet (opzionale)"
         },
         "data_description": {
-          "port": "Porta TCP utilizzata dal server OpenWebNet locale del gateway rilevato.",
+          "port": "Porta TCP usata dal server OpenWebNet del gateway rilevato.",
           "password": "Lascia vuoto solo se il gateway non richiede una password OpenWebNet."
         }
       },
       "reauth_confirm": {
         "title": "Riautentica BTicino MyHome",
         "description": "Il gateway MH201 all'indirizzo {host} ha rifiutato le credenziali memorizzate. Inserisci la password OpenWebNet attuale.",
-        "data": {
-          "password": "Password OpenWebNet"
-        },
-        "data_description": {
-          "password": "Password attualmente accettata dal gateway OpenWebNet locale."
-        }
+        "data": {"password": "Password OpenWebNet"},
+        "data_description": {"password": "Password attualmente accettata dal gateway OpenWebNet locale."}
       },
       "reconfigure": {
         "title": "Riconfigura BTicino MyHome",
-        "description": "Aggiorna la connessione di rete di questo gateway MH201. Quando disponibili, seriale e UDN vengono verificati per confermare l'identità del gateway.",
+        "description": "Aggiorna la connessione di rete dell'MH201. Quando disponibili, seriale e UDN vengono verificati per confermare l'identità del gateway.",
         "data": {
           "host": "Indirizzo IP o nome host",
           "port": "Porta OpenWebNet",
@@ -47,10 +43,10 @@
           "clear_password": "Rimuovi la password memorizzata"
         },
         "data_description": {
-          "host": "Nuovo indirizzo di rete locale dello stesso gateway MH201.",
+          "host": "Nuovo indirizzo locale dello stesso gateway MH201.",
           "port": "Porta TCP utilizzata dal server OpenWebNet locale.",
-          "password": "Lascia vuoto per mantenere la password attualmente memorizzata.",
-          "clear_password": "Abilita solo se il gateway non richiede più autenticazione. Questa opzione ha precedenza sul campo password."
+          "password": "Lascia vuoto per mantenere la password già memorizzata.",
+          "clear_password": "Abilita solo se il gateway non richiede più autenticazione."
         }
       }
     },
@@ -78,29 +74,21 @@
         },
         "data_description": {
           "action": "Scegli se eseguire una scansione, apprendere passivamente, aggiungere manualmente o rimuovere endpoint.",
-          "include_scenarios": "Mantiene gli endpoint scenario osservati durante la finestra di scansione attiva.",
-          "discovery_listen_seconds": "Finestra aggiuntiva di ascolto eventi dopo il completamento delle sonde attive conservative."
+          "include_scenarios": "Mantiene gli endpoint scenario osservati durante la finestra di scansione.",
+          "discovery_listen_seconds": "Finestra aggiuntiva di ascolto eventi dopo le sonde attive conservative."
         }
       },
       "passive_learning": {
         "title": "Apprendi dispositivi BTicino",
-        "description": "Ascolta il BUS senza inviare comandi. Durante l'ascolto usa i comandi fisici dei dispositivi che vuoi identificare.",
-        "data": {
-          "listen_seconds": "Tempo di ascolto (secondi)"
-        },
-        "data_description": {
-          "listen_seconds": "Durata dell'ascolto degli eventi OpenWebNet senza eseguire sonde attive sul BUS."
-        }
+        "description": "Ascolta il BUS senza inviare comandi. Durante l'ascolto usa i comandi fisici dei dispositivi da identificare.",
+        "data": {"listen_seconds": "Tempo di ascolto (secondi)"},
+        "data_description": {"listen_seconds": "Durata dell'ascolto degli eventi OpenWebNet senza probe attivi sul BUS."}
       },
       "select_learned": {
         "title": "Dispositivi rilevati",
         "description": "Seleziona i dispositivi da aggiungere all'inventario.",
-        "data": {
-          "devices": "Dispositivi"
-        },
-        "data_description": {
-          "devices": "Solo gli endpoint selezionati vengono salvati nell'inventario di questo gateway."
-        }
+        "data": {"devices": "Dispositivi"},
+        "data_description": {"devices": "Solo gli endpoint selezionati vengono salvati nell'inventario del gateway."}
       },
       "manual_device": {
         "title": "Aggiungi dispositivo manualmente",
@@ -114,27 +102,23 @@
           "name": "Nome (opzionale)"
         },
         "data_description": {
-          "who": "Numero della famiglia funzionale OpenWebNet, ad esempio 2 per l'automazione o 4 per la termoregolazione.",
-          "where": "Indirizzo OpenWebNet dell'endpoint esattamente come utilizzato dall'impianto.",
-          "device_type": "Superficie Home Assistant da associare a questa famiglia WHO supportata.",
-          "advanced_shutter": "Abilita solo per un attuatore motore avanzato WHO=2 che espone posizione/stato OpenWebNet DIM=10 e GoToLevel DIM=11.",
-          "climate_profile": "Per gli endpoint climate WHO=4 limita esplicitamente la zona a riscaldamento, raffrescamento o entrambi. Lascia non impostato se non noto.",
-          "name": "Nome opzionale dell'endpoint mostrato in Home Assistant."
+          "who": "Numero della famiglia funzionale OpenWebNet.",
+          "where": "Indirizzo OpenWebNet dell'endpoint esattamente come usato dall'impianto.",
+          "device_type": "Superficie Home Assistant associata alla famiglia WHO supportata.",
+          "advanced_shutter": "Abilita solo per un attuatore WHO=2 che espone DIM=10 posizione/stato e DIM=11 GoToLevel.",
+          "climate_profile": "Per WHO=4 limita la zona a riscaldamento, raffrescamento o entrambi quando noto.",
+          "name": "Nome opzionale mostrato in Home Assistant."
         }
       },
       "remove_device": {
         "title": "Rimuovi dispositivi configurati",
-        "description": "Seleziona gli endpoint da rimuovere dall'inventario. Verranno rimosse anche le relative entità e il dispositivo endpoint di Home Assistant.",
-        "data": {
-          "devices": "Dispositivi"
-        },
-        "data_description": {
-          "devices": "La rimozione è sempre esplicita: una risposta di discovery mancante non elimina mai automaticamente un dispositivo."
-        }
+        "description": "Seleziona gli endpoint da rimuovere. Verranno eliminate anche le relative entità e il dispositivo endpoint Home Assistant.",
+        "data": {"devices": "Dispositivi"},
+        "data_description": {"devices": "La rimozione è esplicita: una mancata risposta di discovery non elimina automaticamente dispositivi."}
       }
     },
     "error": {
-      "invalid_device": "Il tipo di dispositivo, il profilo termico o l'opzione tapparella avanzata non è valido per il WHO specificato."
+      "invalid_device": "Il tipo dispositivo, il profilo termico o l'opzione tapparella avanzata non è valido per il WHO specificato."
     },
     "abort": {
       "no_devices_found": "Nessun dispositivo supportato è stato rilevato durante l'ascolto.",
@@ -174,19 +158,16 @@
   },
   "entity": {
     "binary_sensor": {
-      "alarm_partition": {
-        "name": "Partizione {partition}"
-      }
+      "alarm_partition": {"name": "Partizione {partition}"},
+      "alarm_battery_problem": {"name": "Problema batteria"},
+      "alarm_network_connectivity": {"name": "Connettività rete"},
+      "alarm_technical_alarm": {"name": "Allarme tecnico AUX {auxiliary}"}
     },
     "button": {
-      "door_release": {
-        "name": "Apriporta"
-      }
+      "door_release": {"name": "Apriporta"}
     },
     "sensor": {
-      "door_entry_raw_event": {
-        "name": "Ultimo evento videocitofonico grezzo"
-      }
+      "door_entry_raw_event": {"name": "Ultimo evento videocitofonico grezzo"}
     }
   },
   "services": {
@@ -194,86 +175,40 @@
       "name": "Invia frame OpenWebNet",
       "description": "Azione avanzata/diagnostica che invia un frame OpenWebNet grezzo tramite uno specifico gateway MH201 configurato.",
       "fields": {
-        "config_entry_id": {
-          "name": "Gateway",
-          "description": "Configurazione BTicino MyHome proprietaria della connessione MH201 di destinazione."
-        },
-        "frame": {
-          "name": "Frame",
-          "description": "Frame OpenWebNet grezzo da inviare, ad esempio *1*1*21##."
-        },
-        "is_status_request": {
-          "name": "Richiesta di stato",
-          "description": "Abilita solo quando il frame grezzo è una richiesta di stato e le risposte devono essere normalizzate come evidenza dello stato."
-        }
+        "config_entry_id": {"name": "Gateway", "description": "Configurazione BTicino MyHome proprietaria della connessione MH201 di destinazione."},
+        "frame": {"name": "Frame", "description": "Frame OpenWebNet grezzo da inviare."},
+        "is_status_request": {"name": "Richiesta di stato", "description": "Abilita solo per richieste di stato le cui risposte devono essere normalizzate come evidenza dello stato."}
       }
     },
     "arm_alarm_partitions": {
       "name": "Inserisci partizioni allarme",
-      "description": "Inserisce l'allarme WHO=5 usando la maschera delle partizioni attive selezionate. Il comando BTicino legacy è supportato da documentazione/riferimenti ma richiede ancora validazione sulla centrale 4200C attraverso MH201.",
+      "description": "Inserisce l'allarme WHO=5 usando la maschera delle partizioni attive. La validazione hardware 4200C/MH201 è ancora pendente.",
       "fields": {
-        "config_entry_id": {
-          "name": "Gateway",
-          "description": "Configurazione BTicino MyHome proprietaria della connessione MH201 di destinazione."
-        },
-        "partitions": {
-          "name": "Partizioni attive",
-          "description": "Partizioni da 1 a 8 che devono restare attive; quelle non selezionate vengono parzializzate."
-        }
+        "config_entry_id": {"name": "Gateway", "description": "Configurazione BTicino MyHome proprietaria della connessione MH201 di destinazione."},
+        "partitions": {"name": "Partizioni attive", "description": "Partizioni 1-8 che devono restare attive; quelle non selezionate vengono parzializzate."}
       }
     },
     "set_alarm_partition": {
       "name": "Imposta partizione allarme",
-      "description": "Attiva o parzializza una singola partizione WHO=5. Il comando è supportato da specifica/riferimenti ma richiede ancora validazione sulla centrale 4200C attraverso MH201.",
+      "description": "Attiva o parzializza una singola partizione WHO=5. La validazione hardware 4200C/MH201 è ancora pendente.",
       "fields": {
-        "config_entry_id": {
-          "name": "Gateway",
-          "description": "Configurazione BTicino MyHome proprietaria della connessione MH201 di destinazione."
-        },
-        "partition": {
-          "name": "Partizione",
-          "description": "Numero della partizione allarme da 1 a 8."
-        },
-        "active": {
-          "name": "Attiva",
-          "description": "Abilita per rendere attiva la partizione; disabilita per parzializzarla."
-        }
+        "config_entry_id": {"name": "Gateway", "description": "Configurazione BTicino MyHome proprietaria della connessione MH201 di destinazione."},
+        "partition": {"name": "Partizione", "description": "Numero della partizione allarme da 1 a 8."},
+        "active": {"name": "Attiva", "description": "Abilita per rendere attiva la partizione; disabilita per parzializzarla."}
       }
     }
   },
   "exceptions": {
-    "send_frame_missing_frame": {
-      "message": "È necessario specificare un frame OpenWebNet."
-    },
-    "send_frame_entry_not_found": {
-      "message": "La configurazione BTicino MyHome selezionata non è stata trovata."
-    },
-    "send_frame_entry_not_loaded": {
-      "message": "Il gateway BTicino MyHome selezionato non è attualmente caricato."
-    },
-    "send_frame_failed": {
-      "message": "Invio del frame OpenWebNet non riuscito: {detail}"
-    },
-    "entity_command_failed": {
-      "message": "Comando OpenWebNet non riuscito: {detail}"
-    },
-    "alarm_partitions_invalid": {
-      "message": "Selezione delle partizioni allarme non valida: {detail}"
-    },
-    "cover_position_not_supported": {
-      "message": "Il controllo posizione non è abilitato per questa tapparella MyHOME."
-    },
-    "cover_position_out_of_range": {
-      "message": "La posizione tapparella {position}% è fuori dall'intervallo supportato 0–100%."
-    },
-    "unsupported_hvac_mode": {
-      "message": "La modalità HVAC {hvac_mode} non è supportata da questa zona di termoregolazione MyHOME."
-    },
-    "unsupported_preset_mode": {
-      "message": "Il preset {preset_mode} non è supportato da questa zona di termoregolazione MyHOME."
-    },
-    "temperature_out_of_range": {
-      "message": "La temperatura {temperature} °C è fuori dall'intervallo supportato {min_temp}–{max_temp} °C."
-    }
+    "send_frame_missing_frame": {"message": "È necessario specificare un frame OpenWebNet."},
+    "send_frame_entry_not_found": {"message": "La configurazione BTicino MyHome selezionata non è stata trovata."},
+    "send_frame_entry_not_loaded": {"message": "Il gateway BTicino MyHome selezionato non è attualmente caricato."},
+    "send_frame_failed": {"message": "Invio del frame OpenWebNet non riuscito: {detail}"},
+    "entity_command_failed": {"message": "Comando OpenWebNet non riuscito: {detail}"},
+    "alarm_partitions_invalid": {"message": "Selezione delle partizioni allarme non valida: {detail}"},
+    "cover_position_not_supported": {"message": "Il controllo posizione non è abilitato per questa tapparella MyHOME."},
+    "cover_position_out_of_range": {"message": "La posizione tapparella {position}% è fuori dall'intervallo supportato 0–100%."},
+    "unsupported_hvac_mode": {"message": "La modalità HVAC {hvac_mode} non è supportata da questa zona MyHOME."},
+    "unsupported_preset_mode": {"message": "Il preset {preset_mode} non è supportato da questa zona MyHOME."},
+    "temperature_out_of_range": {"message": "La temperatura {temperature} °C è fuori dall'intervallo supportato {min_temp}–{max_temp} °C."}
   }
 }

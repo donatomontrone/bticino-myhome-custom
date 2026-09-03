@@ -1,267 +1,242 @@
 # BTicino MyHome MH201 for Home Assistant
 
-A local-first Home Assistant custom integration for **BTicino MyHome installations using an MH201 gateway and OpenWebNet**.
+Integrazione Home Assistant **locale** per impianti BTicino MyHome raggiungibili tramite gateway **MH201** e protocollo **OpenWebNet**.
 
-Current release: **0.2.0**.
+**Versione prevista per questo rilascio: 0.3.0.**
 
-The integration communicates directly with the MH201 over the local network. It does not use the BTicino, Netatmo or Legrand cloud for the control path.
+[Guida installazione e utilizzo](USAGE.md) · [Roadmap tecnica](docs/roadmap.md) · [Note protocollo](docs/protocol.md) · [Changelog](CHANGELOG.md)
 
-> Scope: this project is intentionally focused on MH201/OpenWebNet. WHO=22, media player, audio, music, sound diffusion, WHO=1 dimmer/brightness/transition control and WHO=3 load-management semantics are deliberately out of scope. WHO=1 lighting is intentionally limited to ON/OFF. Energy management is modeled only through documented WHO=18 semantics. Audio/video streaming from video-door-entry devices is not a project target.
+---
 
-## Project status
+## Italiano
 
-Version 0.2.0 is the first architecture/runtime consolidation milestone. The repository is validated by CI against:
+### Cos'è
 
-- Home Assistant 2025.1 / Python 3.12 as the compatibility baseline;
-- Home Assistant 2026.9 / Python 3.14 as the current primary target;
-- Ruff, mypy, pytest, Hassfest and HACS validation.
+BTicino MyHome MH201 collega Home Assistant direttamente al gateway MH201 sulla rete locale, usando OpenWebNet. Il percorso di controllo non utilizza cloud BTicino, Netatmo o Legrand.
 
-CI green does **not** replace validation against a physical MH201. Protocol-sensitive areas are deliberately marked hardware-validation-pending until representative real OpenWebNet captures confirm their runtime behavior.
+L'integrazione mantiene una sessione OpenWebNet per i comandi e una sessione separata per gli eventi. Gli stati Home Assistant vengono aggiornati da eventi o risposte reali ricevute dal BUS: un comando trasmesso **non viene considerato prova** che il dispositivo abbia cambiato stato.
 
-## Current functional surface
+### Stato del progetto
 
-| WHO | Area | Current status |
+La superficie software è coperta da test automatici su Home Assistant 2025.1 / Python 3.12 e Home Assistant 2026.9 / Python 3.14, con Ruff, mypy, pytest, Hassfest e validazione HACS.
+
+L'ultimo baseline software prima del rilascio 0.3.0 contiene **165 test** con **73,51% di coverage**. La validazione su un impianto Home Assistant reale e su un MH201 fisico resta separata: le funzioni protocol-sensitive sono indicate come hardware-validation-pending finché non vengono confermate con traffico reale.
+
+### Funzioni supportate
+
+| WHO | Area | Supporto attuale |
 | --- | --- | --- |
-| 0 | Scenarios | Basic activation entity and Home Assistant device triggers implemented; real MH201 event fixtures still required |
-| 1 | Lighting | ON/OFF-only surface complete software-side; dimmer/brightness permanently excluded from project scope; real MH201 status-query validation pending |
-| 2 | Automation / shutters | Open/close/stop plus spec/reference-backed advanced position handling implemented; real MH201 validation still required |
-| 4 | Thermoregulation | Spec/reference-aligned climate surface; real MH201/KW4691 validation still required |
-| 5 | Burglar alarm | 4200C-oriented software surface: documented central/partition status, eight partition sensors, reference-backed total arm/disarm, selected-partition arm and single-partition active/partialized controls; MH201/4200C hardware validation pending |
-| 6 | Door entry | Reference-backed door-release command plus disabled-by-default raw WHO=6/7 diagnostic capture for HomeTouch traffic; real MH201/HomeTouch validation pending |
-| 7 | Multimedia / VDE cameras | Public Legrand WHO=7 camera/multimedia semantics are recognized as a separate protocol family but no camera/audio/video entity is exposed; ring semantics are not invented from WHO=7 |
-| 18 | Energy | Read-only active-power sensor (DIM=113) implemented for documented 5N energy-meter endpoints; totalizers and other measurements remain pending |
-| 22 | Audio / sound diffusion | Explicitly unsupported and outside the roadmap |
+| 0 | Scenari | Attivazione scenari e device trigger Home Assistant |
+| 1 | Luci | Solo ON/OFF e rilevamento stato |
+| 2 | Tapparelle / automazione | Apri, chiudi, stop; posizione 0–100% solo per attuatori avanzati con DIM=10/DIM=11 |
+| 4 | Termoregolazione | Climate, temperatura, setpoint, modalità/protezioni e profili heating/cooling supportati dal modello OpenWebNet implementato |
+| 5 | Antifurto 4200C | Stato centrale, arm/disarm, 8 partizioni, inserimento selettivo, attivazione/parzializzazione partizione, diagnostica batteria/rete e allarmi tecnici |
+| 6 | Videocitofonia / HomeTouch | Apriporta reference-backed e acquisizione diagnostica raw WHO=6/7 |
+| 7 | Multimedia VDE | Riconosciuto come famiglia camera/multimedia; nessuna entità audio/video/camera |
+| 18 | Energy Management | Sensore read-only di potenza attiva DIM=113 in watt per endpoint `5N` documentati |
 
-WHO=3 is intentionally not a supported project family. No WHO=3 platform, command builder, discovery mapping or manual device type is exposed; energy-management development belongs to WHO=18.
+### Cosa non fa
 
-The integration also provides passive bus learning, explicit active discovery, manual endpoint registration, diagnostics and a read-only OpenWebNet capture tool.
+Sono esclusi intenzionalmente dal progetto:
 
-## Architecture
+- WHO=22;
+- media player, audio, musica e diffusione sonora;
+- dimmer, brightness e transition WHO=1;
+- WHO=3: non fa parte del modello Energy di questa integrazione; l'energia usa esclusivamente WHO=18;
+- streaming audio/video e piattaforma camera per HomeTouch/VDE;
+- stato “campanello in corso” finché non viene identificato un lifecycle call-start/call-end affidabile sul target MH201 + HomeTouch.
+
+### Modello MH201 e OpenWebNet
 
 ```text
 Home Assistant
       |
    ConfigEntry
       |
-      +-- MH201 hub device
-      |      |
+      +-- MH201 (hub)
+      |      +-- sessione comandi
+      |      +-- sessione eventi
+      |
+      +-- Device Manager
+             +-- endpoint WHO/WHERE
+             +-- endpoint WHO/WHERE
+```
+
+La sintassi OpenWebNet è isolata in `custom_components/bticino_myhome/protocol/`. I platform Home Assistant consumano eventi normalizzati e non interpretano direttamente stringhe wire-format.
+
+Moduli protocollo dedicati:
+
+- `automation.py` — WHO=2 tapparelle avanzate;
+- `thermoregulation.py` — WHO=4;
+- `alarm.py` — WHO=5 / target 4200C;
+- `door_entry.py` — WHO=6 apriporta;
+- `energy.py` — WHO=18 potenza attiva.
+
+### Discovery e configurazione dispositivi
+
+L'MH201 può essere rilevato tramite SSDP oppure configurato manualmente con host/IP, porta OpenWebNet e password opzionale. La porta predefinita è `20000`.
+
+I dispositivi possono essere aggiunti in tre modi:
+
+1. **Scansione automatica conservativa**: usa solo probe supportati e non crea endpoint senza evidenza coerente.
+2. **Apprendimento passivo**: ascolta il BUS senza inviare comandi; durante la finestra di ascolto si usano i comandi fisici da identificare.
+3. **Aggiunta manuale**: registra WHO, WHERE, tipo dispositivo e opzioni specifiche.
+
+La rimozione è sempre esplicita: una mancata risposta durante una scansione non cancella automaticamente dispositivi già configurati.
+
+### Antifurto 4200C
+
+WHO=5 è modellato specificamente per il target BTicino 4200C:
+
+- stato centrale ENGAGED/DISENGAGED;
+- eventi di allarme supportati dalla tabella WHAT ufficiale;
+- partizioni 1–8, con stato attiva/parzializzata;
+- arm totale e disarm totale;
+- arm con elenco delle partizioni che devono restare attive;
+- attivazione o parzializzazione di una singola partizione;
+- diagnostica read-only per problema batteria e presenza rete;
+- allarmi tecnici AUX 1–9 come entità diagnostiche disabilitate di default.
+
+I comandi di controllo 4200C sono reference-backed e testati software-side, ma rimangono **hardware-validation-pending** sul percorso reale 4200C → BUS → MH201.
+
+### HomeTouch 7"
+
+Il target videocitofonico è volutamente minimale: **aprire la porta** e, in futuro, **sapere quando qualcuno suona**. Non sono previsti audio o video.
+
+Il comando apriporta WHO=6 è implementato come superficie reference-backed. Il sensore raw WHO=6/7, disabilitato di default, serve a catturare il traffico necessario a identificare in modo affidabile l'inizio e la fine di una chiamata HomeTouch. Non viene inventato un binary sensor “ring” usando WHAT non documentati.
+
+### Energy Management
+
+L'Energy Management del progetto usa **WHO=18**. La superficie attuale espone la potenza attiva DIM=113 in watt sugli endpoint energy meter `5N` documentati. Non viene eseguito polling periodico e non vengono creati valori ottimistici.
+
+Totalizzatori e altre dimensioni WHO=18 restano fuori dal rilascio finché unità, reset semantics e comportamento reale sul target non sono sufficientemente validati.
+
+### Installazione
+
+Per la procedura HACS, configurazione del gateway, discovery, aggiunta manuale, allarme, apriporta, Energy Management, diagnostica e troubleshooting usa la guida dedicata:
+
+**[USAGE.md — Installazione e manuale d'uso](USAGE.md)**
+
+### Riferimenti tecnici
+
+Fonte primaria: documentazione ufficiale Legrand/BTicino **OpenWebNet Local Interoperability**:
+
+- https://developer.legrand.com/local-interoperability/
+
+Il comportamento viene inoltre confrontato con implementazioni MyHOME mature, senza copiarne automaticamente semantiche non documentate:
+
+- https://github.com/anotherjulien/MyHOME
+- https://github.com/mantovanellimatteo/MyHOME
+- https://github.com/Dav41K9/ha-MyHOME
+- OWNd e binding OpenWebNet di openHAB vengono usati come ulteriori cross-check quando pertinenti.
+
+Repository del progetto:
+
+- https://github.com/donatomontrone/bticino-myhome-mh201
+
+---
+
+## English
+
+### What it is
+
+BTicino MyHome MH201 is a **local** Home Assistant integration for BTicino MyHome installations reachable through an **MH201** gateway and the **OpenWebNet** protocol. The control path does not use the BTicino, Netatmo or Legrand cloud.
+
+The integration keeps a command OpenWebNet session and a separate event session. Home Assistant state is updated from actual BUS events or status responses: sending a command is **not treated as proof** that the physical device changed state.
+
+### Project status
+
+The software surface is automatically tested against Home Assistant 2025.1 / Python 3.12 and Home Assistant 2026.9 / Python 3.14, with Ruff, mypy, pytest, Hassfest and HACS validation.
+
+The latest pre-0.3.0 software baseline contains **165 tests** and **73.51% coverage**. Validation on a real Home Assistant installation and physical MH201 remains a separate final step; protocol-sensitive features stay hardware-validation-pending until confirmed with real traffic.
+
+### Supported features
+
+| WHO | Area | Current support |
+| --- | --- | --- |
+| 0 | Scenarios | Scenario activation and Home Assistant device triggers |
+| 1 | Lighting | ON/OFF and state only |
+| 2 | Automation / shutters | Open, close, stop; 0–100% position only for advanced actuators exposing DIM=10/DIM=11 |
+| 4 | Thermoregulation | Climate, temperature, setpoint, supported operation/protection modes and heating/cooling profiles |
+| 5 | 4200C burglar alarm | Central state, arm/disarm, 8 partitions, selective arm, per-partition active/partialized control, battery/network and technical-alarm diagnostics |
+| 6 | Door entry / HomeTouch | Reference-backed door release and raw WHO=6/7 diagnostics |
+| 7 | VDE multimedia | Recognized as the camera/multimedia family; no audio/video/camera entity |
+| 18 | Energy Management | Read-only DIM=113 active-power sensor in watts for documented `5N` endpoints |
+
+### Intentionally unsupported
+
+The following are deliberately outside project scope:
+
+- WHO=22;
+- media player, audio, music and sound diffusion;
+- WHO=1 dimmer/brightness/transition control;
+- WHO=3; Energy Management is modeled only through WHO=18;
+- audio/video streaming and camera entities for HomeTouch/VDE;
+- a doorbell-ring state until a reliable call-start/call-end lifecycle is identified for MH201 + HomeTouch.
+
+### Architecture
+
+```text
+Home Assistant
+      |
+   ConfigEntry
+      |
+      +-- MH201 hub
       |      +-- command session
       |      +-- event session
       |
       +-- Device Manager
-             |
              +-- WHO/WHERE endpoint
              +-- WHO/WHERE endpoint
 ```
 
-Wire-format knowledge is isolated in `custom_components/bticino_myhome/protocol/`:
+OpenWebNet wire-format knowledge is kept inside `custom_components/bticino_myhome/protocol/`. Home Assistant platforms consume normalized events instead of parsing raw frames themselves.
 
-- `frame.py` — immutable parsed frame model;
-- `parser.py` — OpenWebNet wire frame -> structured frame;
-- `commands.py` — generic semantic command/status request -> wire frame;
-- `normalizer.py` — parsed frame -> normalized semantic event;
-- `automation.py` — WHO=2 advanced shutter status/position helpers;
-- `thermoregulation.py` — WHO=4 thermoregulation semantics and command builders;
-- `alarm.py` — WHO=5 central/partition status plus 4200C-targeted reference-backed control builders;
-- `door_entry.py` — conservative WHO=6 door-release boundary, kept distinct from public WHO=7 multimedia/camera semantics;
-- `energy.py` — conservative WHO=18 active-power decoding and documented energy-meter addressing.
+### Discovery and device setup
 
-The Home Assistant platforms consume normalized events rather than parsing raw OpenWebNet strings themselves.
+The MH201 can be discovered through SSDP or configured manually with host/IP, OpenWebNet port and optional password. The default port is `20000`.
 
-## Gateway lifecycle
+Endpoints can be added through conservative active discovery, passive BUS learning, or manual WHO/WHERE registration. Removal is explicit; a missing discovery reply never automatically deletes a configured endpoint.
 
-The integration maintains separate command and event channels. Command writes are serialized so entity actions and discovery probes cannot overlap on one persistent command session.
+### 4200C burglar alarm
 
-The health model distinguishes:
+WHO=5 is modeled around the BTicino 4200C target: central state, partitions 1–8, alarm evidence, full arm/disarm, selected-active-partition arm, per-partition active/partialized control, battery/network diagnostics and technical alarm AUX 1–9 diagnostics.
 
-- `command_connected` — command/control channel health;
-- `event_connected` — event stream health;
-- `connected` — aggregate availability requiring both channels.
+Control commands are reference-backed and software-tested but remain **hardware-validation-pending** on the actual 4200C → BUS → MH201 path.
 
-If the command channel is lost while the event channel remains alive, the integration recovers the command session in the background with backoff. It deliberately does **not** automatically retransmit a failed frame after an ambiguous timeout/reset because the command may already have reached the BUS.
+### HomeTouch 7"
 
-Persistent workers are owned by the Home Assistant task lifecycle.
+The requested door-entry scope is intentionally limited to **door release** and, later, **ring detection**. Audio/video is not a target. WHO=6 door release is implemented as a reference-backed surface; the disabled-by-default raw WHO=6/7 diagnostic sensor is intended to identify the actual call-start/call-end lifecycle before a ring binary sensor is added.
 
-## Gateway discovery and identity
+### Energy Management
 
-Version 0.2.0 adds native Home Assistant SSDP discovery for MH201 and fixes the OWNd discovery path to use `OWNd.discovery.find_gateways()`.
+Energy Management uses **WHO=18**. The current production surface exposes DIM=113 active power in watts for documented `5N` energy-meter endpoints. No periodic polling or optimistic measurement is used.
 
-When discovery metadata is available, gateway identity is chosen in this order:
+### Installation and usage
 
-1. serial number;
-2. UDN;
-3. host/port fallback.
+See the bilingual step-by-step manual:
 
-New installations therefore use a stable serial/UDN identity when possible. Existing 0.1.x ConfigEntries migrate to ConfigEntry version 3 while preserving the previously persisted entity identity so Home Assistant entity history is not intentionally renamed by the upgrade.
+**[USAGE.md — Installation and complete usage guide](USAGE.md)**
 
-If SSDP later sees the same serial/UDN on a different IP address, the existing ConfigEntry can be updated rather than creating a second gateway entry.
+### Technical references
 
-Manual host/port configuration remains supported when discovery is unavailable.
+Primary source: official Legrand/BTicino **OpenWebNet Local Interoperability** documentation:
 
-## Device Registry model
+- https://developer.legrand.com/local-interoperability/
 
-The MH201 is registered as the integration hub device. OpenWebNet endpoint devices are linked to that hub using the Device Registry parent/via relationship supported by the running Home Assistant version.
+Additional mature references used for cross-checking where relevant:
 
-This separates physical gateway identity from logical WHO/WHERE endpoints and prepares the integration for safer migrations and future device lifecycle management.
+- https://github.com/anotherjulien/MyHOME
+- https://github.com/mantovanellimatteo/MyHOME
+- https://github.com/Dav41K9/ha-MyHOME
+- OWNd and the openHAB OpenWebNet binding.
 
-## Discovery model
+Project repository:
 
-Device discovery is intentionally conservative and has three sources:
+- https://github.com/donatomontrone/bticino-myhome-mh201
 
-```text
-                   MH201
-                     |
-              OpenWebNet / OWNd
-                     |
-          +----------+----------+
-          |          |          |
-       Passive     Active     Manual
-          |          |          |
-          +----------+----------+
-                     |
-             DiscoveredDevice
-                     |
-               Device Manager
-```
+---
 
-### Passive learning
+## License
 
-Passive learning only listens to actual OpenWebNet traffic. It sends no discovery commands. Use physical BTicino controls during the selected listening window to identify observable WHO/WHERE endpoints.
-
-### Active discovery
-
-Active discovery sends supported status probes and accepts endpoints only when matching bus traffic confirms them. WHO=4 and WHO=18 remain excluded from broad active probing; their endpoint semantics are intentionally evidence-driven rather than discovered by speculative bus-wide scans. WHO=5 uses only the documented central status request rather than a speculative address scan.
-
-Version 0.2.0 no longer creates scenario addresses 1-30 merely because they could exist. WHO=0 scenarios are included only when observed during the scan or explicitly configured.
-
-### Manual registration
-
-Endpoints that cannot be safely discovered can be registered manually with WHO, WHERE, device type and an optional name. Manual records have precedence over later generic discovery updates.
-
-For a 4200C alarm, the integration models a WHO=5 central endpoint and exposes the documented central state plus partitions 1-8. For a HomeTouch/video-door-entry endpoint, WHO=6 can be registered manually to expose the reference-backed door-release button and raw diagnostic capture. WHO=7 is not treated as a synonym for door entry: the public Legrand WHO=7 specification describes the multimedia/camera subsystem.
-
-For WHO=18, the current production sensor surface is deliberately limited to documented `5N` energy-meter addresses (`N=1..255`) and DIM=113 active power.
-
-## Alarm control model — WHO=5 / BTicino 4200C target
-
-The alarm surface deliberately separates documented status semantics from control commands that still require hardware validation on the target installation.
-
-Documented/status-oriented behavior includes:
-
-- central status hydration with `*#5*0##`;
-- central engaged/disengaged evidence;
-- alarm events such as intrusion/tamper/panic where represented by WHO=5 WHAT values;
-- partition 1-8 hydration with `*#5*#N##`;
-- partition active (`WHAT=11`) vs partialized/non-active (`WHAT=18`) state.
-
-Reference-backed control behavior includes:
-
-- total arm `*5*8##`;
-- total disarm `*5*9##`;
-- arm with selected active partitions using `*5*8#...##`;
-- activate one partition with `*5*11*#N##`;
-- partialize one partition with `*5*18*#N##`.
-
-The latter commands come from legacy official BTicino alarm-control documentation and established OpenWebNet precedent, but are **not declared hardware-validated for a 4200C through MH201** until real traffic confirms acceptance and resulting state. Home Assistant never treats a transmitted alarm command as proof of a successful state change.
-
-## HomeTouch / door-entry model
-
-The requested HomeTouch surface is deliberately limited to **ring indication and door release**, without audio/video streaming.
-
-Door release is implemented through a conservative, reference-backed WHO=6 command surface and remains hardware-validation-pending. A disabled-by-default diagnostic sensor captures raw WHO=6 and WHO=7 events so the actual HomeTouch/MH201 call-start and call-end frames can be identified safely.
-
-A Home Assistant ring binary sensor is **not yet synthesized** because the public Legrand WHO=7 document describes camera/multimedia functions and does not define a reliable doorbell call lifecycle for this target. Ring indication will be added only after an official/reference-backed frame or a real HomeTouch/MH201 capture identifies stable call start/end semantics.
-
-## State model
-
-For all control surfaces, a transmitted command is not treated as proof that the physical device changed state. State is expected to come back through OpenWebNet events/status responses.
-
-WHO=2 advanced position, WHO=4 climate and WHO=5 alarm likewise keep their modeled state evidence-driven rather than relying on optimistic local writes. WHO=5 partition actions do not alter partition sensors locally; the received WHO=5 state remains authoritative.
-
-WHO=18 active power is read-only: the integration requests DIM=113 for initial hydration and only updates watt values from received OpenWebNet evidence; it does not poll periodically or synthesize measurements.
-
-## Configuration
-
-Home Assistant can discover an MH201 through SSDP and offer a confirmation flow. If discovery is unavailable, enter the gateway host/IP, OpenWebNet port and optional password manually.
-
-Default OpenWebNet port: `20000`.
-
-Initial integration setup does not perform an implicit bus-wide device scan. Device discovery is an explicit action in the integration Options flow so Home Assistant startup remains deterministic.
-
-## Installation
-
-### HACS
-
-1. Add `https://github.com/donatomontrone/bticino-myhome-mh201` as a HACS custom integration repository if it is not already available.
-2. Install **BTicino MyHome MH201**.
-3. Restart Home Assistant.
-4. Open **Settings -> Devices & services -> Add integration** and search for **BTicino MyHome**.
-
-Home Assistant installs the declared dependency automatically:
-
-```json
-"requirements": ["OWNd==0.7.49"]
-```
-
-### Manual
-
-Copy `custom_components/bticino_myhome/` into `/config/custom_components/bticino_myhome/` and restart Home Assistant.
-
-## Diagnostics
-
-Home Assistant diagnostics include ConfigEntry metadata, gateway port, aggregate/channel connection health and discovered-device metadata. Passwords, host/IP and known serial/MAC fields are redacted.
-
-For temporary frame-level logging:
-
-```yaml
-logger:
-  default: warning
-  logs:
-    custom_components.bticino_myhome.gateway: debug
-```
-
-Do not publish credentials or unreviewed identifying data with logs/captures.
-
-## OpenWebNet capture tool
-
-The repository includes the read-only EVENT-session monitor:
-
-```bash
-python tools/openwebnet_monitor.py 192.168.1.50 --output capture.txt
-```
-
-A bounded capture can be created with:
-
-```bash
-python tools/openwebnet_monitor.py 192.168.1.50 --seconds 300 --output capture.txt
-```
-
-The capture workflow is the preferred source of evidence for final WHO=4, WHO=5, WHO=6/HomeTouch and WHO=18 validation. For HomeTouch specifically, the next protocol-capture goal is to identify a repeatable call-start and call-end frame without relying on video/audio. Do not intentionally trigger unsafe alarm conditions merely to generate traffic.
-
-## Known limitations
-
-- Real MH201 clean-install, upgrade, restart/reload and long-running disconnect/recovery testing is still required.
-- Active discovery cannot infer the complete configuration stored in Home+Project and intentionally avoids manufacturing unconfirmed endpoints.
-- WHO=5 central/partition status and control builders are software-tested, but 4200C acceptance and feedback through MH201 remain hardware-validation-pending.
-- WHO=6 door release is reference-backed but still requires validation against the target MH201/HomeTouch installation.
-- HomeTouch ring indication is intentionally pending because no sufficiently reliable call-start/call-end frame has yet been established from the public Legrand WHO=7 documentation or available mature integrations.
-- Public WHO=7 multimedia/camera controls are not exposed because audio/video camera integration is outside the requested project surface.
-- WHO=18 currently exposes only documented active power (DIM=113) for 5N energy-meter endpoints; totalizers and additional dimensions remain deferred until their units, reset semantics and real MH201 behavior are validated.
-- Final Home Assistant lifecycle validation is still pending.
-
-## Development
-
-The package declares Python `>=3.12`. CI currently runs runtime tests on Python 3.12 with Home Assistant 2025.1 and Python 3.14.2 with Home Assistant 2026.9. Static quality checks run against the current Home Assistant target.
-
-```bash
-python -m pip install -r requirements-dev.txt
-python -m pytest
-python -m ruff check custom_components/bticino_myhome tests
-python -m mypy custom_components/bticino_myhome
-```
-
-## Roadmap
-
-The detailed development checklist is maintained in `docs/roadmap.md`. Every implementation cycle must update that roadmap and end with the same final `master` HEAD green for the Home Assistant test matrix, Ruff, mypy, Hassfest and HACS validation.
-
-**WHO=22 / media player / audio / music / sound diffusion, WHO=1 dimmer / brightness / transition control, WHO=3 load-management semantics and VDE audio/video streaming remain permanently excluded.**
+See [LICENSE](LICENSE).

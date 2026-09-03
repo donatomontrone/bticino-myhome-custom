@@ -6,6 +6,64 @@ All notable changes to this project are documented here. The project follows Sem
 
 No unreleased changes yet.
 
+## [0.3.0] - 2026-09-03
+
+### Italiano
+
+#### Aggiunto
+- Tapparelle WHO=2 avanzate con stato/posizione DIM=10, GoToLevel DIM=11 e capability esplicita per `SET_POSITION`.
+- Superficie WHO=4 termoregolazione con profili heating/cooling, setpoint DIM=14 e gestione conservativa DIM=19.
+- Superficie WHO=5 orientata alla centrale BTicino 4200C: stato centrale, 8 partizioni, arm/disarm, inserimento con partizioni selezionate e controllo della singola partizione.
+- Diagnostica WHO=5 read-only per batteria, presenza rete e allarmi tecnici AUX 1–9.
+- Apriporta WHO=6 reference-backed e diagnostica raw WHO=6/7 per il target HomeTouch.
+- Sensore WHO=18 DIM=113 Active Power in watt per endpoint energy meter `5N` documentati.
+- Test deterministici dedicati per luci, tapparelle avanzate, allarme, servizi, apriporta ed energia.
+- Nuovo `USAGE.md` bilingue con installazione HACS e manuale d'uso completo.
+
+#### Modificato
+- WHO=1 è definitivamente limitato a ON/OFF; dimmer/brightness/transition sono fuori scope.
+- WHO=3 è rimosso dal modello del progetto; l'Energy Management usa esclusivamente WHO=18.
+- WHO=7 è trattato come famiglia multimedia/camera secondo la documentazione Legrand pubblica e non come stato generico del citofono.
+- Gli stati protocol-sensitive restano evidence-driven: nessun comando viene usato come conferma ottimistica dello stato fisico.
+- README e documentazione protocollo/roadmap sono stati riallineati allo stato reale del progetto.
+
+#### Corretto
+- Eliminato il warning Hassfest relativo a `CONFIG_SCHEMA` dichiarando esplicitamente l'integrazione ConfigEntry-only.
+- Rimosse semantiche citofoniche e load-management non supportate/documentate dal percorso di produzione.
+
+#### Validazione
+- Baseline software pre-release: 165 test passati e 73,51% di coverage su Home Assistant 2026.9 / Python 3.14.
+- CI: Home Assistant 2025.1/Python 3.12, Home Assistant 2026.9/Python 3.14, Ruff, mypy, pytest, Hassfest e HACS.
+- La validazione fisica su MH201, 4200C, HomeTouch e dispositivi BUS reali resta esplicitamente pendente.
+
+### English
+
+#### Added
+- Advanced WHO=2 shutter support with DIM=10 status/position, DIM=11 GoToLevel and explicit Home Assistant `SET_POSITION` capability.
+- WHO=4 thermoregulation surface with heating/cooling profiles, DIM=14 setpoint writes and conservative DIM=19 handling.
+- BTicino 4200C-oriented WHO=5 surface: central state, 8 partitions, arm/disarm, selected-partition arm and per-partition control.
+- Read-only WHO=5 diagnostics for battery, network presence and technical alarms AUX 1–9.
+- Reference-backed WHO=6 door release plus raw WHO=6/7 diagnostics for the HomeTouch target.
+- WHO=18 DIM=113 Active Power sensor in watts for documented `5N` energy-meter endpoints.
+- Dedicated deterministic tests for lighting, advanced shutters, alarm, services, door entry and energy.
+- New bilingual `USAGE.md` with HACS installation and complete usage instructions.
+
+#### Changed
+- WHO=1 is permanently restricted to ON/OFF; dimmer/brightness/transition are out of scope.
+- WHO=3 is removed from the project model; Energy Management uses WHO=18 only.
+- WHO=7 follows the public Legrand multimedia/camera specification and is not treated as a generic doorbell-state family.
+- Protocol-sensitive state remains evidence-driven; command transmission is never used as optimistic proof of a physical state change.
+- README, protocol notes and roadmap were synchronized with the actual implementation.
+
+#### Fixed
+- Removed the Hassfest `CONFIG_SCHEMA` warning by explicitly declaring the integration ConfigEntry-only.
+- Removed unsupported/guessed load-management and door-entry semantics from the production model.
+
+#### Validation
+- Pre-release software baseline: 165 passing tests and 73.51% coverage on Home Assistant 2026.9 / Python 3.14.
+- CI covers Home Assistant 2025.1/Python 3.12, Home Assistant 2026.9/Python 3.14, Ruff, mypy, pytest, Hassfest and HACS.
+- Physical validation against a real MH201, 4200C, HomeTouch and BUS devices remains explicitly pending.
+
 ## [0.2.0] - 2026-09-03
 
 ### Added
@@ -34,11 +92,9 @@ No unreleased changes yet.
 - Improved command-session recovery so losing control transport while the event stream is still alive does not require a Home Assistant restart.
 
 ### Status / limitations
-- WHO=1 lighting, WHO=2 shutters/covers, WHO=3 load control and WHO=0 scenario activation are the current basic functional surfaces.
-- WHO=4 climate, WHO=5 alarm and WHO=7 video door-entry support remain experimental/capture-led until validated against representative real MH201 traffic.
-- WHO=18 is recognized by discovery/protocol classification, but production energy entities are not yet implemented.
+- Version 0.2.0 was the architecture/runtime consolidation milestone.
+- Subsequent protocol/platform work is included in 0.3.0.
 - WHO=22, media player, audio, music and sound diffusion remain explicitly out of scope.
-- CI validates software/API behavior; real MH201 clean-install, upgrade and long-running runtime validation are still required.
 
 ## [0.1.13] - 2026-09-03
 

@@ -30,12 +30,8 @@
       "reauth_confirm": {
         "title": "Re-authenticate BTicino MyHome",
         "description": "The MH201 gateway at {host} rejected the stored credentials. Enter the current OpenWebNet password.",
-        "data": {
-          "password": "OpenWebNet password"
-        },
-        "data_description": {
-          "password": "Current password accepted by the local OpenWebNet gateway."
-        }
+        "data": {"password": "OpenWebNet password"},
+        "data_description": {"password": "Current password accepted by the local OpenWebNet gateway."}
       },
       "reconfigure": {
         "title": "Reconfigure BTicino MyHome",
@@ -50,7 +46,7 @@
           "host": "New local network address for the same MH201 gateway.",
           "port": "TCP port used by the local OpenWebNet server.",
           "password": "Leave blank to keep the currently stored password.",
-          "clear_password": "Enable this only when the gateway no longer requires authentication. It takes precedence over the password field."
+          "clear_password": "Enable only when the gateway no longer requires authentication."
         }
       }
     },
@@ -85,22 +81,14 @@
       "passive_learning": {
         "title": "Learn BTicino devices",
         "description": "Listen to the BUS without sending commands. Use the physical controls you want to identify while listening.",
-        "data": {
-          "listen_seconds": "Listening time (seconds)"
-        },
-        "data_description": {
-          "listen_seconds": "How long to listen for OpenWebNet events without actively probing the BUS."
-        }
+        "data": {"listen_seconds": "Listening time (seconds)"},
+        "data_description": {"listen_seconds": "How long to listen for OpenWebNet events without actively probing the BUS."}
       },
       "select_learned": {
         "title": "Discovered devices",
         "description": "Select the devices to add to the inventory.",
-        "data": {
-          "devices": "Devices"
-        },
-        "data_description": {
-          "devices": "Only selected endpoints are persisted in this gateway inventory."
-        }
+        "data": {"devices": "Devices"},
+        "data_description": {"devices": "Only selected endpoints are persisted in this gateway inventory."}
       },
       "manual_device": {
         "title": "Add device manually",
@@ -114,23 +102,19 @@
           "name": "Name (optional)"
         },
         "data_description": {
-          "who": "OpenWebNet function family number, for example 2 for automation or 4 for thermoregulation.",
+          "who": "OpenWebNet function family number.",
           "where": "OpenWebNet endpoint address exactly as used by the installation.",
-          "device_type": "Home Assistant surface to associate with this supported WHO family.",
-          "advanced_shutter": "Enable only for a WHO=2 advanced motor actuator that provides OpenWebNet DIM=10 position/status and DIM=11 GoToLevel.",
-          "climate_profile": "For WHO=4 climate endpoints, explicitly restrict the zone to heating, cooling, or both. Leave unset when not known.",
+          "device_type": "Home Assistant surface associated with this supported WHO family.",
+          "advanced_shutter": "Enable only for a WHO=2 actuator that provides DIM=10 position/status and DIM=11 GoToLevel.",
+          "climate_profile": "For WHO=4, restrict the zone to heating, cooling, or both when known.",
           "name": "Optional endpoint name shown in Home Assistant."
         }
       },
       "remove_device": {
         "title": "Remove configured devices",
         "description": "Select inventory endpoints to remove. Their Home Assistant entities and endpoint device entries are removed as well.",
-        "data": {
-          "devices": "Devices"
-        },
-        "data_description": {
-          "devices": "Removal is explicit; missing discovery responses never remove devices automatically."
-        }
+        "data": {"devices": "Devices"},
+        "data_description": {"devices": "Removal is explicit; missing discovery responses never remove devices automatically."}
       }
     },
     "error": {
@@ -174,19 +158,16 @@
   },
   "entity": {
     "binary_sensor": {
-      "alarm_partition": {
-        "name": "Partition {partition}"
-      }
+      "alarm_partition": {"name": "Partition {partition}"},
+      "alarm_battery_problem": {"name": "Battery problem"},
+      "alarm_network_connectivity": {"name": "Network connectivity"},
+      "alarm_technical_alarm": {"name": "Technical alarm AUX {auxiliary}"}
     },
     "button": {
-      "door_release": {
-        "name": "Door release"
-      }
+      "door_release": {"name": "Door release"}
     },
     "sensor": {
-      "door_entry_raw_event": {
-        "name": "Last raw door-entry event"
-      }
+      "door_entry_raw_event": {"name": "Last raw door-entry event"}
     }
   },
   "services": {
@@ -194,86 +175,40 @@
       "name": "Send OpenWebNet frame",
       "description": "Advanced/debug action that sends one raw OpenWebNet frame through a specific configured MH201 gateway.",
       "fields": {
-        "config_entry_id": {
-          "name": "Gateway",
-          "description": "BTicino MyHome configuration entry that owns the target MH201 connection."
-        },
-        "frame": {
-          "name": "Frame",
-          "description": "Raw OpenWebNet frame to send, for example *1*1*21##."
-        },
-        "is_status_request": {
-          "name": "Status request",
-          "description": "Enable only when the raw frame is a status request whose returned data frames should be normalized as state evidence."
-        }
+        "config_entry_id": {"name": "Gateway", "description": "BTicino MyHome configuration entry that owns the target MH201 connection."},
+        "frame": {"name": "Frame", "description": "Raw OpenWebNet frame to send."},
+        "is_status_request": {"name": "Status request", "description": "Enable only for a status request whose returned frames should be normalized as state evidence."}
       }
     },
     "arm_alarm_partitions": {
       "name": "Arm alarm partitions",
-      "description": "Arm the WHO=5 alarm using the selected active-partition mask. The legacy BTicino command is reference-backed but still requires validation on the target 4200C through MH201.",
+      "description": "Arm the WHO=5 alarm using the selected active-partition mask. Target 4200C/MH201 hardware validation is still pending.",
       "fields": {
-        "config_entry_id": {
-          "name": "Gateway",
-          "description": "BTicino MyHome configuration entry that owns the target MH201 connection."
-        },
-        "partitions": {
-          "name": "Active partitions",
-          "description": "Partitions 1-8 that must remain active; unselected partitions are partialized."
-        }
+        "config_entry_id": {"name": "Gateway", "description": "BTicino MyHome configuration entry that owns the target MH201 connection."},
+        "partitions": {"name": "Active partitions", "description": "Partitions 1-8 that remain active; unselected partitions are partialized."}
       }
     },
     "set_alarm_partition": {
       "name": "Set alarm partition",
-      "description": "Activate or partialize one WHO=5 partition. The command is specification/reference-backed but still requires validation on the target 4200C through MH201.",
+      "description": "Activate or partialize one WHO=5 partition. Target 4200C/MH201 hardware validation is still pending.",
       "fields": {
-        "config_entry_id": {
-          "name": "Gateway",
-          "description": "BTicino MyHome configuration entry that owns the target MH201 connection."
-        },
-        "partition": {
-          "name": "Partition",
-          "description": "Alarm partition number from 1 to 8."
-        },
-        "active": {
-          "name": "Active",
-          "description": "Enable to make the partition active; disable to partialize it."
-        }
+        "config_entry_id": {"name": "Gateway", "description": "BTicino MyHome configuration entry that owns the target MH201 connection."},
+        "partition": {"name": "Partition", "description": "Alarm partition number from 1 to 8."},
+        "active": {"name": "Active", "description": "Enable to make the partition active; disable to partialize it."}
       }
     }
   },
   "exceptions": {
-    "send_frame_missing_frame": {
-      "message": "An OpenWebNet frame is required."
-    },
-    "send_frame_entry_not_found": {
-      "message": "The selected BTicino MyHome configuration entry was not found."
-    },
-    "send_frame_entry_not_loaded": {
-      "message": "The selected BTicino MyHome gateway is not currently loaded."
-    },
-    "send_frame_failed": {
-      "message": "Failed to send the OpenWebNet frame: {detail}"
-    },
-    "entity_command_failed": {
-      "message": "The OpenWebNet command failed: {detail}"
-    },
-    "alarm_partitions_invalid": {
-      "message": "Invalid alarm partition selection: {detail}"
-    },
-    "cover_position_not_supported": {
-      "message": "Position control is not enabled for this MyHOME shutter."
-    },
-    "cover_position_out_of_range": {
-      "message": "Shutter position {position}% is outside the supported 0–100% range."
-    },
-    "unsupported_hvac_mode": {
-      "message": "HVAC mode {hvac_mode} is not supported by this MyHOME thermoregulation zone."
-    },
-    "unsupported_preset_mode": {
-      "message": "Preset {preset_mode} is not supported by this MyHOME thermoregulation zone."
-    },
-    "temperature_out_of_range": {
-      "message": "Temperature {temperature} °C is outside the supported range {min_temp}–{max_temp} °C."
-    }
+    "send_frame_missing_frame": {"message": "An OpenWebNet frame is required."},
+    "send_frame_entry_not_found": {"message": "The selected BTicino MyHome configuration entry was not found."},
+    "send_frame_entry_not_loaded": {"message": "The selected BTicino MyHome gateway is not currently loaded."},
+    "send_frame_failed": {"message": "Failed to send the OpenWebNet frame: {detail}"},
+    "entity_command_failed": {"message": "The OpenWebNet command failed: {detail}"},
+    "alarm_partitions_invalid": {"message": "Invalid alarm partition selection: {detail}"},
+    "cover_position_not_supported": {"message": "Position control is not enabled for this MyHOME shutter."},
+    "cover_position_out_of_range": {"message": "Shutter position {position}% is outside the supported 0–100% range."},
+    "unsupported_hvac_mode": {"message": "HVAC mode {hvac_mode} is not supported by this MyHOME thermoregulation zone."},
+    "unsupported_preset_mode": {"message": "Preset {preset_mode} is not supported by this MyHOME thermoregulation zone."},
+    "temperature_out_of_range": {"message": "Temperature {temperature} °C is outside the supported range {min_temp}–{max_temp} °C."}
   }
 }

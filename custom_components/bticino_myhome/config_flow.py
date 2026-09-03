@@ -565,7 +565,6 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
                                 "scene",
                                 "light",
                                 "cover",
-                                "load",
                                 "climate",
                                 "alarm",
                                 "intercom",
