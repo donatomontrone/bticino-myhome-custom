@@ -27,10 +27,12 @@ jobs:
             python_version: "3.12"
             ha_version: "2025.1.0"
             run_quality: false
+            pytest_args: "--tb=short"
           - name: HA 2026.9 / Python 3.14
             python_version: "3.14.2"
             ha_version: "2026.9.0"
             run_quality: true
+            pytest_args: "--tb=short --cov=custom_components/bticino_myhome --cov-report=term-missing --cov-fail-under=55"
 
     steps:
       - name: Checkout code
@@ -59,4 +61,4 @@ jobs:
 
       - name: Run tests with pytest
         if: steps.install.outcome == 'success' && !cancelled()
-        run: python -m pytest --tb=short
+        run: python -m pytest ${{ matrix.pytest_args }}
