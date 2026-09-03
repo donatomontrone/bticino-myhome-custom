@@ -8,6 +8,11 @@
           "host": "IP address or hostname",
           "port": "OpenWebNet port",
           "password": "OpenWebNet password (optional)"
+        },
+        "data_description": {
+          "host": "Local network address of the MH201 gateway.",
+          "port": "TCP port used by the local OpenWebNet server.",
+          "password": "Leave blank only when the gateway does not require an OpenWebNet password."
         }
       },
       "confirm": {
@@ -16,6 +21,10 @@
         "data": {
           "port": "OpenWebNet port",
           "password": "OpenWebNet password (optional)"
+        },
+        "data_description": {
+          "port": "TCP port used by the discovered gateway's local OpenWebNet server.",
+          "password": "Leave blank only when the gateway does not require an OpenWebNet password."
         }
       },
       "reauth_confirm": {
@@ -23,6 +32,9 @@
         "description": "The MH201 gateway at {host} rejected the stored credentials. Enter the current OpenWebNet password.",
         "data": {
           "password": "OpenWebNet password"
+        },
+        "data_description": {
+          "password": "Current password accepted by the local OpenWebNet gateway."
         }
       },
       "reconfigure": {
@@ -31,10 +43,14 @@
         "data": {
           "host": "IP address or hostname",
           "port": "OpenWebNet port",
-          "password": "New OpenWebNet password (optional)"
+          "password": "New OpenWebNet password (optional)",
+          "clear_password": "Remove the stored password"
         },
         "data_description": {
-          "password": "Leave blank to keep the currently stored password."
+          "host": "New local network address for the same MH201 gateway.",
+          "port": "TCP port used by the local OpenWebNet server.",
+          "password": "Leave blank to keep the currently stored password.",
+          "clear_password": "Enable this only when the gateway no longer requires authentication. It takes precedence over the password field."
         }
       }
     },
@@ -59,6 +75,11 @@
           "action": "Action",
           "include_scenarios": "Include scenario events observed during the scan",
           "discovery_listen_seconds": "Listening time during scan"
+        },
+        "data_description": {
+          "action": "Choose whether to scan, passively learn, manually add or remove endpoints.",
+          "include_scenarios": "Keep scenario endpoints observed while the active discovery window is running.",
+          "discovery_listen_seconds": "Additional event-listening window after conservative active probes complete."
         }
       },
       "passive_learning": {
@@ -66,6 +87,9 @@
         "description": "Listen to the BUS without sending commands. Use the physical controls you want to identify while listening.",
         "data": {
           "listen_seconds": "Listening time (seconds)"
+        },
+        "data_description": {
+          "listen_seconds": "How long to listen for OpenWebNet events without actively probing the BUS."
         }
       },
       "select_learned": {
@@ -73,6 +97,9 @@
         "description": "Select the devices to add to the inventory.",
         "data": {
           "devices": "Devices"
+        },
+        "data_description": {
+          "devices": "Only selected endpoints are persisted in this gateway inventory."
         }
       },
       "manual_device": {
@@ -82,7 +109,15 @@
           "who": "WHO",
           "where": "WHERE",
           "device_type": "Device type",
+          "climate_profile": "Thermal profile (thermoregulation only)",
           "name": "Name (optional)"
+        },
+        "data_description": {
+          "who": "OpenWebNet function family number, for example 4 for thermoregulation.",
+          "where": "OpenWebNet endpoint address exactly as used by the installation.",
+          "device_type": "Home Assistant surface to associate with this supported WHO family.",
+          "climate_profile": "For WHO=4 climate endpoints, explicitly restrict the zone to heating, cooling, or both. Leave unset when not known.",
+          "name": "Optional endpoint name shown in Home Assistant."
         }
       },
       "remove_device": {
@@ -90,11 +125,14 @@
         "description": "Select inventory endpoints to remove. Their Home Assistant entities and endpoint device entries are removed as well.",
         "data": {
           "devices": "Devices"
+        },
+        "data_description": {
+          "devices": "Removal is explicit; missing discovery responses never remove devices automatically."
         }
       }
     },
     "error": {
-      "invalid_device": "The selected device type is not valid for the specified WHO."
+      "invalid_device": "The selected device type or thermal profile is not valid for the specified WHO."
     },
     "abort": {
       "no_devices_found": "No supported device was detected during listening.",
@@ -123,6 +161,13 @@
         "intercom": "Video door entry",
         "door_lock": "Door release",
         "energy": "Energy"
+      }
+    },
+    "climate_profile": {
+      "options": {
+        "heating": "Heating only",
+        "cooling": "Cooling only",
+        "heating_cooling": "Heating and cooling"
       }
     }
   },
@@ -175,6 +220,18 @@
     },
     "send_frame_failed": {
       "message": "Failed to send the OpenWebNet frame: {detail}"
+    },
+    "entity_command_failed": {
+      "message": "The OpenWebNet command failed: {detail}"
+    },
+    "unsupported_hvac_mode": {
+      "message": "HVAC mode {hvac_mode} is not supported by this MyHOME thermoregulation zone."
+    },
+    "unsupported_preset_mode": {
+      "message": "Preset {preset_mode} is not supported by this MyHOME thermoregulation zone."
+    },
+    "temperature_out_of_range": {
+      "message": "Temperature {temperature} °C is outside the supported range {min_temp}–{max_temp} °C."
     }
   }
 }
