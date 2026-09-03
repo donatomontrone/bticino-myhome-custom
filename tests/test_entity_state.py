@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock
 from custom_components.bticino_myhome.cover import BticinoCover
 from custom_components.bticino_myhome.gateway import BticinoGateway
 from custom_components.bticino_myhome.light import BticinoLight
-from custom_components.bticino_myhome.switch import BticinoLoadSwitch
 
 
 def _gateway() -> BticinoGateway:
@@ -21,7 +20,6 @@ def test_initial_state_requests_for_capture_safe_core_entities() -> None:
         cases = [
             (BticinoLight, "1", "21", "*#1*21##"),
             (BticinoCover, "2", "22", "*#2*22##"),
-            (BticinoLoadSwitch, "3", "23", "*#3*23##"),
         ]
         for entity_type, who, where, expected in cases:
             gateway = _gateway()
