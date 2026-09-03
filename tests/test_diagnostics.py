@@ -4,10 +4,8 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from custom_components.bticino_myhome.diagnostics import (
-    async_get_config_entry_diagnostics,
-)
 from custom_components.bticino_myhome.device import BticinoDeviceManager
+from custom_components.bticino_myhome.diagnostics import async_get_config_entry_diagnostics
 from custom_components.bticino_myhome.discovery import DiscoveredDevice
 from custom_components.bticino_myhome.gateway import BticinoGateway
 
