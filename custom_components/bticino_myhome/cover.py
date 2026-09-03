@@ -38,13 +38,13 @@ class BticinoCover(BticinoEntity, CoverEntity):
     _request_initial_state_on_add = True
 
     async def async_open_cover(self, **kwargs: Any) -> None:
-        await self.gateway.async_send(cover_open(self.where))
+        await self._async_send_command(cover_open(self.where))
 
     async def async_close_cover(self, **kwargs: Any) -> None:
-        await self.gateway.async_send(cover_close(self.where))
+        await self._async_send_command(cover_close(self.where))
 
     async def async_stop_cover(self, **kwargs: Any) -> None:
-        await self.gateway.async_send(cover_stop(self.where))
+        await self._async_send_command(cover_stop(self.where))
 
     def _handle_event(self, event: NormalizedEvent) -> None:
         if event.who != self.who or event.where != self.where:
