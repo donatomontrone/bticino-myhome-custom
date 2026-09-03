@@ -4,10 +4,8 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.components.device_automation.trigger_entity import TriggerEntity
 from homeassistant.const import CONF_DEVICE_ID, CONF_DOMAIN, CONF_PLATFORM, CONF_TYPE
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant
-from homeassistant.helpers.entity_platform import async_get_platforms
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN
@@ -18,6 +16,8 @@ async def async_get_triggers(
     hass: HomeAssistant, device_id: str
 ) -> list[dict[str, Any]]:
     """Return a list of triggers for a device."""
+    from homeassistant.helpers.entity_platform import async_get_platforms
+
     triggers = []
 
     # Get all scene entities for this device
@@ -44,22 +44,3 @@ async def async_get_trigger_capabilities(
 ) -> dict[str, vol.Schema]:
     """Return trigger capabilities for a given configuration."""
     return {}
-
-
-class ScenarioTriggerEntity(TriggerEntity):
-    """Trigger entity for scenario activation."""
-
-    trigger_type = "scenario_activated"
-
-    async def async_attach_trigger(
-        self,
-        hass: HomeAssistant,
-        config: ConfigType,
-        action: CALLBACK_TYPE,
-        automation_info: dict[str, Any] | None = None,
-    ) -> CALLBACK_TYPE | None:
-        """Attach a trigger."""
-        # This would be called when a scenario is activated
-        # For now, we return a no-op trigger
-        # In a real implementation, this would listen to gateway events
-        return lambda: None
