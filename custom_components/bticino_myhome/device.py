@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 
-from .discovery import DiscoveredDevice
+from .discovery import DiscoverySource, DiscoveredDevice
 
 
 class BticinoDeviceManager:
@@ -21,8 +21,15 @@ class BticinoDeviceManager:
         return self._devices.get(key)
 
     def add(self, device: DiscoveredDevice) -> bool:
-        """Add a device and notify listeners when the inventory changes."""
+        """Add a device and notify listeners when the inventory changes.
+
+        Explicitly configured manual devices have precedence over devices
+        learned later from passive or active discovery.
+        """
         previous = self._devices.get(device.key)
+        if previous is not None and previous.source == DiscoverySource.MANUAL.value:
+            if device.source != DiscoverySource.MANUAL.value:
+                return False
         self._devices[device.key] = device
         changed = previous != device
         if changed:
@@ -52,11 +59,9 @@ class BticinoDeviceManager:
         devices = list(devices)
         new_keys = {device.key for device in devices}
 
-        # Notify for added/changed devices
         for device in devices:
             self.add(device)
 
-        # Remove devices not in the new list (no notification)
         for key in list(self._devices.keys()):
             if key not in new_keys:
                 del self._devices[key]
