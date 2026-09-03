@@ -27,6 +27,11 @@ from .gateway import (
     BticinoGatewayError,
 )
 from .protocol import NormalizedEvent, build_status_request, normalize_frame, parse_frame
+from .protocol.automation import (
+    CAPABILITY_POSITION_CONTROL,
+    DIM_SHUTTER_STATUS,
+    decode_shutter_status,
+)
 from .protocol.thermoregulation import (
     CLIMATE_PROFILES,
     capabilities_for_climate_profile,
@@ -129,6 +134,7 @@ class DiscoveredDevice:
         device_type: str,
         name: str = "",
         climate_profile: str | None = None,
+        advanced_shutter: bool | None = None,
     ) -> DiscoveredDevice:
         return BticinoDiscovery.from_manual(
             who=who,
@@ -136,6 +142,7 @@ class DiscoveredDevice:
             device_type=device_type,
             name=name,
             climate_profile=climate_profile,
+            advanced_shutter=advanced_shutter,
         )
 
 
@@ -177,6 +184,7 @@ class BticinoDiscovery:
         device_type: str | None = None,
         name: str | None = None,
         climate_profile: str | None = None,
+        advanced_shutter: bool | None = None,
     ) -> DiscoveredDevice:
         who = str(who).strip()
         where = str(where).strip()
@@ -193,6 +201,9 @@ class BticinoDiscovery:
         extra: dict[str, Any] = {"discovery": DiscoverySource.MANUAL.value}
         if who == WHO_VIDEO_DOOR_ENTRY and dtype == "door_lock":
             capabilities = ("lock",)
+        if who == WHO_AUTOMATION and dtype == "cover" and advanced_shutter:
+            capabilities = (*mapped_capabilities, CAPABILITY_POSITION_CONTROL)
+            extra["advanced_shutter"] = True
         if (
             who == WHO_THERMOREGULATION
             and dtype == "climate"
@@ -212,7 +223,7 @@ class BticinoDiscovery:
             device_type=dtype,
             name=name or cls.default_name(dtype, where),
             source=DiscoverySource.MANUAL.value,
-            capabilities=tuple(capabilities),
+            capabilities=tuple(dict.fromkeys(capabilities)),
             extra=extra,
         )
 
@@ -274,7 +285,7 @@ class BticinoDiscovery:
                 continue
             device.source = DiscoverySource.ACTIVE.value
             device.extra["discovery"] = DiscoverySource.ACTIVE.value
-            self._found[device.key] = device
+            self._store_found_device(device)
         await asyncio.sleep(_PROBE_INTERVAL)
 
     @classmethod
@@ -293,8 +304,23 @@ class BticinoDiscovery:
         mapped = cls._TYPE_MAP.get(event.who)
         if mapped is None:
             return None
+        # Parameterized group addresses are not endpoint evidence. WHO=4 central
+        # zones are the only explicitly modeled leading-# exception today.
+        if event.where.startswith("#") and event.who != WHO_THERMOREGULATION:
+            return None
+
         dtype, base_capabilities = mapped
         capabilities = tuple(base_capabilities)
+        extra: dict[str, Any] = {
+            "discovery": source.value,
+            "what": event.what,
+            "dimension": event.dimension,
+            "state": event.state,
+        }
+        if event.who == WHO_AUTOMATION and event.dimension == DIM_SHUTTER_STATUS:
+            if decode_shutter_status(event.values) is not None:
+                capabilities = (*capabilities, CAPABILITY_POSITION_CONTROL)
+                extra["advanced_shutter"] = True
         if event.who == WHO_THERMOREGULATION:
             capabilities = (
                 *capabilities,
@@ -307,12 +333,7 @@ class BticinoDiscovery:
             name=cls.default_name(dtype, event.where),
             source=source.value,
             capabilities=tuple(dict.fromkeys(capabilities)),
-            extra={
-                "discovery": source.value,
-                "what": event.what,
-                "dimension": event.dimension,
-                "state": event.state,
-            },
+            extra=extra,
         )
 
     @staticmethod
@@ -332,8 +353,10 @@ class BticinoDiscovery:
 
     def _on_event(self, event: NormalizedEvent) -> None:
         device = self._device_from_event(event)
-        if device is None:
-            return
+        if device is not None:
+            self._store_found_device(device)
+
+    def _store_found_device(self, device: DiscoveredDevice) -> None:
         existing = self._found.get(device.key)
         if existing is None:
             self._found[device.key] = device
@@ -344,6 +367,8 @@ class BticinoDiscovery:
         if merged_capabilities != existing.capabilities:
             existing.capabilities = merged_capabilities
         existing.extra.update(device.extra)
+        if device.source == DiscoverySource.ACTIVE.value:
+            existing.source = device.source
 
     def _sorted_found(
         self, *, include_scenarios: bool = True
