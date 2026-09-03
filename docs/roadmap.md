@@ -10,9 +10,11 @@ Release 0.2.0 established the repository/architecture baseline. Subsequent `mast
 
 CI remains green against Home Assistant 2025.1 / Python 3.12 and Home Assistant 2026.9 / Python 3.14, with Ruff, mypy, pytest, Hassfest and HACS validation.
 
-The integration is not yet considered fully production-validated because integration-level Home Assistant lifecycle coverage, a physical MH201 clean-install/upgrade/runtime campaign and capture-backed verification of protocol-sensitive WHO families are still pending.
+There is intentionally no requirement for a local/running Home Assistant instance during the remaining code-completion work. Integration-level Home Assistant lifecycle tests, clean-install/upgrade validation and physical MH201 validation are deferred to the final validation phase. Until then, development relies on code review, unit/mocked tests and CI compatibility checks.
 
-The working principle remains: **runtime solidity before protocol breadth**. The internal quality target is Silver-like Home Assistant integration robustness before broadening WHO=5/7/18 functionality. This is an engineering benchmark, not an official Home Assistant quality-tier claim.
+The integration is not yet considered fully production-validated because a final Home Assistant lifecycle campaign, a physical MH201 clean-install/upgrade/runtime campaign and capture-backed verification of protocol-sensitive WHO families are still pending.
+
+The working principle remains: **finish the software surface first, then validate against Home Assistant and real hardware at the end**. Protocol behavior is still capture-led: no numeric WHO/WHAT semantics are added merely to make the implementation look complete.
 
 ## Phase A — repository and architecture foundation — COMPLETE
 
@@ -83,29 +85,27 @@ The remaining validation of BUS-specific semantics is intentionally tracked in P
 
 A separate low-level transport rewrite is not a goal. The focused adapter now owns only the semantics OWNd does not expose reliably after session negotiation.
 
-## Phase C — Home Assistant integration quality — IN PROGRESS
+## Phase C — code completion and Home Assistant surface quality — IN PROGRESS
+
+This phase is intentionally executable without a running Home Assistant instance. Home Assistant lifecycle/registry/flow validation using a real test instance is deferred to Phase F.
 
 - [x] Introduce a typed `ConfigEntry[BticinoMyHomeData]` alias and use it in the central integration/runtime lifecycle
 - [ ] Propagate the typed ConfigEntry alias through all remaining platform/helper signatures
-- [ ] Full Config Flow tests using Home Assistant flow machinery: success, connection failure/recovery, invalid credentials, SSDP, duplicate entry, migration and changed-IP identity behavior
-- [ ] Full Options Flow tests using Home Assistant flow machinery: active scan, passive learning, manual registration, selection, removal and persistence
 - [x] Add reconfigure flow for host/port/password changes with stable serial/UDN conflict protection
 - [x] Add reauthentication flow and raise `ConfigEntryAuthFailed` for genuine credential failures
 - [x] Add explicit endpoint removal from Options Flow and the Home Assistant `async_remove_config_entry_device` hook
 - [x] Translate Config/Options action selectors and connection/authentication errors in English and Italian
-- [ ] Setup / unload / reload / restart tests using a real Home Assistant test instance
-- [ ] Entity lifecycle tests for every exposed platform
-- [ ] Entity and Device Registry tests for stable identifiers, hub linkage and explicit removal
-- [ ] Availability loss/recovery tests through Home Assistant state machinery
-- [ ] Diagnostics/redaction tests
-- [ ] Dynamic device add/remove tests through Home Assistant entity platforms
 - [ ] Add `_attr_has_entity_name` and translation-key based default entity names where appropriate
 - [ ] Use selectors and `data_description` consistently across all remaining Config/Options fields
 - [ ] Review `send_frame` as an advanced/debug action and require explicit gateway targeting for multi-entry setups if retained
 - [ ] Translate remaining user-facing entity action/service exceptions where Home Assistant surfaces them
-- [ ] Add coverage reporting and target >95% integration-module coverage before a production-ready release candidate
+- [ ] Add/expand diagnostics and redaction unit tests
+- [ ] Expand unit/mocked tests for Config Flow logic, Options logic, inventory persistence and changed-IP identity without requiring a running HA instance
+- [ ] Add coverage reporting and raise code coverage substantially before final integration validation
 
 ## Phase D — protocol evidence and deterministic replay
+
+This phase starts only when real captures are available. No protocol-specific behavior is to be invented merely to complete the codebase.
 
 - [ ] Build a sanitized real-capture fixture corpus grouped by WHO/device/action
 - [ ] Add deterministic raw frame -> parsed frame -> normalized event -> entity state replay tests
@@ -174,7 +174,22 @@ A separate low-level transport rewrite is not a goal. The focused adapter now ow
 - [ ] Define typed measurements and Home Assistant device/state classes
 - [ ] Implement production energy entities only after units/dimensions/counters are confirmed
 
-## Phase F — release/readiness
+## Phase F — final Home Assistant and hardware validation
+
+This is the first phase that requires an actual Home Assistant environment and, for hardware checks, the real MH201 installation. The automated code/CI work should be substantially complete before entering it.
+
+### Home Assistant integration-level validation
+
+- [ ] Full Config Flow tests using Home Assistant flow machinery: success, connection failure/recovery, invalid credentials, SSDP, duplicate entry, migration and changed-IP identity behavior
+- [ ] Full Options Flow tests using Home Assistant flow machinery: active scan, passive learning, manual registration, selection, removal and persistence
+- [ ] Setup / unload / reload / restart tests using a real Home Assistant test instance
+- [ ] Entity lifecycle tests for every exposed platform
+- [ ] Entity and Device Registry tests for stable identifiers, hub linkage and explicit removal
+- [ ] Availability loss/recovery tests through Home Assistant state machinery
+- [ ] Dynamic device add/remove tests through Home Assistant entity platforms
+- [ ] Confirm diagnostics/redaction behavior in Home Assistant
+
+### Installation and MH201 validation
 
 - [x] Synchronize README with the 0.2.0 implementation
 - [x] Document native SSDP, stable identity and migration behavior
@@ -191,4 +206,4 @@ A separate low-level transport rewrite is not a goal. The focused adapter now ow
 
 ## 0.2.0 release boundary
 
-0.2.0 is an architecture/runtime milestone, not a declaration that every protocol surface is hardware-validated. It is appropriate as a tagged development release because repository structure, compatibility CI, gateway recovery, native discovery and migration semantics form a coherent baseline. Post-0.2.0 `master` advances that baseline toward Home Assistant integration-level robustness; the next release boundary will be chosen only after Phase C has materially progressed and remains green.
+0.2.0 is an architecture/runtime milestone, not a declaration that every protocol surface is hardware-validated. It is appropriate as a tagged development release because repository structure, compatibility CI, gateway recovery, native discovery and migration semantics form a coherent baseline. Post-0.2.0 `master` now prioritizes finishing the software surface without requiring a local Home Assistant instance; final Home Assistant and MH201 validation is intentionally deferred until the end of the project.
