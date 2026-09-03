@@ -12,10 +12,17 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlowResult
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.selector import (
+    BooleanSelector,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
 )
 
 if TYPE_CHECKING:
@@ -41,8 +48,15 @@ from .gateway import (
     BticinoGatewayAuthError,
     BticinoGatewayError,
 )
+from .protocol.thermoregulation import (
+    CLIMATE_PROFILE_COOLING,
+    CLIMATE_PROFILE_HEATING,
+    CLIMATE_PROFILE_HEATING_COOLING,
+)
 
 _LOGGER = logging.getLogger(__name__)
+_CONF_CLEAR_PASSWORD = "clear_password"
+_CONF_CLIMATE_PROFILE = "climate_profile"
 
 
 class BticinoMyHomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -173,8 +187,8 @@ class BticinoMyHomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(
                         CONF_GATEWAY_PORT, default=gateway_info.port
-                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
-                    vol.Optional(CONF_GATEWAY_PASSWORD, default=""): str,
+                    ): _number_selector(1, 65535),
+                    vol.Optional(CONF_GATEWAY_PASSWORD, default=""): _password_selector(),
                 }
             ),
             errors=errors,
@@ -211,7 +225,11 @@ class BticinoMyHomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=vol.Schema(
-                {vol.Required(CONF_GATEWAY_PASSWORD, default=""): str}
+                {
+                    vol.Required(
+                        CONF_GATEWAY_PASSWORD, default=""
+                    ): _password_selector()
+                }
             ),
             errors=errors,
             description_placeholders={
@@ -227,10 +245,7 @@ class BticinoMyHomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             host = str(user_input[CONF_GATEWAY_HOST]).strip()
             port = int(user_input[CONF_GATEWAY_PORT])
-            password_input = str(user_input.get(CONF_GATEWAY_PASSWORD, ""))
-            password = password_input or str(
-                entry.data.get(CONF_GATEWAY_PASSWORD, "")
-            )
+            password = _resolve_reconfigure_password(entry, user_input)
             discovered = await BticinoDiscovery.discover_gateway(host, timeout=3)
             candidate = (
                 replace(discovered, port=port)
@@ -242,9 +257,7 @@ class BticinoMyHomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             elif self._identity_owned_by_other_entry(entry, candidate):
                 errors["base"] = "already_configured"
             else:
-                gateway_info = _gateway_with_entry_metadata(
-                    entry, candidate
-                )
+                gateway_info = _gateway_with_entry_metadata(entry, candidate)
                 try:
                     await self._async_test_gateway(gateway_info, password)
                 except BticinoGatewayAuthError:
@@ -282,6 +295,7 @@ class BticinoMyHomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 host=str(entry.data[CONF_GATEWAY_HOST]),
                 port=int(entry.data.get(CONF_GATEWAY_PORT, DEFAULT_PORT)),
                 password="",
+                allow_clear_password=True,
             ),
             errors=errors,
         )
@@ -415,10 +429,12 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
                             mode=SelectSelectorMode.DROPDOWN,
                         )
                     ),
-                    vol.Optional("include_scenarios", default=False): bool,
-                    vol.Optional("discovery_listen_seconds", default=3): vol.All(
-                        vol.Coerce(int), vol.Range(min=0, max=60)
-                    ),
+                    vol.Optional(
+                        "include_scenarios", default=False
+                    ): BooleanSelector(),
+                    vol.Optional(
+                        "discovery_listen_seconds", default=3
+                    ): _number_selector(0, 60),
                 }
             ),
         )
@@ -431,9 +447,9 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
                 step_id="passive_learning",
                 data_schema=vol.Schema(
                     {
-                        vol.Required("listen_seconds", default=20): vol.All(
-                            vol.Coerce(int), vol.Range(min=5, max=120)
-                        )
+                        vol.Required(
+                            "listen_seconds", default=20
+                        ): _number_selector(5, 120)
                     }
                 ),
             )
@@ -442,7 +458,7 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
             return self.async_abort(reason="cannot_connect")
         try:
             found = await BticinoDiscovery(runtime.gateway).async_passive_listen(
-                user_input["listen_seconds"]
+                int(user_input["listen_seconds"])
             )
         except BticinoGatewayError as err:
             _LOGGER.warning("Passive BTicino learning failed: %s", err)
@@ -492,8 +508,8 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
             return self.async_abort(reason="cannot_connect")
         try:
             found = await BticinoDiscovery(runtime.gateway).async_run_full_scan(
-                include_scenarios=user_input.get("include_scenarios", False),
-                listen_seconds=user_input.get("discovery_listen_seconds", 3),
+                include_scenarios=bool(user_input.get("include_scenarios", False)),
+                listen_seconds=int(user_input.get("discovery_listen_seconds", 3)),
             )
         except BticinoGatewayError as err:
             _LOGGER.warning("BTicino discovery failed: %s", err)
@@ -516,12 +532,16 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
             runtime = self.config_entry.runtime_data
             if runtime is None:
                 return self.async_abort(reason="cannot_connect")
+            climate_profile = user_input.get(_CONF_CLIMATE_PROFILE)
             try:
                 device = BticinoDiscovery.from_manual(
                     who=str(user_input["who"]),
                     where=str(user_input["where"]),
                     device_type=str(user_input["device_type"]),
                     name=str(user_input.get("name", "")) or None,
+                    climate_profile=(
+                        str(climate_profile) if climate_profile is not None else None
+                    ),
                 )
             except ValueError:
                 errors["base"] = "invalid_device"
@@ -533,8 +553,8 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
             step_id="manual_device",
             data_schema=vol.Schema(
                 {
-                    vol.Required("who"): str,
-                    vol.Required("where"): str,
+                    vol.Required("who"): TextSelector(),
+                    vol.Required("where"): TextSelector(),
                     vol.Required("device_type"): SelectSelector(
                         SelectSelectorConfig(
                             options=[
@@ -552,7 +572,18 @@ class BticinoMyHomeOptionsFlow(config_entries.OptionsFlow):
                             mode=SelectSelectorMode.DROPDOWN,
                         )
                     ),
-                    vol.Optional("name", default=""): str,
+                    vol.Optional(_CONF_CLIMATE_PROFILE): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                CLIMATE_PROFILE_HEATING,
+                                CLIMATE_PROFILE_COOLING,
+                                CLIMATE_PROFILE_HEATING_COOLING,
+                            ],
+                            translation_key="climate_profile",
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                    vol.Optional("name", default=""): TextSelector(),
                 }
             ),
             errors=errors,
@@ -618,19 +649,34 @@ def _gateway_form_schema(
     host: str | None = None,
     port: int = DEFAULT_PORT,
     password: str = "",
+    allow_clear_password: bool = False,
 ) -> vol.Schema:
     host_marker = vol.Required(CONF_GATEWAY_HOST)
     if host is not None:
         host_marker = vol.Required(CONF_GATEWAY_HOST, default=host)
-    return vol.Schema(
-        {
-            host_marker: str,
-            vol.Required(CONF_GATEWAY_PORT, default=port): vol.All(
-                vol.Coerce(int), vol.Range(min=1, max=65535)
-            ),
-            vol.Optional(CONF_GATEWAY_PASSWORD, default=password): str,
-        }
+    schema: dict[vol.Marker, Any] = {
+        host_marker: TextSelector(),
+        vol.Required(CONF_GATEWAY_PORT, default=port): _number_selector(1, 65535),
+        vol.Optional(CONF_GATEWAY_PASSWORD, default=password): _password_selector(),
+    }
+    if allow_clear_password:
+        schema[vol.Optional(_CONF_CLEAR_PASSWORD, default=False)] = BooleanSelector()
+    return vol.Schema(schema)
+
+
+def _number_selector(minimum: float, maximum: float) -> NumberSelector:
+    return NumberSelector(
+        NumberSelectorConfig(
+            min=minimum,
+            max=maximum,
+            step=1,
+            mode=NumberSelectorMode.BOX,
+        )
     )
+
+
+def _password_selector() -> TextSelector:
+    return TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
 
 
 def _device_selector(options: dict[str, str]) -> SelectSelector:
@@ -644,6 +690,15 @@ def _device_selector(options: dict[str, str]) -> SelectSelector:
             mode=SelectSelectorMode.LIST,
         )
     )
+
+
+def _resolve_reconfigure_password(
+    entry: ConfigEntry, user_input: dict[str, Any]
+) -> str:
+    if bool(user_input.get(_CONF_CLEAR_PASSWORD, False)):
+        return ""
+    password_input = str(user_input.get(CONF_GATEWAY_PASSWORD, ""))
+    return password_input or str(entry.data.get(CONF_GATEWAY_PASSWORD, ""))
 
 
 def _gateway_from_entry(entry: ConfigEntry) -> DiscoveredGateway:
