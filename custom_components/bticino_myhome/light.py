@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import BticinoEntity
-from .protocol import light_off, light_on
+from .protocol import build_status_request, light_off, light_on
 
 
 class BticinoLight(BticinoEntity, LightEntity):
@@ -17,6 +17,14 @@ class BticinoLight(BticinoEntity, LightEntity):
 
     _attr_color_mode = ColorMode.ONOFF
     _attr_supported_color_modes: ClassVar[set[ColorMode]] = {ColorMode.ONOFF}
+
+    async def async_added_to_hass(self) -> None:
+        """Request initial state from the bus when entity is added."""
+        await super().async_added_to_hass()
+        # Send status request to populate real state instead of optimistic False
+        await self._gateway.async_send(
+            build_status_request(self._device.who, self._device.address)
+        )
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await light_on(self._gateway, self._device.who, self._device.address)
