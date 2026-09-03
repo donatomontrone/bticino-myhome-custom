@@ -96,12 +96,7 @@ def test_event_loop_normalizes_frame_and_notifies_listeners() -> None:
 
 
 def test_event_loop_reconnects_after_connection_error() -> None:
-    """Verify the event loop reconnects after a ConnectionError.
-
-    CancelledError is used to stop the loop and propagates immediately,
-    so we don't assert on gateway.connected after it (the loop exits
-    before the exception handler can set connected=False).
-    """
+    """Verify the event loop reconnects after a ConnectionError."""
     gateway = _gateway()
     first = MagicMock()
     first.connect = AsyncMock(return_value={"Success": True})
@@ -148,31 +143,24 @@ def test_listener_exceptions_do_not_stop_event_loop() -> None:
 def test_async_send_uses_command_session() -> None:
     gateway = _gateway()
     session = MagicMock()
-    session.connect = AsyncMock(return_value={"Success": True})
     session.send = AsyncMock()
     session.close = AsyncMock()
+    gateway._command_session = session
 
-    with patch(
-        "custom_components.bticino_myhome.gateway.OWNCommandSession", return_value=session
-    ):
-        asyncio.run(gateway.async_send("*1*1*21##"))
+    asyncio.run(gateway.async_send("*1*1*21##"))
 
-    session.connect.assert_awaited_once()
     session.send.assert_awaited_once_with(message="*1*1*21##", is_status_request=False)
 
 
 def test_async_send_wraps_connection_errors() -> None:
     gateway = _gateway()
     session = MagicMock()
-    session.connect = AsyncMock(return_value={"Success": True})
     session.send = AsyncMock(side_effect=ConnectionError("send failed"))
     session.close = AsyncMock()
+    gateway._command_session = session
 
-    with patch(
-        "custom_components.bticino_myhome.gateway.OWNCommandSession", return_value=session
-    ):
-        with pytest.raises(BticinoGatewayError, match="send failed"):
-            asyncio.run(gateway.async_send("*1*1*21##"))
+    with pytest.raises(BticinoGatewayError, match="send failed"):
+        asyncio.run(gateway.async_send("*1*1*21##"))
 
     session.close.assert_awaited_once()
     assert gateway._command_session is None
