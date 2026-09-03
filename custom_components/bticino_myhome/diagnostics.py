@@ -6,16 +6,26 @@ from typing import Any, cast
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.redact_data import async_redact_data
 
-from .const import CONF_GATEWAY_HOST, CONF_GATEWAY_PASSWORD
+from .const import (
+    CONF_GATEWAY_HOST,
+    CONF_GATEWAY_ID,
+    CONF_GATEWAY_PASSWORD,
+    CONF_GATEWAY_UDN,
+)
 from .data import BticinoConfigEntry
 
 TO_REDACT = {
     CONF_GATEWAY_PASSWORD,
     CONF_GATEWAY_HOST,
+    CONF_GATEWAY_ID,
+    CONF_GATEWAY_UDN,
+    "udn",
+    "uuid",
     "serial",
     "serialNumber",
     "mac",
     "macAddress",
+    "name",
 }
 
 
@@ -30,7 +40,6 @@ async def async_get_config_entry_diagnostics(
     data = {
         "config_entry": {
             "entry_id": entry.entry_id,
-            "title": entry.title,
             "version": entry.version,
             "minor_version": entry.minor_version,
         },
