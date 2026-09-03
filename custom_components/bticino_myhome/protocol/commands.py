@@ -14,8 +14,11 @@ def build_dimension_request(who: str, where: str, dimension: str) -> str:
     return f"*#{who}*{where}*{dimension}##"
 
 
-def build_dimension_write(who: str, where: str, dimension: str, value: str) -> str:
-    return f"*#{who}*{where}*#{dimension}*{value}##"
+def build_dimension_write(
+    who: str, where: str, dimension: str, value: str, *values: str
+) -> str:
+    payload = "*".join((str(value), *(str(item) for item in values)))
+    return f"*#{who}*{where}*#{dimension}*{payload}##"
 
 
 def light_on(where: str) -> str:

@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .frame import OpenWebNetFrame
+from .thermoregulation import THERMOREGULATION_STATE_MAP
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,22 +59,7 @@ _STATE_MAP = {
     "1": {"0": "off", "1": "on"},
     "2": {"0": "stopped", "1": "opening", "2": "closing"},
     "3": {"0": "off", "1": "on"},
-    "4": {
-        "0": "cool",
-        "1": "heat",
-        "102": "eco",
-        "202": "eco",
-        "302": "eco",
-        "103": "off",
-        "203": "off",
-        "303": "off",
-        "110": "heat",
-        "210": "cool",
-        "310": "auto",
-        "111": "auto",
-        "211": "auto",
-        "311": "auto",
-    },
+    "4": THERMOREGULATION_STATE_MAP,
     "5": {
         "0": "disarmed",
         "1": "armed_away",

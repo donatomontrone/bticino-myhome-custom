@@ -27,6 +27,11 @@ from .gateway import (
     BticinoGatewayError,
 )
 from .protocol import NormalizedEvent, build_status_request, normalize_frame, parse_frame
+from .protocol.thermoregulation import (
+    CLIMATE_PROFILES,
+    capabilities_for_climate_profile,
+    capabilities_for_thermoregulation_state,
+)
 
 _LOGGER = logging.getLogger(__name__)
 _ADDRESS_RANGE = range(1, 100)
@@ -118,10 +123,19 @@ class DiscoveredDevice:
 
     @classmethod
     def from_manual(
-        cls, who: str, where: str, device_type: str, name: str = ""
+        cls,
+        who: str,
+        where: str,
+        device_type: str,
+        name: str = "",
+        climate_profile: str | None = None,
     ) -> DiscoveredDevice:
         return BticinoDiscovery.from_manual(
-            who=who, where=where, device_type=device_type, name=name
+            who=who,
+            where=where,
+            device_type=device_type,
+            name=name,
+            climate_profile=climate_profile,
         )
 
 
@@ -162,6 +176,7 @@ class BticinoDiscovery:
         where: str,
         device_type: str | None = None,
         name: str | None = None,
+        climate_profile: str | None = None,
     ) -> DiscoveredDevice:
         who = str(who).strip()
         where = str(where).strip()
@@ -175,8 +190,22 @@ class BticinoDiscovery:
         if allowed is not None and dtype not in allowed:
             raise ValueError(f"Device type {dtype!r} is not valid for WHO={who}")
         capabilities = mapped_capabilities
+        extra: dict[str, Any] = {"discovery": DiscoverySource.MANUAL.value}
         if who == WHO_VIDEO_DOOR_ENTRY and dtype == "door_lock":
             capabilities = ("lock",)
+        if (
+            who == WHO_THERMOREGULATION
+            and dtype == "climate"
+            and climate_profile is not None
+        ):
+            profile = str(climate_profile).strip()
+            if profile not in CLIMATE_PROFILES:
+                raise ValueError(f"Unsupported climate profile: {profile}")
+            capabilities = (
+                *mapped_capabilities,
+                *capabilities_for_climate_profile(profile),
+            )
+            extra["climate_profile"] = profile
         return DiscoveredDevice(
             who=who,
             where=where,
@@ -184,7 +213,7 @@ class BticinoDiscovery:
             name=name or cls.default_name(dtype, where),
             source=DiscoverySource.MANUAL.value,
             capabilities=tuple(capabilities),
-            extra={"discovery": DiscoverySource.MANUAL.value},
+            extra=extra,
         )
 
     async def async_passive_listen(
@@ -264,14 +293,20 @@ class BticinoDiscovery:
         mapped = cls._TYPE_MAP.get(event.who)
         if mapped is None:
             return None
-        dtype, capabilities = mapped
+        dtype, base_capabilities = mapped
+        capabilities = tuple(base_capabilities)
+        if event.who == WHO_THERMOREGULATION:
+            capabilities = (
+                *capabilities,
+                *capabilities_for_thermoregulation_state(event.state),
+            )
         return DiscoveredDevice(
             who=event.who,
             where=event.where,
             device_type=dtype,
             name=cls.default_name(dtype, event.where),
             source=source.value,
-            capabilities=tuple(capabilities),
+            capabilities=tuple(dict.fromkeys(capabilities)),
             extra={
                 "discovery": source.value,
                 "what": event.what,
@@ -302,6 +337,13 @@ class BticinoDiscovery:
         existing = self._found.get(device.key)
         if existing is None:
             self._found[device.key] = device
+            return
+        merged_capabilities = tuple(
+            dict.fromkeys((*existing.capabilities, *device.capabilities))
+        )
+        if merged_capabilities != existing.capabilities:
+            existing.capabilities = merged_capabilities
+        existing.extra.update(device.extra)
 
     def _sorted_found(
         self, *, include_scenarios: bool = True

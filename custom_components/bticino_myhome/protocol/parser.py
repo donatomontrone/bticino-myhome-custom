@@ -6,7 +6,7 @@ import re
 from .frame import OpenWebNetFrame
 
 _STANDARD_RE = re.compile(
-    r"^\*(?P<who>[^*#]+)\*(?P<what>[^*#]+)\*(?P<where>[^#]+)##$"
+    r"^\*(?P<who>[^*#]+)\*(?P<what>[^*#]+)\*(?P<where>[^*]+)##$"
 )
 
 
